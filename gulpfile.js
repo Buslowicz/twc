@@ -8,7 +8,9 @@ const rename = require("gulp-rename");
 const transform = require("gulp-transform");
 const runSequence = require("run-sequence");
 
-const TSConfig = require("./tsconfig.json");
+const CWD = process.cwd();
+
+const TSConfig = require(path.resolve(CWD, "./tsconfig.json"));
 const TSOptions = Object.assign({}, TSConfig.compilerOptions, {
   // noEmitHelpers: true,
   noEmit: false,
@@ -18,21 +20,21 @@ const TSOptions = Object.assign({}, TSConfig.compilerOptions, {
 const es6Project = ts.createProject(Object.assign({}, TSOptions, {target: "es2015"}));
 const es5Project = ts.createProject(Object.assign({}, TSOptions, {target: "es5"}));
 
-const dest = TSConfig.compilerOptions.outDir;
+const dist = TSConfig.compilerOptions.outDir;
 const src = TSConfig.files;
 const include = TSConfig.include;
 
 function buildConfig(projectConfig, dest) {
   const project = gulp.src(include.concat(src)).pipe(projectConfig());
   if (dest) {
-    return project.pipe(gulp.dest(path.join(dest, dest)));
+    return project.pipe(gulp.dest(path.join(CWD, dist, dest)));
   }
   else {
     return project;
   }
 }
 
-gulp.task("clean", done => del([path.join(dest, "**")], done));
+gulp.task("clean", done => del([path.join(CWD, dist, "**")], done));
 
 gulp.task("lint", () => gulp.src(include.concat(src)).pipe(tslint({formatter: "prose"})).pipe(tslint.report()));
 
@@ -62,7 +64,7 @@ gulp.task("buildHTML", () => {
       );
     }))
     .pipe(rename({extname: ".html"}))
-    .pipe(gulp.dest(path.join(dest, "html")));
+    .pipe(gulp.dest(path.join(CWD, dist, "html")));
 });
 
 gulp.task("buildES5", () => buildConfig(es5Project, "node"));
