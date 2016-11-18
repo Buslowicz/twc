@@ -1,8 +1,11 @@
 {
   "name": "@dracco/ts-component-compiler",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "",
-  "main": "gulpfile.js",
+  "main": "index.js",
+  "bin": {
+    "pcc": "./index.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -15,8 +18,14 @@
     "gulp-transform": "^1.1.0",
     "gulp-tslint": "^6.1.3",
     "gulp-typescript": "^3.1.2",
-    "run-sequence": "^1.2.2",
     "tslint": "^3.15.1",
-    "typescript": "^2.0.9"
+    "typescript": "^2.0.9",
+    "commander": "^2.9.0",
+    "merge2": "latest"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^3.1.2",
+    "ts-node": "^1.7.0"
   }
 }

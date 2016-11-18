@@ -1,14 +1,13 @@
 {
     "compilerOptions": {
+        "noEmit": true,
         "experimentalDecorators": true,
-        "module": "commonjs",
+        "declaration": true,
         "target": "es5",
-        "noImplicitAny": false,
-        "sourceMap": false,
+        "module": "commonjs",
         "lib": [
-            "es6",
-            "es2015",
-            "es2017.object"
+            "dom",
+            "es6"
         ]
     }
 }
