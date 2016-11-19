@@ -21,15 +21,15 @@ describe("PCC", () => {
           { name: "SYMBOLS_BASIC", type: "array", "static": true },
           { name: "SYMBOLS_GREEK", type: "array", "static": true },
           { name: "SYMBOLS_PHYSICS", type: "array", "static": true },
-          { name: "testValue", type: "boolean" },
+          { name: "testValue", type: "object" },
           { name: "value", type: "string" },
           { name: "symbols", type: "array" },
           { name: "showSymbols", type: "string" },
-          { name: "_history", type: "object", "private": true },
-          { name: "_mathField", type: "object", "private": true },
-          { name: "_observerLocked", type: "object", "private": true },
-          { name: "_freezeHistory", type: "object", "private": true },
-          { name: "_editor", type: "object", "private": true }
+          { name: "_history", "private": true },
+          { name: "_mathField", "private": true },
+          { name: "_observerLocked", "private": true },
+          { name: "_freezeHistory", "private": true },
+          { name: "_editor", "private": true }
         ]);
 
         expect(structure.methods).to.deep.equal([

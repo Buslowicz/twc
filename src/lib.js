@@ -126,9 +126,9 @@ function getType(src, from) {
       let end = findClosing(src, complexType.index + 1, "<>");
       let type = src.substr(start, complexType.index - start);
       if (type === "Array") {
-        return { type: "array", end: end.index };
+        return { type: "array", end };
       } else {
-        return { type: "object", end: end.index };
+        return { type: "object", end };
       }
   }
 }
@@ -159,7 +159,7 @@ function parseDTS(dts) {
     // find next non-white characters index
     let from = ptr = regExpIndexOf(dts, /\S/, ptr);
 
-    if (from === "}") {
+    if (dts.charAt(from) === "}") {
       break;
     }
 
@@ -174,34 +174,52 @@ function parseDTS(dts) {
     } else if (stop.found === ";") {
       ptr = stop.index + 2;
     } else {
-      ptr = stop.index + 1;
+      ptr = stop.index;
     }
 
     let props;
     let done = false;
+    let noTypeMethod = false;
+    let name;
+    let modifiers;
 
-    let { name, modifiers } = getPropertyNoType(dts, from, ptr);
     // check if its a method
     switch (stop.found) {
       case "(":
-        let closing = findClosing(dts, ptr + 1, "{}");
+        ({ name, modifiers } = getPropertyNoType(dts, from, ptr + 2));
+        let closing = findClosing(dts, ptr + 1, "()");
+        // TODO: parse props
         props = dts.substr(ptr, closing - ptr);
-        ptr = dts.indexOf(":", closing);
+        let typeStart = dts.indexOf(":", closing) + 1;
+        if (typeStart) {
+          ptr = typeStart;
+        } else {
+          ptr = dts.indexOf(";", ptr);
+          methods.push({ name, modifiers, props });
+          done = true;
+        }
         break;
       case ";":
+        ({ name, modifiers } = getPropertyNoType(dts, from, ptr));
         properties.push({ name, modifiers });
         done = true;
+        break;
+      default:
+        ({ name, modifiers } = getPropertyNoType(dts, from, ptr));
     }
 
     if (done) {
       continue;
     }
 
-    let typeData = getType(dts, ptr);
-    let type = typeData.type;
+    let typeData;
+    let type;
+
+    typeData = getType(dts, ptr);
+    type = typeData.type;
     ptr = dts.indexOf(";", typeData.end);
+
     if (props) {
-      // TODO: parse props
       methods.push({ name, modifiers, type, props });
     } else {
       properties.push({ name, modifiers, type });
