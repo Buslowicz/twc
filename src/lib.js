@@ -133,6 +133,14 @@ function getType(src, from) {
   }
 }
 
+function arrToObject(arr, value = true) {
+  let obj = {};
+  for (let i = 0, l = arr.length; i < l; i++) {
+    obj[arr[i]] = value;
+  }
+  return obj;
+}
+
 exports.parseDTS = parseDTS;
 function parseDTS(dts) {
   let match = dts.match(/[\s\n]class ([\w$_]+)(?:[\s]+extends ([^{]+))?[\s]*\{/);
@@ -179,7 +187,6 @@ function parseDTS(dts) {
 
     let props;
     let done = false;
-    let noTypeMethod = false;
     let name;
     let modifiers;
 
@@ -195,13 +202,13 @@ function parseDTS(dts) {
           ptr = typeStart;
         } else {
           ptr = dts.indexOf(";", ptr);
-          methods.push({ name, modifiers, props });
+          methods.push(Object.assign({}, arrToObject(modifiers), { name, props }));
           done = true;
         }
         break;
       case ";":
         ({ name, modifiers } = getPropertyNoType(dts, from, ptr));
-        properties.push({ name, modifiers });
+        properties.push(Object.assign({}, arrToObject(modifiers), { name }));
         done = true;
         break;
       default:
@@ -220,9 +227,9 @@ function parseDTS(dts) {
     ptr = dts.indexOf(";", typeData.end);
 
     if (props) {
-      methods.push({ name, modifiers, type, props });
+      methods.push(Object.assign({}, arrToObject(modifiers), { name, type, props }));
     } else {
-      properties.push({ name, modifiers, type });
+      properties.push(Object.assign({}, arrToObject(modifiers), { name, type }));
     }
   }
 
