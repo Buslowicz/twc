@@ -10,17 +10,6 @@ const merge = require("merge2");
 
 const CWD = process.cwd();
 
-const METHOD_PARSER = /^([\w\s]*)(?:\s|^)([\w_$]+)\((.*)\)(?:: ?(.*))?;/;
-const PROPERTY_PARSER = /^([\w\s]*)(?:\s|^)([\w_$]+\??)(?:: ?(.*))?;/;
-
-const ALLOWED_METHOD_TYPES = [ "boolean", "date", "number", "string", "void" ];
-const DEFAULT_METHOD_TYPE = "void";
-
-const ALLOWED_PROPERTY_TYPES = [ "boolean", "date", "number", "string" ];
-const DEFAULT_PROPERTY_TYPE = "object";
-
-const ARRAY_REGEXP = /Array|\[]$|^\[.*]$/;
-
 let globalTSConfig;
 let projectTSConfig;
 
@@ -118,7 +107,6 @@ function getType(src, from) {
   let complexType = getClosestIndex(src, start, /;|<|\[/);
   switch (complexType.found) {
     case ";":
-      // TODO: check for specific type, do not allow custom types
       return { type: src.substr(start, complexType.index - start).trim(), end: complexType.index };
     case "[":
       return { type: "array", end: findClosing(src, complexType.index + 1, "[]") };
@@ -136,9 +124,22 @@ function getType(src, from) {
 function arrToObject(arr, value = true) {
   let obj = {};
   for (let i = 0, l = arr.length; i < l; i++) {
-    obj[arr[i]] = value;
+    obj[ arr[ i ] ] = value;
   }
   return obj;
+}
+
+function parseParams(src, from, to) {
+  let params = src.substr(from, to - from).split(/,\s*/);
+  return params.filter(param => !!param).map(param => {
+    let colon = param.indexOf(":");
+    if (colon === -1) {
+      return { name: param };
+    } else {
+      let typeData = getType(`${param};`, colon + 1);
+      return { name: param.substr(0, colon), type: typeData.type };
+    }
+  });
 }
 
 exports.parseDTS = parseDTS;
@@ -185,7 +186,7 @@ function parseDTS(dts) {
       ptr = stop.index;
     }
 
-    let props;
+    let params;
     let done = false;
     let name;
     let modifiers;
@@ -196,13 +197,13 @@ function parseDTS(dts) {
         ({ name, modifiers } = getPropertyNoType(dts, from, ptr + 2));
         let closing = findClosing(dts, ptr + 1, "()");
         // TODO: parse props
-        props = dts.substr(ptr, closing - ptr);
+        params = parseParams(dts, ptr + 1, closing - 1);
         let typeStart = dts.indexOf(":", closing) + 1;
         if (typeStart) {
           ptr = typeStart;
         } else {
           ptr = dts.indexOf(";", ptr);
-          methods.push(Object.assign({}, arrToObject(modifiers), { name, props }));
+          methods.push(Object.assign({}, arrToObject(modifiers), { name, params }));
           done = true;
         }
         break;
@@ -226,8 +227,8 @@ function parseDTS(dts) {
     type = typeData.type;
     ptr = dts.indexOf(";", typeData.end);
 
-    if (props) {
-      methods.push(Object.assign({}, arrToObject(modifiers), { name, type, props }));
+    if (params) {
+      methods.push(Object.assign({}, arrToObject(modifiers), { name, type, params }));
     } else {
       properties.push(Object.assign({}, arrToObject(modifiers), { name, type }));
     }

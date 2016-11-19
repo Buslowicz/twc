@@ -33,39 +33,63 @@ describe("PCC", () => {
         ]);
 
         expect(structure.methods).to.deep.equal([
-          { name: "created", type: "void", params: [] },
-          { name: "ready", type: "void", params: [] },
           {
-            name: "cmd", type: "void", params: [
-            { name: "ev", type: "object" }
-          ]
-          },
-          { name: "undo", type: "void", params: [] },
-          {
-            name: "valueChanged", type: "void", params: [
-            { name: "value", type: "string" },
-            { name: "prevValue", type: "string" }
-          ]
+            name: "created",
+            type: "void",
+            params: []
           },
           {
-            name: "symbolsChanged", type: "void", params: [
-            { name: "symbols", type: "string" }
-          ]
+            name: "ready",
+            type: "void",
+            params: []
           },
           {
-            name: "keyShortcuts", type: "void", params: [
-            { name: "ev", type: "object" }
-          ]
+            name: "cmd",
+            type: "void",
+            params: [
+              { name: "ev", type: "PolymerEvent" }
+            ]
           },
           {
-            name: "_updateValue", type: "void", params: [
-            { name: "test", type: "boolean" }
-          ]
+            name: "undo",
+            type: "void",
+            params: []
           },
           {
-            name: "_updateHistory", type: "void", params: [
-            { name: "prevValue", type: "object" }
-          ], "private": true
+            name: "valueChanged",
+            type: "array",
+            params: [
+              { name: "value", type: "string" },
+              { name: "prevValue", type: "string" }
+            ]
+          },
+          {
+            name: "symbolsChanged",
+            type: "void",
+            params: [
+              { name: "symbols", type: "string" }
+            ]
+          },
+          {
+            name: "keyShortcuts",
+            type: "void",
+            params: [
+              { name: "ev", type: "KeyboardEvent" }
+            ]
+          },
+          {
+            name: "_updateValue",
+            type: "void",
+            params: [
+              { name: "test", type: "object" }
+            ]
+          },
+          {
+            name: "_updateHistory",
+            params: [
+              { name: "prevValue" }
+            ],
+            "private": true
           }
         ]);
       });
