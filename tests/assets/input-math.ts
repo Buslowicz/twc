@@ -96,7 +96,7 @@ class InputMath extends polymer.Base {
   }
 
   @observe("value")
-  valueChanged(value: string, prevValue: string): void {
+  valueChanged(value: string, prevValue: string): Array<{test: boolean}> {
     this._updateHistory(prevValue);
 
     if (this._observerLocked) {
@@ -113,7 +113,7 @@ class InputMath extends polymer.Base {
   symbolsChanged(symbols: string): void {
     if (symbols) {
       this.symbols = symbols.split(",").map(groupName => {
-        return InputMath[ `SYMBOLS_${groupName.toUpperCase()}` ] || [];
+        return InputMath[ "SYMBOLS_" + groupName.toUpperCase() ] || [];
       });
     }
   }
@@ -125,7 +125,7 @@ class InputMath extends polymer.Base {
     }
   }
 
-  _updateValue(test: {a: boolean, b: any}): void {
+  _updateValue(test: {a: () => void, b: any}): void {
     console.log(test);
     this._observerLocked = true;
     this.value = this._mathField.latex();

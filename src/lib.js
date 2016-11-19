@@ -13,10 +13,10 @@ const CWD = process.cwd();
 const METHOD_PARSER = /^([\w\s]*)(?:\s|^)([\w_$]+)\((.*)\)(?:: ?(.*))?;/;
 const PROPERTY_PARSER = /^([\w\s]*)(?:\s|^)([\w_$]+\??)(?:: ?(.*))?;/;
 
-const ALLOWED_METHOD_TYPES = ["boolean", "date", "number", "string", "void"];
+const ALLOWED_METHOD_TYPES = [ "boolean", "date", "number", "string", "void" ];
 const DEFAULT_METHOD_TYPE = "void";
 
-const ALLOWED_PROPERTY_TYPES = ["boolean", "date", "number", "string"];
+const ALLOWED_PROPERTY_TYPES = [ "boolean", "date", "number", "string" ];
 const DEFAULT_PROPERTY_TYPE = "object";
 
 const ARRAY_REGEXP = /Array|\[]$|^\[.*]$/;
@@ -44,115 +44,171 @@ function init({
   project = ts.createProject(Object.assign({},
     globalConfig.compilerOptions,
     projectConfig.compilerOptions,
-    {noEmit: false}
+    { noEmit: false }
   ));
 }
 
 exports.clean = clean;
 function clean() {
-  return del([dest]);
+  return del([ dest ]);
 }
 
 exports.lint = lint;
 function lint() {
   return new Promise((resolve, reject) => gulp
     .src(srcs)
-    .pipe(tslint({formatter: "prose"}))
+    .pipe(tslint({ formatter: "prose" }))
     .pipe(tslint.report())
     .on("end", resolve)
     .on("error", reject));
 }
 
-function parseProperty(line, properties = []) {
-  let [, modifiers, property, type = DEFAULT_PROPERTY_TYPE] = PROPERTY_PARSER.exec(line) || [];
-  if (!property) {
-    return false;
+function getClosestIndex(src, start, chars = /;|:|\(/) {
+  while (true) {
+    let match = src.charAt(start).match(chars);
+    if (!match) {
+      start++;
+      continue;
+    }
+    return { index: start, found: match[ 0 ] };
   }
-  let propertyConfig = {
-    name: property,
-    type: ALLOWED_PROPERTY_TYPES.indexOf(type) !== -1 ? type : ARRAY_REGEXP.test(type) ? 'array' : DEFAULT_PROPERTY_TYPE
-  };
-
-  modifiers
-    .split(/\s/)
-    .filter(modifier => !!modifier)
-    .forEach(modifier => propertyConfig[modifier] = true);
-
-  properties.push(propertyConfig);
-  return true;
 }
 
-function parseMethod(line, methods = []) {
-  let [, modifiers, method, params, type] = METHOD_PARSER.exec(line) || [];
-  if (!method) {
-    return false;
+function findClosing(src, start, brackets) {
+  let opened = 1;
+  while (opened > 0) {
+    switch (src.charAt(start)) {
+      case brackets[ 0 ]:
+        opened++;
+        break;
+      case brackets[ 1 ]:
+        opened--;
+        break;
+    }
+    start++;
   }
-  let paramsList = [];
-  params.split(/,\s*/).forEach(param => parseProperty(`${param};`, paramsList));
+  return start;
+}
 
-  let methodConfig = {
-    name: method,
-    type: ALLOWED_METHOD_TYPES.indexOf(type) !== -1 ? type : ARRAY_REGEXP.test(type) ? 'array' : DEFAULT_METHOD_TYPE,
-    params: paramsList
-  };
+function regExpIndexOf(src, match, start) {
+  let char;
+  while ((char = src.charAt(start))) {
+    if (match.test(char)) {
+      return start;
+    }
+    start++;
+  }
+}
 
-  // abstract, get, set, public, protected, private, static
-  modifiers
-    .split(/\s/)
-    .filter(modifier => !!modifier)
-    .forEach(modifier => methodConfig[modifier] = true);
+function getPropertyNoType(src, from, to) {
+  let [...modifiers] = src.substr(from, to - from - 2).split(" ");
+  let name = modifiers.pop();
+  return { name, modifiers };
+}
 
-  methods.push(methodConfig);
-  return true;
+function getType(src, from) {
+  let start = regExpIndexOf(src, /\S/, from);
+  switch (src.charAt(start)) {
+    case "{":
+      return { type: "object", end: findClosing(src, start + 1, "{}") };
+    case "[":
+      return { type: "array", end: findClosing(src, start + 1, "[]") };
+  }
+
+  let complexType = getClosestIndex(src, start, /;|<|\[/);
+  switch (complexType.found) {
+    case ";":
+      // TODO: check for specific type, do not allow custom types
+      return { type: src.substr(start, complexType.index - start).trim(), end: complexType.index };
+    case "[":
+      return { type: "array", end: findClosing(src, complexType.index + 1, "[]") };
+    case "<":
+      let end = findClosing(src, complexType.index + 1, "<>");
+      let type = src.substr(start, complexType.index - start);
+      if (type === "Array") {
+        return { type: "array", end: end.index };
+      } else {
+        return { type: "object", end: end.index };
+      }
+  }
 }
 
 exports.parseDTS = parseDTS;
 function parseDTS(dts) {
-  let properties = [];
-  let methods = [];
-  let className;
-  let lines = dts.split('\n');
-  let openBrackets = -1;
-  let done = 0;
-  for (let _i = 0, _l1 = lines.length, line = lines[_i]; _i < _l1; line = lines[++_i]) {
-    for (let _j = 0, _l2 = line.length, char = line.charAt(_j); _j < _l2; char = line.charAt(++_j)) {
-      if (openBrackets === -1) {
-        let i = line.indexOf(" class ");
-        if (i >= 0) {
-          [, className] = /class ([\w_$]+)/.exec(line) || [];
-          openBrackets = 0;
-          _j = i + 7;
-          continue;
-        } else {
-          break;
-        }
-      }
+  let match = dts.match(/[\s\n]class ([\w$_]+)(?:[\s]+extends ([^{]+))?[\s]*\{/);
+  if (!match) {
+    return {};
+  }
 
-      if (char === "{") {
-        openBrackets++;
-      } else if (char === "}") {
-        openBrackets--;
+  const className = match[ 1 ];
+  const parent = match[ 2 ];
 
-        if (openBrackets === 0) {
-          done = 1;
-          break;
-        }
-      }
-    }
+  const properties = [];
+  const methods = [];
 
-    if (done) {
+  let start = match.index + match[ 0 ].length;
+
+  for (
+    // predefining
+    let ptr = start, end = dts.length, char = dts.charAt(ptr), left = 1;
+    // condition
+    left > 0 && ptr < end;
+    // post-actions
+    char = dts.charAt(++ptr)
+  ) {
+    // find next non-white characters index
+    let from = ptr = regExpIndexOf(dts, /\S/, ptr);
+
+    if (from === "}") {
       break;
     }
 
-    if (openBrackets <= 0) {
+    // TODO: decorators detection here (startsWith("@", i))
+
+    // get modifiers and prop/method name
+    let stop = getClosestIndex(dts, ptr);
+
+    if (stop.found === ":") {
+      // move pointer to first non-white char after the found index
+      ptr = regExpIndexOf(dts, /\S/, stop.index + 1);
+    } else if (stop.found === ";") {
+      ptr = stop.index + 2;
+    } else {
+      ptr = stop.index + 1;
+    }
+
+    let props;
+    let done = false;
+
+    let { name, modifiers } = getPropertyNoType(dts, from, ptr);
+    // check if its a method
+    switch (stop.found) {
+      case "(":
+        let closing = findClosing(dts, ptr + 1, "{}");
+        props = dts.substr(ptr, closing - ptr);
+        ptr = dts.indexOf(":", closing);
+        break;
+      case ";":
+        properties.push({ name, modifiers });
+        done = true;
+    }
+
+    if (done) {
       continue;
     }
 
-    // the following should be done within line iteration, but i couldn't bother for the prototype, so:
-    // TODO: improve performance
-    parseProperty(line, properties) || parseMethod(line, methods);
+    let typeData = getType(dts, ptr);
+    let type = typeData.type;
+    ptr = dts.indexOf(";", typeData.end);
+    if (props) {
+      // TODO: parse props
+      methods.push({ name, modifiers, type, props });
+    } else {
+      properties.push({ name, modifiers, type });
+    }
   }
-  return {className, properties, methods};
+
+  return { className, parent, properties, methods };
 }
 
 exports.buildHTML = buildHTML;
@@ -191,7 +247,7 @@ function buildHTML() {
             `<script>\n${content}\n</script>`
           );
         }))
-        .pipe(rename({extname: ".html"}))
+        .pipe(rename({ extname: ".html" }))
         .pipe(gulp.dest(dest))
     ])
       .on("end", resolve)
