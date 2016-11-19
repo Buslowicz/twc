@@ -96,6 +96,7 @@ function getPropertyNoType(src, from, to) {
 }
 
 function getType(src, from) {
+  // TODO: recognize combined types (with | and &, like "a"|"b")
   let start = regExpIndexOf(src, /\S/, from);
   switch (src.charAt(start)) {
     case "{":
