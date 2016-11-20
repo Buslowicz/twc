@@ -78,6 +78,7 @@ function getClosestIndex(src, ptr, chars = /;|:|\(/) {
 function findClosing(src, ptr, brackets) {
   let opened = 1;
   while (opened > 0) {
+    ptr++;
     switch (src.charAt(ptr)) {
       case brackets[ 0 ]:
         opened++;
@@ -86,7 +87,6 @@ function findClosing(src, ptr, brackets) {
         opened--;
         break;
     }
-    ptr++;
   }
   return ptr;
 }
@@ -94,52 +94,6 @@ function findClosing(src, ptr, brackets) {
 findClosing.OBJECT = "{}";
 findClosing.ARRAY = "[]";
 findClosing.GENERIC = "<>";
-
-exports.getTypes = getTypes;
-function getTypes(src, start = 0) {
-  let index = start;
-  let types = [];
-  let type;
-  while (true) {
-    switch (src.charAt(index)) {
-      case ";":
-        type = src.slice(start, index).trim();
-        if (type.length > 0) {
-          types.push(type);
-        }
-        return { index, types };
-      case "{":
-        types.push(TYPES.OBJECT);
-        index = findClosing(src, index + 1, findClosing.OBJECT);
-        start = index;
-        break;
-      case "[":
-        types.push(TYPES.ARRAY);
-        index = findClosing(src, index + 1, findClosing.ARRAY);
-        start = index;
-        break;
-      case "<":
-        type = src.slice(start, index).trim();
-        if (type.length > 0) {
-          types.push(type);
-        }
-        index = findClosing(src, index + 1, findClosing.GENERIC);
-        start = index;
-        break;
-      case "|":
-      case "&":
-        type = src.slice(start, index).trim();
-        if (type.length > 0) {
-          types.push(type);
-        }
-        break;
-      case "":
-        return { index: -1, types: types };
-      default:
-        index++;
-    }
-  }
-}
 
 function regExpIndexOf(src, match, ptr) {
   let char;
@@ -176,21 +130,21 @@ function getType(src, from = 0) {
         break;
       case "{":
         types.push(TYPES.OBJECT);
-        index = findClosing(src, index + 1, findClosing.OBJECT);
-        start = index;
+        index = findClosing(src, index, findClosing.OBJECT);
+        start = ++index;
         break;
       case "[":
         types.push(TYPES.ARRAY);
-        index = findClosing(src, index + 1, findClosing.ARRAY);
-        start = index;
+        index = findClosing(src, index, findClosing.ARRAY);
+        start = ++index;
         break;
       case "<":
         type = src.slice(start, index);
         if (type.length > 0) {
           types.push(type);
         }
-        index = findClosing(src, index + 1, findClosing.GENERIC);
-        start = index;
+        index = findClosing(src, index, findClosing.GENERIC);
+        start = ++index;
         break;
       case "|":
       case "&":
@@ -217,6 +171,7 @@ function getType(src, from = 0) {
     if (result !== type) {
       return TYPES.OBJECT
     }
+    return type;
   }, null);
   if (TYPES.IS_PRIMITIVE(type)) {
     type = `${type.charAt(0).toUpperCase()}${type.substr(1)}`;
@@ -298,10 +253,10 @@ function parseDTS(dts) {
     switch (stop.found) {
       case "(":
         ({ name, modifiers } = getPropertyNoType(dts, from, ptr + 2));
-        let closing = findClosing(dts, ptr + 1, "()");
+        let closing = findClosing(dts, ptr, "()");
         // TODO: parse props
-        params = parseParams(dts, ptr + 1, closing - 1);
-        let typeStart = dts.indexOf(":", closing) + 1;
+        params = parseParams(dts, ptr + 1, closing);
+        let typeStart = dts.indexOf(":", closing + 1) + 1;
         if (typeStart) {
           ptr = typeStart;
         } else {

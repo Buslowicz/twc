@@ -5,23 +5,6 @@ const pcc = require("../src/lib");
 
 describe("PCC", () => {
   describe("static analyser", () => {
-    describe("findSemicolon", () => {
-      it("should get position of semicolon in simple declaration", () => {
-        expect(pcc.getTypes("test: number;")).to.equal(12);
-        expect(pcc.getTypes("readonly test: number;")).to.equal(21);
-      });
-      it("should get position of semicolon in complex types", () => {
-        expect(pcc.getTypes("test: Promise<string>;")).to.equal(21);
-        expect(pcc.getTypes("test: string[];")).to.equal(14);
-        expect(pcc.getTypes("test: [string];")).to.equal(14);
-        expect(pcc.getTypes("test: {test: boolean};")).to.equal(21);
-      });
-      it("should ignore semicolons inside objects", () => {
-        expect(pcc.getTypes("test: {a: string; b: number};")).to.equal(28);
-        expect(pcc.getTypes("test: {a: string; b: number;};")).to.equal(29);
-        expect(pcc.getTypes("test: Promise<{a: string; b: number;}>;")).to.equal(38);
-      });
-    });
     describe("typeRecognizer", () => {
       function testSimple(type, expected = type) {
         expect(pcc.getType(`${type};`)).to.deep.equal({type: expected, end: type.length});
@@ -36,7 +19,7 @@ describe("PCC", () => {
         testSimple("Array<string>", "Array");
         testSimple("string[]", "Array");
         testSimple("[string]", "Array");
-//        testSimple("string[][]", "array");  FIXME: end
+        testSimple("string[][]", "Array");
       });
       it("should recognize types with generics", () => {
         testSimple("Promise<string>", "Promise");
