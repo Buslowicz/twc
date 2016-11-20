@@ -34,11 +34,14 @@ describe("PCC", () => {
       });
       it("should recognize combined types", () => {
         testSimple("string|null", "String");
+        testSimple("string | null", "String");
         testSimple("string|number", "Object");
+        testSimple("string | number", "Object");
       });
       it("should recognize fixed string values", () => {
           testSimple(`"yep"`, "String");
           testSimple(`"yep"|"nope"`, "String");
+          testSimple(`"yep" | "nope"`, "String");
       });
     });
     describe("parser", () => {
@@ -48,14 +51,14 @@ describe("PCC", () => {
         expect(structure.className).to.equal("InputMath");
 
         expect(structure.properties).to.deep.equal([
-          { name: "HISTORY_SIZE", type: "number", "static": true },
-          { name: "SYMBOLS_BASIC", type: "array", "static": true },
-          { name: "SYMBOLS_GREEK", type: "array", "static": true },
-          { name: "SYMBOLS_PHYSICS", type: "array", "static": true },
-          { name: "testValue", type: "string" },
-          { name: "value", type: "string" },
-          { name: "symbols", type: "array" },
-          { name: "showSymbols", type: "string" },
+          { name: "HISTORY_SIZE", type: "Number", "static": true },
+          { name: "SYMBOLS_BASIC", type: "Array", "static": true },
+          { name: "SYMBOLS_GREEK", type: "Array", "static": true },
+          { name: "SYMBOLS_PHYSICS", type: "Array", "static": true },
+          { name: "testValue", type: "String" },
+          { name: "value", type: "String" },
+          { name: "symbols", type: "Array" },
+          { name: "showSymbols", type: "String" },
           { name: "_history", "private": true },
           { name: "_mathField", "private": true },
           { name: "_observerLocked", "private": true },
@@ -88,17 +91,17 @@ describe("PCC", () => {
           },
           {
             name: "valueChanged",
-            type: "array",
+            type: "Array",
             params: [
-              { name: "value", type: "string" },
-              { name: "prevValue", type: "string" }
+              { name: "value", type: "String" },
+              { name: "prevValue", type: "String" }
             ]
           },
           {
             name: "symbolsChanged",
             type: "void",
             params: [
-              { name: "symbols", type: "string" }
+              { name: "symbols", type: "String" }
             ]
           },
           {
@@ -112,7 +115,7 @@ describe("PCC", () => {
             name: "_updateValue",
             type: "void",
             params: [
-              { name: "test", type: "object" }
+              { name: "test", type: "Object" }
             ]
           },
           {

@@ -122,7 +122,7 @@ function getType(src, from = 0) {
   while (!done) {
     switch (src.charAt(index)) {
       case ";":
-        type = src.slice(start, index);
+        type = src.slice(start, index).trim();
         if (type.length > 0) {
           types.push(type);
         }
@@ -139,7 +139,7 @@ function getType(src, from = 0) {
         start = ++index;
         break;
       case "<":
-        type = src.slice(start, index);
+        type = src.slice(start, index).trim();
         if (type.length > 0) {
           types.push(type);
         }
