@@ -10,6 +10,17 @@ const merge = require("merge2");
 
 const CWD = process.cwd();
 
+const TYPES = {
+  IS_PRIMITIVE: type => "boolean|number|string|object".indexOf(type) !== -1,
+  IS_IGNORED: type => "void|null|undefined|never".indexOf(type) !== -1,
+  BOOLEAN: "Boolean",
+  NUMBER: "Number",
+  STRING: "String",
+  DATE: "Date",
+  OBJECT: "Object",
+  ARRAY: "Array"
+};
+
 let globalTSConfig;
 let projectTSConfig;
 
@@ -52,21 +63,22 @@ function lint() {
     .on("error", reject));
 }
 
-function getClosestIndex(src, start, chars = /;|:|\(/) {
-  while (true) {
-    let match = src.charAt(start).match(chars);
+function getClosestIndex(src, ptr, chars = /;|:|\(/) {
+  let char;
+  while ((char = src.charAt(ptr))) {
+    let match = char.match(chars);
     if (!match) {
-      start++;
+      ptr++;
       continue;
     }
-    return { index: start, found: match[ 0 ] };
+    return { index: ptr, found: match[ 0 ] };
   }
 }
 
-function findClosing(src, start, brackets) {
+function findClosing(src, ptr, brackets) {
   let opened = 1;
   while (opened > 0) {
-    switch (src.charAt(start)) {
+    switch (src.charAt(ptr)) {
       case brackets[ 0 ]:
         opened++;
         break;
@@ -74,18 +86,68 @@ function findClosing(src, start, brackets) {
         opened--;
         break;
     }
-    start++;
+    ptr++;
   }
-  return start;
+  return ptr;
 }
 
-function regExpIndexOf(src, match, start) {
-  let char;
-  while ((char = src.charAt(start))) {
-    if (match.test(char)) {
-      return start;
+findClosing.OBJECT = "{}";
+findClosing.ARRAY = "[]";
+findClosing.GENERIC = "<>";
+
+exports.getTypes = getTypes;
+function getTypes(src, start = 0) {
+  let index = start;
+  let types = [];
+  let type;
+  while (true) {
+    switch (src.charAt(index)) {
+      case ";":
+        type = src.slice(start, index).trim();
+        if (type.length > 0) {
+          types.push(type);
+        }
+        return { index, types };
+      case "{":
+        types.push(TYPES.OBJECT);
+        index = findClosing(src, index + 1, findClosing.OBJECT);
+        start = index;
+        break;
+      case "[":
+        types.push(TYPES.ARRAY);
+        index = findClosing(src, index + 1, findClosing.ARRAY);
+        start = index;
+        break;
+      case "<":
+        type = src.slice(start, index).trim();
+        if (type.length > 0) {
+          types.push(type);
+        }
+        index = findClosing(src, index + 1, findClosing.GENERIC);
+        start = index;
+        break;
+      case "|":
+      case "&":
+        type = src.slice(start, index).trim();
+        if (type.length > 0) {
+          types.push(type);
+        }
+        break;
+      case "":
+        return { index: -1, types: types };
+      default:
+        index++;
     }
-    start++;
+  }
+}
+
+function regExpIndexOf(src, match, ptr) {
+  let char;
+  while ((char = src.charAt(ptr))) {
+    if (match.test(char)) {
+      return ptr;
+    }
+    ptr++;
   }
 }
 
@@ -95,31 +157,71 @@ function getPropertyNoType(src, from, to) {
   return { name, modifiers };
 }
 
-function getType(src, from) {
-  // TODO: recognize combined types (with | and &, like "a"|"b")
+exports.getType = getType;
+function getType(src, from = 0) {
   let start = regExpIndexOf(src, /\S/, from);
-  switch (src.charAt(start)) {
-    case "{":
-      return { type: "object", end: findClosing(src, start + 1, "{}") };
-    case "[":
-      return { type: "array", end: findClosing(src, start + 1, "[]") };
+  let done = false;
+  let index = start;
+  let types = [];
+  let type;
+
+  while (!done) {
+    switch (src.charAt(index)) {
+      case ";":
+        type = src.slice(start, index);
+        if (type.length > 0) {
+          types.push(type);
+        }
+        done = true;
+        break;
+      case "{":
+        types.push(TYPES.OBJECT);
+        index = findClosing(src, index + 1, findClosing.OBJECT);
+        start = index;
+        break;
+      case "[":
+        types.push(TYPES.ARRAY);
+        index = findClosing(src, index + 1, findClosing.ARRAY);
+        start = index;
+        break;
+      case "<":
+        type = src.slice(start, index);
+        if (type.length > 0) {
+          types.push(type);
+        }
+        index = findClosing(src, index + 1, findClosing.GENERIC);
+        start = index;
+        break;
+      case "|":
+      case "&":
+        type = src.slice(start, index).trim();
+        start = ++index;
+        if (type.length > 0) {
+          types.push(type);
+        }
+        break;
+      case "":
+        return null;
+      default:
+        index++;
+    }
   }
 
-  let complexType = getClosestIndex(src, start, /;|<|\[/);
-  switch (complexType.found) {
-    case ";":
-      return { type: src.substr(start, complexType.index - start).trim(), end: complexType.index };
-    case "[":
-      return { type: "array", end: findClosing(src, complexType.index + 1, "[]") };
-    case "<":
-      let end = findClosing(src, complexType.index + 1, "<>");
-      let type = src.substr(start, complexType.index - start);
-      if (type === "Array") {
-        return { type: "array", end };
-      } else {
-        return { type: "object", end };
-      }
+  type = types.reduce((type, result) => {
+    if (result === TYPES.OBJECT || !type) {
+      return result;
+    }
+    if (TYPES.IS_IGNORED(result)) {
+      return type;
+    }
+    if (result !== type) {
+      return TYPES.OBJECT
+    }
+  }, null);
+  if (TYPES.IS_PRIMITIVE(type)) {
+    type = `${type.charAt(0).toUpperCase()}${type.substr(1)}`;
   }
+  return { type, end: index };
 }
 
 function arrToObject(arr, value = true) {

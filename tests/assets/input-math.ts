@@ -45,10 +45,10 @@ class InputMath extends polymer.Base {
     { cmd: "\\phi", name: "ᶲ", className: "big" }
   ];
 
-  testValue: {test: boolean};
+  testValue: "yep"|"nope";
 
   @property({ type: String, value: "", reflectToAttribute: true })
-  value: string;
+  value: string|null;
 
   @property({
     type: Array, value: (): ICmd[][] => [
