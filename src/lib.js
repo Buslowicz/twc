@@ -146,6 +146,11 @@ function getType(src, from = 0) {
         index = findClosing(src, index, findClosing.GENERIC);
         start = ++index;
         break;
+      case "\"":
+        types.push(TYPES.STRING);
+        index = src.indexOf("\"", index + 1);
+        start = ++index;
+        break;
       case "|":
       case "&":
         type = src.slice(start, index).trim();

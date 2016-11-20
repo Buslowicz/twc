@@ -36,7 +36,10 @@ describe("PCC", () => {
         testSimple("string|null", "String");
         testSimple("string|number", "Object");
       });
-      it("should recognize fixed string values");
+      it("should recognize fixed string values", () => {
+          testSimple(`"yep"`, "String");
+          testSimple(`"yep"|"nope"`, "String");
+      });
     });
     describe("parser", () => {
       it("should recognize types from definition", () => {
