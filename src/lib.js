@@ -114,7 +114,7 @@ function regExpIndexOf(src, ptr, match = /\S/) {
 
 exports.getPropertyNoType = getPropertyNoType;
 function getPropertyNoType(src, from, to) {
-  let [...modifiers] = src.slice(from || 0, to ? to: src.indexOf(";")).split(" ");
+  let [...modifiers] = src.slice(from || 0, to ? to : src.indexOf(";")).split(" ");
   let name = modifiers.pop();
   return { name, modifiers };
 }
@@ -125,10 +125,12 @@ function getType(src, from = 0) {
   let done = false;
   let index = start;
   let types = [];
+  let char;
   let type;
 
-  while (!done) {
-    switch (src.charAt(index)) {
+  while (!done && (char = src.charAt(index))) {
+    switch (char) {
+      case ",":
       case ";":
         type = src.slice(start, index).trim();
         if (type.length > 0) {
@@ -139,11 +141,17 @@ function getType(src, from = 0) {
       case "{":
         types.push(TYPES.OBJECT);
         index = findClosing(src, index, findClosing.OBJECT);
+        if (index === -1) {
+          return { type: null, end: -1 };
+        }
         start = ++index;
         break;
       case "[":
         types.push(TYPES.ARRAY);
         index = findClosing(src, index, findClosing.ARRAY);
+        if (index === -1) {
+          return { type: null, end: -1 };
+        }
         start = ++index;
         break;
       case "<":
@@ -152,6 +160,9 @@ function getType(src, from = 0) {
           types.push(type);
         }
         index = findClosing(src, index, findClosing.GENERIC);
+        if (index === -1) {
+          return { type: null, end: -1 };
+        }
         start = ++index;
         break;
       case "\"":
@@ -202,17 +213,30 @@ function arrToObject(arr, value = true) {
 }
 
 exports.parseParams = parseParams;
-function parseParams(src, from, to) {
-  let params = src.slice(from, to).split(/,\s*/);
-  return params.filter(param => !!param).map(param => {
-    let colon = param.indexOf(":");
-    if (colon === -1) {
-      return { name: param };
-    } else {
-      let typeData = getType(`${param};`, colon + 1);
-      return { name: param.substr(0, colon), type: typeData.type };
+function parseParams(src, from = 0, to = src.length) {
+  let params = [];
+  while (from < to) {
+    let firstStop = regExpClosestIndexOf(src, from, /,|:/);
+    if (firstStop.index === -1) {
+      params.push({ name: src.slice(from, to).trim() });
+      break;
     }
-  });
+    let param = { name: src.slice(from, firstStop.index).trim() };
+
+    if (firstStop.found === ":") {
+      let typeData = getType(src, firstStop.index + 1);
+      if (typeData.type) {
+        param.type = typeData.type;
+      }
+      from = typeData.end + 1;
+    } else {
+      from = firstStop.index + 1;
+    }
+
+    params.push(param);
+  }
+
+  return params;
 }
 
 exports.parseDTS = parseDTS;

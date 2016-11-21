@@ -62,8 +62,8 @@ describe("PCC", () => {
       });
     });
     describe("getType", () => {
-      function testSimple(type, expected = type) {
-        expect(pcc.getType(`${type};`)).to.deep.equal({ type: expected, end: type.length });
+      function testSimple(type, expected = type, end = type.length) {
+        expect(pcc.getType(`${type};`)).to.deep.equal({ type: expected, end });
       }
 
       it("should recognize simple type", () => {
@@ -100,6 +100,9 @@ describe("PCC", () => {
         testSimple(`"yep"|"nope"`, "String");
         testSimple(`"yep" | "nope"`, "String");
       });
+      it("should return type null and index -1 if there was an error parsing the template", () => {
+        testSimple("{test: boolean", null, -1);
+      });
     });
     describe("arrToObject", () => {
       it("should create an object using array values as keys", () => {
@@ -118,7 +121,19 @@ describe("PCC", () => {
         expect(pcc.parseParams("test1, test2").length).to.equal(2);
         expect(pcc.parseParams("test1: number, test2: any").length).to.equal(2);
         expect(pcc.parseParams("test1: {a: number; b: any;}, test2: any").length).to.equal(2);
-//        expect(pcc.parseParams("test1: {a: number, b: any;}, test2: any").length).to.equal(2); FIXME: comma separated args
+        expect(pcc.parseParams("test1: {a: number, b: any;}, test2: any").length).to.equal(2);
+      });
+      it("should recognice name and type of params", () => {
+        expect(pcc.parseParams("test1")).to.deep.equal([ { name: "test1" } ]);
+        expect(pcc.parseParams("test1, test2")).to.deep.equal([ { name: "test1" }, { name: "test2" } ]);
+        expect(pcc.parseParams("test1: number, test2: any")).to.deep.equal([
+          { name: "test1", type: "Number" },
+          { name: "test2" }
+        ]);
+        expect(pcc.parseParams("test1: {a: number; b: any;}, test2: any")).to.deep.equal([
+          { name: "test1", type: "Object" },
+          { name: "test2" }
+        ]);
       });
     });
     describe("parseDTS", () => {
