@@ -5,10 +5,67 @@ const pcc = require("../src/lib");
 
 describe("PCC", () => {
   describe("static analyser", () => {
-    describe("typeRecognizer", () => {
+    describe("findClosing", () => {
+      it("should find the index of a closing bracket", () => {
+        expect(pcc.findClosing("test(...)", 4, "()")).to.equal(8);
+        expect(pcc.findClosing("(...)", 0, "()")).to.equal(4);
+        expect(pcc.findClosing("[...]", 0, "[]")).to.equal(4);
+        expect(pcc.findClosing("{...}", 0, "{}")).to.equal(4);
+        expect(pcc.findClosing("<...>", 0, "<>")).to.equal(4);
+        expect(pcc.findClosing("(.(.).)", 0, "()")).to.equal(6);
+        expect(pcc.findClosing("(.[.].)", 0, "()")).to.equal(6);
+        expect(pcc.findClosing("(.[.].)", 0, "()")).to.equal(6);
+        expect(pcc.findClosing("(.(.).)()", 0, "()")).to.equal(6);
+      });
+      it("should return -1 if no closing bracket was found", () => {
+        expect(pcc.findClosing("(...", 0, "()")).to.equal(-1);
+        expect(pcc.findClosing("...", 0, "()")).to.equal(-1);
+        expect(pcc.findClosing("", 0, "()")).to.equal(-1);
+      });
+    });
+    describe("regExpClosestIndexOf", () => {
+      it("should return index of the first character that matches pattern", () => {
+        expect(pcc.regExpClosestIndexOf("abc", 0, /a|b|c/)).to.deep.equal({ index: 0, found: "a" });
+        expect(pcc.regExpClosestIndexOf("abc", 0, /b|c/)).to.deep.equal({ index: 1, found: "b" });
+        expect(pcc.regExpClosestIndexOf("abc", 0, /c|b/)).to.deep.equal({ index: 1, found: "b" });
+      });
+      it("should return -1 for index and null for value, if nothing is found", () => {
+        expect(pcc.regExpClosestIndexOf("def", 0, /b|c/)).to.deep.equal({ index: -1, found: null });
+      });
+    });
+    describe("regExpIndexOf", () => {
+      it("should return index of the first character that matches pattern", () => {
+        expect(pcc.regExpIndexOf("abc", 0, /a|b|c/)).to.equal(0);
+        expect(pcc.regExpIndexOf("abc", 0, /b|c/)).to.equal(1);
+        expect(pcc.regExpIndexOf("abc", 0, /c|b/)).to.equal(1);
+      });
+      it("should return -1 for index and null for value, if nothing is found", () => {
+        expect(pcc.regExpIndexOf("def", 0, /b|c/)).to.equal(-1);
+      });
+    });
+    describe("getPropertyNoType", () => {
+      it("should recognize all modifiers and a name", () => {
+        expect(pcc.getPropertyNoType("prop;")).to.deep.equal({ name: "prop", modifiers: [] });
+        expect(pcc.getPropertyNoType("readonly prop;")).to.deep.equal({ name: "prop", modifiers: [ "readonly" ] });
+        expect(pcc.getPropertyNoType("private readonly prop;")).to.deep.equal({
+          name: "prop",
+          modifiers: [ "private", "readonly" ]
+        });
+      });
+
+      it("should not exceed char limit", () => {
+        let dts = "; readonly prop; test;";
+        expect(pcc.getPropertyNoType(dts, dts.indexOf("readonly"), dts.indexOf("prop;") + 4)).to.deep.equal({
+          name: "prop",
+          modifiers: [ "readonly" ]
+        });
+      });
+    });
+    describe("getType", () => {
       function testSimple(type, expected = type) {
-        expect(pcc.getType(`${type};`)).to.deep.equal({type: expected, end: type.length});
+        expect(pcc.getType(`${type};`)).to.deep.equal({ type: expected, end: type.length });
       }
+
       it("should recognize simple type", () => {
         testSimple("number", "Number");
         testSimple("string", "String");
@@ -39,12 +96,32 @@ describe("PCC", () => {
         testSimple("string | number", "Object");
       });
       it("should recognize fixed string values", () => {
-          testSimple(`"yep"`, "String");
-          testSimple(`"yep"|"nope"`, "String");
-          testSimple(`"yep" | "nope"`, "String");
+        testSimple(`"yep"`, "String");
+        testSimple(`"yep"|"nope"`, "String");
+        testSimple(`"yep" | "nope"`, "String");
       });
     });
-    describe("parser", () => {
+    describe("arrToObject", () => {
+      it("should create an object using array values as keys", () => {
+        expect(pcc.arrToObject([])).to.deep.equal({});
+        expect(pcc.arrToObject([ "a" ])).to.deep.equal({ a: true });
+        expect(pcc.arrToObject([ "a", "b" ])).to.deep.equal({ a: true, b: true });
+      });
+      it("should use the value provided in second argument", () => {
+        expect(pcc.arrToObject([ "a", "b" ], null)).to.deep.equal({ a: null, b: null });
+        expect(pcc.arrToObject([ "a", "b" ], "yup")).to.deep.equal({ a: "yup", b: "yup" });
+      });
+    });
+    describe("parseParams", () => {
+      it("should recognize number of params", () => {
+        expect(pcc.parseParams("test1").length).to.equal(1);
+        expect(pcc.parseParams("test1, test2").length).to.equal(2);
+        expect(pcc.parseParams("test1: number, test2: any").length).to.equal(2);
+        expect(pcc.parseParams("test1: {a: number; b: any;}, test2: any").length).to.equal(2);
+//        expect(pcc.parseParams("test1: {a: number, b: any;}, test2: any").length).to.equal(2); FIXME: comma separated args
+      });
+    });
+    describe("parseDTS", () => {
       it("should recognize types from definition", () => {
         let dts = fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8");
         let structure = pcc.parseDTS(dts);

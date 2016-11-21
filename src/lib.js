@@ -63,39 +63,46 @@ function lint() {
     .on("error", reject));
 }
 
-function getClosestIndex(src, ptr, chars = /;|:|\(/) {
-  let char;
-  while ((char = src.charAt(ptr))) {
-    let match = char.match(chars);
-    if (!match) {
-      ptr++;
-      continue;
-    }
-    return { index: ptr, found: match[ 0 ] };
-  }
-}
-
+exports.findClosing = findClosing;
 function findClosing(src, ptr, brackets) {
   let opened = 1;
-  while (opened > 0) {
-    ptr++;
-    switch (src.charAt(ptr)) {
+  let char;
+  while ((char = src.charAt(++ptr))) {
+    switch (char) {
       case brackets[ 0 ]:
         opened++;
         break;
       case brackets[ 1 ]:
         opened--;
+        if (opened <= 0) {
+          return ptr;
+        }
         break;
     }
   }
-  return ptr;
+  return -1;
 }
 
 findClosing.OBJECT = "{}";
 findClosing.ARRAY = "[]";
 findClosing.GENERIC = "<>";
 
-function regExpIndexOf(src, match, ptr) {
+exports.regExpClosestIndexOf = regExpClosestIndexOf;
+function regExpClosestIndexOf(src, index, chars = /;|:|\(/) {
+  let char;
+  while ((char = src.charAt(index))) {
+    let match = char.match(chars);
+    if (!match) {
+      index++;
+      continue;
+    }
+    return { index, found: match[ 0 ] };
+  }
+  return { index: -1, found: null };
+}
+
+exports.regExpIndexOf = regExpIndexOf;
+function regExpIndexOf(src, ptr, match = /\S/) {
   let char;
   while ((char = src.charAt(ptr))) {
     if (match.test(char)) {
@@ -105,15 +112,16 @@ function regExpIndexOf(src, match, ptr) {
   }
 }
 
+exports.getPropertyNoType = getPropertyNoType;
 function getPropertyNoType(src, from, to) {
-  let [...modifiers] = src.substr(from, to - from - 2).split(" ");
+  let [...modifiers] = src.slice(from || 0, to ? to: src.indexOf(";")).split(" ");
   let name = modifiers.pop();
   return { name, modifiers };
 }
 
 exports.getType = getType;
 function getType(src, from = 0) {
-  let start = regExpIndexOf(src, /\S/, from);
+  let start = regExpIndexOf(src, from);
   let done = false;
   let index = start;
   let types = [];
@@ -184,6 +192,7 @@ function getType(src, from = 0) {
   return { type, end: index };
 }
 
+exports.arrToObject = arrToObject;
 function arrToObject(arr, value = true) {
   let obj = {};
   for (let i = 0, l = arr.length; i < l; i++) {
@@ -192,8 +201,9 @@ function arrToObject(arr, value = true) {
   return obj;
 }
 
+exports.parseParams = parseParams;
 function parseParams(src, from, to) {
-  let params = src.substr(from, to - from).split(/,\s*/);
+  let params = src.slice(from, to).split(/,\s*/);
   return params.filter(param => !!param).map(param => {
     let colon = param.indexOf(":");
     if (colon === -1) {
@@ -229,7 +239,7 @@ function parseDTS(dts) {
     char = dts.charAt(++ptr)
   ) {
     // find next non-white characters index
-    let from = ptr = regExpIndexOf(dts, /\S/, ptr);
+    let from = ptr = regExpIndexOf(dts, ptr);
 
     if (dts.charAt(from) === "}") {
       break;
@@ -238,11 +248,11 @@ function parseDTS(dts) {
     // TODO: decorators detection here (startsWith("@", i))
 
     // get modifiers and prop/method name
-    let stop = getClosestIndex(dts, ptr);
+    let stop = regExpClosestIndexOf(dts, ptr);
 
     if (stop.found === ":") {
       // move pointer to first non-white char after the found index
-      ptr = regExpIndexOf(dts, /\S/, stop.index + 1);
+      ptr = regExpIndexOf(dts, stop.index + 1);
     } else if (stop.found === ";") {
       ptr = stop.index + 2;
     } else {
@@ -257,7 +267,7 @@ function parseDTS(dts) {
     // check if its a method
     switch (stop.found) {
       case "(":
-        ({ name, modifiers } = getPropertyNoType(dts, from, ptr + 2));
+        ({ name, modifiers } = getPropertyNoType(dts, from, ptr));
         let closing = findClosing(dts, ptr, "()");
         // TODO: parse props
         params = parseParams(dts, ptr + 1, closing);
