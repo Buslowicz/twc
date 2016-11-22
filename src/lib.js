@@ -131,6 +131,7 @@ function getType(src, from = 0) {
 
   while (!done && (char = src.charAt(index))) {
     switch (char) {
+      case ")":
       case ",":
       case ";":
         type = src.slice(start, index).trim();
@@ -240,6 +241,17 @@ function parseParams(src, from = 0, to = src.length) {
   return params;
 }
 
+function buildField(modifiers, name, params, type) {
+  let config = { name };
+  if (params) {
+    config.params = params;
+  }
+  if (type) {
+    config.type = type;
+  }
+  return Object.assign({}, arrToObject(modifiers), config);
+}
+
 exports.parseDTS = parseDTS;
 function parseDTS(dts) {
   let match = dts.match(/[\s\n]class ([\w$_]+)(?:[\s]+extends ([^{]+))?[\s]*\{/);
@@ -257,78 +269,75 @@ function parseDTS(dts) {
 
   for (
     // predefining
-    let ptr = start, end = dts.length, char = dts.charAt(ptr), left = 1;
+    let ptr = start, end = dts.length, char = dts.charAt(ptr);
     // condition
-    left > 0 && ptr < end;
+    ptr < end;
     // post-actions
     char = dts.charAt(++ptr)
   ) {
-    // find next non-white characters index
+    let params, match;
+    // skip whitespace
     let from = ptr = regExpIndexOf(dts, ptr);
 
+    // is it the end of class?
     if (dts.charAt(from) === "}") {
       break;
     }
 
     // TODO: decorators detection here (startsWith("@", i))
 
-    // get modifiers and prop/method name
-    let stop = regExpClosestIndexOf(dts, ptr);
+    // find next stop (semicolon for the end of line, colon for end of prop name, parenthesis for end of method name
+    ({index: ptr, found: match} = regExpClosestIndexOf(dts, ptr));
 
-    if (stop.found === ":") {
-      // move pointer to first non-white char after the found index
-      ptr = regExpIndexOf(dts, stop.index + 1);
-    } else if (stop.found === ";") {
-      ptr = stop.index + 2;
-    } else {
-      ptr = stop.index;
-    }
+    // get name and modifiers
+    let { name, modifiers } = getPropertyNoType(dts, from, ptr);
 
-    let params;
-    let done = false;
-    let name;
-    let modifiers;
-
-    // check if its a method
-    switch (stop.found) {
-      case "(":
-        ({ name, modifiers } = getPropertyNoType(dts, from, ptr));
-        let closing = findClosing(dts, ptr, "()");
-        // TODO: parse props
-        params = parseParams(dts, ptr + 1, closing);
-        let typeStart = dts.indexOf(":", closing + 1) + 1;
-        if (typeStart) {
-          ptr = typeStart;
-        } else {
-          ptr = dts.indexOf(";", ptr);
-          methods.push(Object.assign({}, arrToObject(modifiers), { name, params }));
-          done = true;
+    // method
+    if (match === "(") {
+      // find end of parameters declaration
+      let closing = findClosing(dts, ptr, "()");
+      if (closing === -1) {
+        let line = 1;
+        for (let i = 0, l = ptr; i < l; i++) {
+          if (/\n/.test(dts.charAt(i))) {
+            line++;
+          }
         }
-        break;
-      case ";":
-        ({ name, modifiers } = getPropertyNoType(dts, from, ptr));
-        properties.push(Object.assign({}, arrToObject(modifiers), { name }));
-        done = true;
-        break;
-      default:
-        ({ name, modifiers } = getPropertyNoType(dts, from, ptr));
-    }
+        throw new SyntaxError(`Parenthesis has no closing at line ${line}.`);
+      }
 
-    if (done) {
+      // find the colon to start searching for type
+      params = parseParams(dts, ptr + 1, closing);
+      let typeStart = dts.indexOf(":", closing);
+
+      // no type method
+      if (typeStart === -1) {
+        ptr = dts.indexOf(";", closing);
+        methods.push(buildField(modifiers, name, params));
+        continue;
+      }
+      // has type
+      else {
+        ptr = typeStart + 1;
+      }
+    }
+    // no type property
+    else if (match === ";") {
+      properties.push(buildField(modifiers, name));
       continue;
     }
 
     let typeData;
     let type;
 
-    typeData = getType(dts, ptr);
+    typeData = getType(dts, ptr + 1);
     type = typeData.type;
     ptr = dts.indexOf(";", typeData.end);
 
     if (params) {
-      methods.push(Object.assign({}, arrToObject(modifiers), { name, type, params }));
+      methods.push(buildField(modifiers, name, params, type));
     } else {
-      properties.push(Object.assign({}, arrToObject(modifiers), { name, type }));
+      properties.push(buildField(modifiers, name, null, type));
     }
   }
 
