@@ -241,6 +241,7 @@ function parseParams(src, from = 0, to = src.length) {
   return params;
 }
 
+exports.buildField = buildField;
 function buildField(modifiers, name, params, type) {
   let config = { name };
   if (params) {
@@ -252,7 +253,8 @@ function buildField(modifiers, name, params, type) {
   return Object.assign({}, arrToObject(modifiers), config);
 }
 
-function getParamsData(dts, ptr) {
+exports.getParamsData = getParamsData;
+function getParamsData(dts, ptr = 0) {
   let closeIndex = findClosing(dts, ptr, "()");
   if (closeIndex === -1) {
     let line = 1;

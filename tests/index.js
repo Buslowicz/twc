@@ -136,6 +136,43 @@ describe("PCC", () => {
         ]);
       });
     });
+    describe("buildField", () => {
+      it("should always add name and modifiers", () => {
+        let field = pcc.buildField([ "modifier" ], "name");
+        expect(field).to.have.property("modifier");
+        expect(field).to.have.property("name");
+      });
+      it("should have params and type if they are defined", () => {
+        let field = pcc.buildField([ "modifier" ], "name", "params", "type");
+        expect(field).to.have.property("type");
+        expect(field).to.have.property("params");
+      });
+      it("should NOT add params or type if they are falsy", () => {
+        let field = pcc.buildField([ "modifier" ], "name", null, null);
+        expect(field).to.not.have.property("type");
+        expect(field).to.not.have.property("params");
+      });
+    });
+    describe("getParamsData", () => {
+      it("should return index of parenthesis close index and params details", () => {
+        expect(pcc.getParamsData("(test1: {a: number, b: any;}, test2: any)", 0)).to.deep.equal({
+          closeIndex: 40,
+          params: [
+            { name: "test1", type: "Object" },
+            { name: "test2", type: "any" }
+          ]
+        });
+      });
+      it("should throw and error if parenthesis is not closed", () => {
+        expect(() => pcc.getParamsData("(test1: any")).to.throw(`Parenthesis has no closing at line 1.`);
+        let classDefinition = `class Test {
+  test1(test1: any);
+  test2(test2: any;
+}`;
+        expect(() => pcc.getParamsData(classDefinition, classDefinition.indexOf("test2(") + 5))
+          .to.throw(`Parenthesis has no closing at line 3.`);
+      });
+    });
     describe("parseDTS", () => {
       it("should recognize types from definition", () => {
         let dts = fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8");
