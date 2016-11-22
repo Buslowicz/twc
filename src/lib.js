@@ -110,6 +110,7 @@ function regExpIndexOf(src, ptr, match = /\S/) {
     }
     ptr++;
   }
+  return -1;
 }
 
 exports.getPropertyNoType = getPropertyNoType;

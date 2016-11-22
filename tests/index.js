@@ -39,7 +39,7 @@ describe("PCC", () => {
         expect(pcc.regExpIndexOf("abc", 0, /b|c/)).to.equal(1);
         expect(pcc.regExpIndexOf("abc", 0, /c|b/)).to.equal(1);
       });
-      it("should return -1 for index and null for value, if nothing is found", () => {
+      it("should return -1 if nothing is found", () => {
         expect(pcc.regExpIndexOf("def", 0, /b|c/)).to.equal(-1);
       });
     });
@@ -136,89 +136,89 @@ describe("PCC", () => {
         ]);
       });
     });
-    describe("parseDTS", () => {
-      it("should recognize types from definition", () => {
-        let dts = fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8");
-        let structure = pcc.parseDTS(dts);
-        expect(structure.className).to.equal("InputMath");
-
-        expect(structure.properties).to.deep.equal([
-          { name: "HISTORY_SIZE", type: "Number", "static": true },
-          { name: "SYMBOLS_BASIC", type: "Array", "static": true },
-          { name: "SYMBOLS_GREEK", type: "Array", "static": true },
-          { name: "SYMBOLS_PHYSICS", type: "Array", "static": true },
-          { name: "testValue", type: "String" },
-          { name: "value", type: "String" },
-          { name: "symbols", type: "Array" },
-          { name: "showSymbols", type: "String" },
-          { name: "_history", "private": true },
-          { name: "_mathField", "private": true },
-          { name: "_observerLocked", "private": true },
-          { name: "_freezeHistory", "private": true },
-          { name: "_editor", "private": true }
-        ]);
-
-        expect(structure.methods).to.deep.equal([
-          {
-            name: "created",
-            type: "void",
-            params: []
-          },
-          {
-            name: "ready",
-            type: "void",
-            params: []
-          },
-          {
-            name: "cmd",
-            type: "void",
-            params: [
-              { name: "ev", type: "PolymerEvent" }
-            ]
-          },
-          {
-            name: "undo",
-            type: "void",
-            params: []
-          },
-          {
-            name: "valueChanged",
-            type: "Array",
-            params: [
-              { name: "value", type: "String" },
-              { name: "prevValue", type: "String" }
-            ]
-          },
-          {
-            name: "symbolsChanged",
-            type: "void",
-            params: [
-              { name: "symbols", type: "String" }
-            ]
-          },
-          {
-            name: "keyShortcuts",
-            type: "void",
-            params: [
-              { name: "ev", type: "KeyboardEvent" }
-            ]
-          },
-          {
-            name: "_updateValue",
-            type: "void",
-            params: [
-              { name: "test", type: "Object" }
-            ]
-          },
-          {
-            name: "_updateHistory",
-            params: [
-              { name: "prevValue" }
-            ],
-            "private": true
-          }
-        ]);
-      });
-    });
+//    describe("parseDTS", () => {
+//      it("should recognize types from definition", () => {
+//        let dts = fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8");
+//        let structure = pcc.parseDTS(dts);
+//        expect(structure.className).to.equal("InputMath");
+//
+//        expect(structure.properties).to.deep.equal([
+//          { name: "HISTORY_SIZE", type: "Number", "static": true },
+//          { name: "SYMBOLS_BASIC", type: "Array", "static": true },
+//          { name: "SYMBOLS_GREEK", type: "Array", "static": true },
+//          { name: "SYMBOLS_PHYSICS", type: "Array", "static": true },
+//          { name: "testValue", type: "String" },
+//          { name: "value", type: "String" },
+//          { name: "symbols", type: "Array" },
+//          { name: "showSymbols", type: "String" },
+//          { name: "_history", "private": true },
+//          { name: "_mathField", "private": true },
+//          { name: "_observerLocked", "private": true },
+//          { name: "_freezeHistory", "private": true },
+//          { name: "_editor", "private": true }
+//        ]);
+//
+//        expect(structure.methods).to.deep.equal([
+//          {
+//            name: "created",
+//            type: "void",
+//            params: []
+//          },
+//          {
+//            name: "ready",
+//            type: "void",
+//            params: []
+//          },
+//          {
+//            name: "cmd",
+//            type: "void",
+//            params: [
+//              { name: "ev", type: "PolymerEvent" }
+//            ]
+//          },
+//          {
+//            name: "undo",
+//            type: "void",
+//            params: []
+//          },
+//          {
+//            name: "valueChanged",
+//            type: "Array",
+//            params: [
+//              { name: "value", type: "String" },
+//              { name: "prevValue", type: "String" }
+//            ]
+//          },
+//          {
+//            name: "symbolsChanged",
+//            type: "void",
+//            params: [
+//              { name: "symbols", type: "String" }
+//            ]
+//          },
+//          {
+//            name: "keyShortcuts",
+//            type: "void",
+//            params: [
+//              { name: "ev", type: "KeyboardEvent" }
+//            ]
+//          },
+//          {
+//            name: "_updateValue",
+//            type: "void",
+//            params: [
+//              { name: "test", type: "Object" }
+//            ]
+//          },
+//          {
+//            name: "_updateHistory",
+//            params: [
+//              { name: "prevValue" }
+//            ],
+//            "private": true
+//          }
+//        ]);
+//      });
+//    });
   });
 });
