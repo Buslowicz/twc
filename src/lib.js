@@ -252,6 +252,23 @@ function buildField(modifiers, name, params, type) {
   return Object.assign({}, arrToObject(modifiers), config);
 }
 
+function getParamsData(dts, ptr) {
+  let closeIndex = findClosing(dts, ptr, "()");
+  if (closeIndex === -1) {
+    let line = 1;
+    for (let i = 0, l = ptr; i < l; i++) {
+      if (/\n/.test(dts.charAt(i))) {
+        line++;
+      }
+    }
+    throw new SyntaxError(`Parenthesis has no closing at line ${line}.`);
+  }
+
+  // find the colon to start searching for type
+  let params = parseParams(dts, ptr + 1, closeIndex);
+  return { closeIndex, params };
+}
+
 exports.parseDTS = parseDTS;
 function parseDTS(dts) {
   let match = dts.match(/[\s\n]class ([\w$_]+)(?:[\s]+extends ([^{]+))?[\s]*\{/);
@@ -275,7 +292,7 @@ function parseDTS(dts) {
     // post-actions
     char = dts.charAt(++ptr)
   ) {
-    let params, match;
+    let params, match, decorator;
     // skip whitespace
     let from = ptr = regExpIndexOf(dts, ptr);
 
@@ -284,10 +301,22 @@ function parseDTS(dts) {
       break;
     }
 
-    // TODO: decorators detection here (startsWith("@", i))
+    // TODO: decorators detection here
+//    if (dts.startsWith("@", ptr)) {
+//      let decoratorEnd = regExpClosestIndexOf(dts, ptr, / |\(/);
+//      decorator = { name: dts.slice(ptr, decoratorEnd.index) };
+//      if (decoratorEnd.found === "(") {
+//        let closeIndex;
+//        ({ params, closeIndex } = getParamsData(dts, ptr));
+//        decorator.params = params;
+//        ptr = closeIndex + 1;
+//      } else {
+//        ptr = decoratorEnd.index;
+//      }
+//    }
 
     // find next stop (semicolon for the end of line, colon for end of prop name, parenthesis for end of method name
-    ({index: ptr, found: match} = regExpClosestIndexOf(dts, ptr));
+    ({ index: ptr, found: match } = regExpClosestIndexOf(dts, ptr));
 
     // get name and modifiers
     let { name, modifiers } = getPropertyNoType(dts, from, ptr);
@@ -295,30 +324,16 @@ function parseDTS(dts) {
     // method
     if (match === "(") {
       // find end of parameters declaration
-      let closing = findClosing(dts, ptr, "()");
-      if (closing === -1) {
-        let line = 1;
-        for (let i = 0, l = ptr; i < l; i++) {
-          if (/\n/.test(dts.charAt(i))) {
-            line++;
-          }
-        }
-        throw new SyntaxError(`Parenthesis has no closing at line ${line}.`);
-      }
+      let closeIndex;
+      ({ params, closeIndex } = getParamsData(dts, ptr));
 
-      // find the colon to start searching for type
-      params = parseParams(dts, ptr + 1, closing);
-      let typeStart = dts.indexOf(":", closing);
+      let closing = regExpClosestIndexOf(dts, closeIndex, /;|:/);
 
-      // no type method
-      if (typeStart === -1) {
-        ptr = dts.indexOf(";", closing);
+      ptr = closing.index + 1;
+
+      if (closing.found === ";") {
         methods.push(buildField(modifiers, name, params));
         continue;
-      }
-      // has type
-      else {
-        ptr = typeStart + 1;
       }
     }
     // no type property
@@ -327,12 +342,8 @@ function parseDTS(dts) {
       continue;
     }
 
-    let typeData;
-    let type;
-
-    typeData = getType(dts, ptr + 1);
-    type = typeData.type;
-    ptr = dts.indexOf(";", typeData.end);
+    let { type, end: typeEnd } = getType(dts, ptr + 1);
+    ptr = dts.indexOf(";", typeEnd);
 
     if (params) {
       methods.push(buildField(modifiers, name, params, type));
