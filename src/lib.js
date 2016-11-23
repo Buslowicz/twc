@@ -55,6 +55,7 @@ function clean() {
 
 exports.lint = lint;
 function lint() {
+  //noinspection JSCheckFunctionSignatures
   return new Promise((resolve, reject) => gulp
     .src(srcs)
     .pipe(tslint({ formatter: "prose" }))
@@ -65,6 +66,7 @@ function lint() {
 
 exports.findClosing = findClosing;
 function findClosing(src, ptr, brackets) {
+  let start = ptr;
   let opened = 1;
   let char;
   while ((char = src.charAt(++ptr))) {
@@ -80,15 +82,22 @@ function findClosing(src, ptr, brackets) {
         break;
     }
   }
-  return -1;
+  let line = 1;
+  for (let i = 0, l = start; i < l; i++) {
+    if (/\n/.test(src.charAt(i))) {
+      line++;
+    }
+  }
+  throw new SyntaxError(`Parenthesis has no closing at line ${line}.`);
 }
 
 findClosing.OBJECT = "{}";
 findClosing.ARRAY = "[]";
 findClosing.GENERIC = "<>";
+findClosing.PARENTHESIS = "()";
 
 exports.regExpClosestIndexOf = regExpClosestIndexOf;
-function regExpClosestIndexOf(src, index, chars = /;|:|\(/) {
+function regExpClosestIndexOf(src, index = 0, chars = /;|:|\(/) {
   let char;
   while ((char = src.charAt(index))) {
     let match = char.match(chars);
@@ -143,17 +152,11 @@ function getType(src, from = 0) {
       case "{":
         types.push(TYPES.OBJECT);
         index = findClosing(src, index, findClosing.OBJECT);
-        if (index === -1) {
-          return { type: null, end: -1 };
-        }
         start = ++index;
         break;
       case "[":
         types.push(TYPES.ARRAY);
         index = findClosing(src, index, findClosing.ARRAY);
-        if (index === -1) {
-          return { type: null, end: -1 };
-        }
         start = ++index;
         break;
       case "<":
@@ -195,7 +198,7 @@ function getType(src, from = 0) {
       return type;
     }
     if (result !== type) {
-      return TYPES.OBJECT
+      return TYPES.OBJECT;
     }
     return type;
   }, null);
@@ -254,20 +257,11 @@ function buildField(modifiers, name, params, type) {
 }
 
 exports.getParamsData = getParamsData;
-function getParamsData(dts, ptr = 0) {
-  let closeIndex = findClosing(dts, ptr, "()");
-  if (closeIndex === -1) {
-    let line = 1;
-    for (let i = 0, l = ptr; i < l; i++) {
-      if (/\n/.test(dts.charAt(i))) {
-        line++;
-      }
-    }
-    throw new SyntaxError(`Parenthesis has no closing at line ${line}.`);
-  }
+function getParamsData(src, ptr = 0) {
+  let closeIndex = findClosing(src, ptr, findClosing.PARENTHESIS);
 
   // find the colon to start searching for type
-  let params = parseParams(dts, ptr + 1, closeIndex);
+  let params = parseParams(src, ptr + 1, closeIndex);
   return { closeIndex, params };
 }
 
@@ -302,20 +296,6 @@ function parseDTS(dts) {
     if (dts.charAt(from) === "}") {
       break;
     }
-
-    // TODO: decorators detection here
-//    if (dts.startsWith("@", ptr)) {
-//      let decoratorEnd = regExpClosestIndexOf(dts, ptr, / |\(/);
-//      decorator = { name: dts.slice(ptr, decoratorEnd.index) };
-//      if (decoratorEnd.found === "(") {
-//        let closeIndex;
-//        ({ params, closeIndex } = getParamsData(dts, ptr));
-//        decorator.params = params;
-//        ptr = closeIndex + 1;
-//      } else {
-//        ptr = decoratorEnd.index;
-//      }
-//    }
 
     // find next stop (semicolon for the end of line, colon for end of prop name, parenthesis for end of method name
     ({ index: ptr, found: match } = regExpClosestIndexOf(dts, ptr));
@@ -390,7 +370,7 @@ function buildHTML() {
           return Buffer.from(
             links.map(module => `<link rel="import" href="${module}">\n`).join("") +
             scripts.map(module => `<script src="${module}"></script>\n`).join("") +
-            `<script>\n${content}\n</script>`
+            "<script>\n" + content + "\n</script>"
           );
         }))
         .pipe(rename({ extname: ".html" }))

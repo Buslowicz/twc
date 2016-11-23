@@ -17,10 +17,10 @@ describe("PCC", () => {
         expect(pcc.findClosing("(.[.].)", 0, "()")).to.equal(6);
         expect(pcc.findClosing("(.(.).)()", 0, "()")).to.equal(6);
       });
-      it("should return -1 if no closing bracket was found", () => {
-        expect(pcc.findClosing("(...", 0, "()")).to.equal(-1);
-        expect(pcc.findClosing("...", 0, "()")).to.equal(-1);
-        expect(pcc.findClosing("", 0, "()")).to.equal(-1);
+      it("should throw an error if no closing bracket was found", () => {
+        expect(() => pcc.findClosing("(...", 0, "()")).to.throw(`Parenthesis has no closing at line 1.`);
+        expect(() => pcc.findClosing("...", 0, "()")).to.throw(`Parenthesis has no closing at line 1.`);
+        expect(() => pcc.findClosing("", 0, "()")).to.throw(`Parenthesis has no closing at line 1.`);
       });
     });
     describe("regExpClosestIndexOf", () => {
@@ -62,46 +62,46 @@ describe("PCC", () => {
       });
     });
     describe("getType", () => {
-      function testSimple(type, expected = type, end = type.length) {
+      function testType(type, expected = type, end = type.length) {
         expect(pcc.getType(`${type};`)).to.deep.equal({ type: expected, end });
       }
 
       it("should recognize simple type", () => {
-        testSimple("number", "Number");
-        testSimple("string", "String");
-        testSimple("object", "Object");
-        testSimple("User");
+        testType("number", "Number");
+        testType("string", "String");
+        testType("object", "Object");
+        testType("User");
       });
       it("should recognize arrays", () => {
-        testSimple("Array<string>", "Array");
-        testSimple("string[]", "Array");
-        testSimple("[string]", "Array");
-        testSimple("string[][]", "Array");
+        testType("Array<string>", "Array");
+        testType("string[]", "Array");
+        testType("[string]", "Array");
+        testType("string[][]", "Array");
       });
       it("should recognize types with generics", () => {
-        testSimple("Promise<string>", "Promise");
-        testSimple("Promise<>", "Promise");
-        testSimple("Promise<Promise<null>>", "Promise");
+        testType("Promise<string>", "Promise");
+        testType("Promise<>", "Promise");
+        testType("Promise<Promise<null>>", "Promise");
       });
       it("should recognize inline objects", () => {
-        testSimple("{next: () => any}", "Object");
-        testSimple("{a: any; b: number;}", "Object");
-        testSimple(`{test: "true"|"false"}`, "Object");
-        testSimple("{test: {deep: boolean}}", "Object");
+        testType("{next: () => any}", "Object");
+        testType("{a: any; b: number;}", "Object");
+        testType(`{test: "true"|"false"}`, "Object");
+        testType("{test: {deep: boolean}}", "Object");
       });
       it("should recognize combined types", () => {
-        testSimple("string|null", "String");
-        testSimple("string | null", "String");
-        testSimple("string|number", "Object");
-        testSimple("string | number", "Object");
+        testType("string|null", "String");
+        testType("string | null", "String");
+        testType("string|number", "Object");
+        testType("string | number", "Object");
       });
       it("should recognize fixed string values", () => {
-        testSimple(`"yep"`, "String");
-        testSimple(`"yep"|"nope"`, "String");
-        testSimple(`"yep" | "nope"`, "String");
+        testType(`"yep"`, "String");
+        testType(`"yep"|"nope"`, "String");
+        testType(`"yep" | "nope"`, "String");
       });
-      it("should return type null and index -1 if there was an error parsing the template", () => {
-        testSimple("{test: boolean", null, -1);
+      it("should throw a syntax error if there was an error parsing the template", () => {
+        expect(() => pcc.getType("{test: boolean;")).to.throw(`Parenthesis has no closing at line 1.`);
       });
     });
     describe("arrToObject", () => {
