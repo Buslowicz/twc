@@ -11,6 +11,10 @@ interface PolymerEvent extends Event {
   model: any;
 }
 
+function test(a, b) {
+  console.log(a, b);
+}
+
 @component("input-math")
 class InputMath extends polymer.Base {
   static HISTORY_SIZE: number = 20;
@@ -48,7 +52,8 @@ class InputMath extends polymer.Base {
   testValue: "yep"|"nope";
 
   @property({ type: String, value: "", reflectToAttribute: true })
-  value: string|null;
+  @test
+  value: string|null = "";
 
   @property({
     type: Array, value: (): ICmd[][] => [
@@ -60,6 +65,8 @@ class InputMath extends polymer.Base {
 
   @property({ type: String, value: "" })
   showSymbols: string;
+
+  fn: Function = () => typeof window;
 
   private _history: string[];
   private _mathField: MathQuill.EditableField;

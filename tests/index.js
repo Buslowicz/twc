@@ -174,8 +174,13 @@ describe("PCC", () => {
       });
     });
     describe("parseDTS", () => {
+      let dts;
+
+      before(() => {
+        dts = fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8");
+      });
+
       it("should recognize types from definition", () => {
-        let dts = fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8");
         let structure = pcc.parseDTS(dts);
         expect(structure.className).to.equal("InputMath");
 
@@ -188,6 +193,7 @@ describe("PCC", () => {
           { name: "value", type: "String" },
           { name: "symbols", type: "Array" },
           { name: "showSymbols", type: "String" },
+          { name: "fn", type: "Function" },
           { name: "_history", "private": true },
           { name: "_mathField", "private": true },
           { name: "_observerLocked", "private": true },
@@ -255,6 +261,23 @@ describe("PCC", () => {
             "private": true
           }
         ]);
+      });
+    });
+    describe("parseJS", () => {
+      let js, meta;
+
+      before(() => {
+        js = fs.readFileSync(`${__dirname}/assets/input-math.js`, "utf8");
+        meta = pcc.parseDTS(fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"));
+      });
+
+      it("should fetch default values from parsed constructor", () => {
+        expect(pcc.parseJS(js, meta).values).to.deep.equal({
+          value: '""',
+          fn: '() => typeof window',
+          _observerLocked: 'false',
+          _freezeHistory: 'false'
+        });
       });
     });
   });

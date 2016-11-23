@@ -266,8 +266,8 @@ function getParamsData(src, ptr = 0) {
 }
 
 exports.parseDTS = parseDTS;
-function parseDTS(dts) {
-  let match = dts.match(/[\s\n]class ([\w$_]+)(?:[\s]+extends ([^{]+))?[\s]*\{/);
+function parseDTS(src) {
+  let match = src.match(/[\s\n]class ([\w$_]+)(?:[\s]+extends ([^{]+))?[\s]*\{/);
   if (!match) {
     return {};
   }
@@ -282,34 +282,34 @@ function parseDTS(dts) {
 
   for (
     // predefining
-    let ptr = start, end = dts.length, char = dts.charAt(ptr);
+    let ptr = start, end = src.length, char = src.charAt(ptr);
     // condition
     ptr < end;
     // post-actions
-    char = dts.charAt(++ptr)
+    char = src.charAt(++ptr)
   ) {
     let params, match, decorator;
     // skip whitespace
-    let from = ptr = regExpIndexOf(dts, ptr);
+    let from = ptr = regExpIndexOf(src, ptr);
 
     // is it the end of class?
-    if (dts.charAt(from) === "}") {
+    if (src.charAt(from) === "}") {
       break;
     }
 
     // find next stop (semicolon for the end of line, colon for end of prop name, parenthesis for end of method name
-    ({ index: ptr, found: match } = regExpClosestIndexOf(dts, ptr));
+    ({ index: ptr, found: match } = regExpClosestIndexOf(src, ptr));
 
     // get name and modifiers
-    let { name, modifiers } = getPropertyNoType(dts, from, ptr);
+    let { name, modifiers } = getPropertyNoType(src, from, ptr);
 
     // method
     if (match === "(") {
       // find end of parameters declaration
       let closeIndex;
-      ({ params, closeIndex } = getParamsData(dts, ptr));
+      ({ params, closeIndex } = getParamsData(src, ptr));
 
-      let closing = regExpClosestIndexOf(dts, closeIndex, /;|:/);
+      let closing = regExpClosestIndexOf(src, closeIndex, /;|:/);
 
       ptr = closing.index + 1;
 
@@ -324,8 +324,8 @@ function parseDTS(dts) {
       continue;
     }
 
-    let { type, end: typeEnd } = getType(dts, ptr + 1);
-    ptr = dts.indexOf(";", typeEnd);
+    let { type, end: typeEnd } = getType(src, ptr + 1);
+    ptr = src.indexOf(";", typeEnd);
 
     if (params) {
       methods.push(buildField(modifiers, name, params, type));
@@ -335,6 +335,34 @@ function parseDTS(dts) {
   }
 
   return { className, parent, properties, methods };
+}
+
+exports.parseJS = parseJS;
+function parseJS(src, { className, properties }) {
+  const constructorPattern = new RegExp(`(class|function)[\\s]*${className}.*?{`);
+  const defaultValuePattern = new RegExp(`this\\.(${properties.map(itm => itm.name).join("|")}) = (.*);\\n`, "g");
+  const decoratorPattern = new RegExp(`__decorate\\((\\[[\\W\\w]*?]), ${className}\\.prototype, "(.*?)", .*?\\);`, "g");
+
+  let {index, 1: match} = src.match(constructorPattern) || {};
+
+  if (!match) {
+    return {};
+  }
+  if (match === "class") {
+    index = src.indexOf("constructor", index);
+  }
+
+  index = src.indexOf("{", index);
+
+  let end = findClosing(src, index, findClosing.OBJECT);
+
+  let values = {};
+  let decorators = {};
+
+  src.slice(index + 1, end).replace(defaultValuePattern, (m, name, value) => values[ name ] = value);
+  src.replace(decoratorPattern, (m, decor, name) => decorators[name] = decor);
+
+  return { values, decorators };
 }
 
 exports.buildHTML = buildHTML;
