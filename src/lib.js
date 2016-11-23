@@ -131,6 +131,7 @@ function getPropertyNoType(src, from, to) {
 
 exports.getType = getType;
 function getType(src, from = 0) {
+  // FIXME function interface type ( () => void; )
   let start = regExpIndexOf(src, from);
   let done = false;
   let index = start;
