@@ -340,11 +340,13 @@ function parseDTS(src) {
 
 exports.parseJS = parseJS;
 function parseJS(src, { className, properties }) {
+  // TODO Remove design-time annotations from output (like @attr)
+  // TODO Remove default values (as an option) ??
   const constructorPattern = new RegExp(`(class|function)[\\s]*${className}.*?{`);
   const defaultValuePattern = new RegExp(`this\\.(${properties.map(itm => itm.name).join("|")}) = (.*);\\n`, "g");
   const decoratorPattern = new RegExp(`__decorate\\((\\[[\\W\\w]*?]), ${className}\\.prototype, "(.*?)", .*?\\);`, "g");
 
-  let {index, 1: match} = src.match(constructorPattern) || {};
+  let { index, 1: match } = src.match(constructorPattern) || {};
 
   if (!match) {
     return {};
@@ -360,8 +362,17 @@ function parseJS(src, { className, properties }) {
   let values = {};
   let decorators = {};
 
-  src.slice(index + 1, end).replace(defaultValuePattern, (m, name, value) => values[ name ] = value);
-  src.replace(decoratorPattern, (m, decor, name) => decorators[name] = decor);
+  src.slice(index + 1, end).replace(defaultValuePattern, (_, name, value) => values[ name ] = value);
+  src.replace(decoratorPattern, (_, definition, name) => {
+    let usedDecorators = [];
+    definition.replace(/([\w$]+)(?:\([\W\w]*?\))?,?\n/g, (_, name) => usedDecorators.push(name));
+
+    decorators[ name ] = {
+      names: usedDecorators,
+      calls: Function.apply(null, usedDecorators.concat(`return ${definition}`)),
+      toString: () => definition
+    };
+  });
 
   return { values, decorators };
 }

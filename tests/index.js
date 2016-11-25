@@ -174,17 +174,16 @@ describe("PCC", () => {
       });
     });
     describe("parseDTS", () => {
-      let dts;
+      let meta;
 
       before(() => {
-        dts = fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8");
+        meta = pcc.parseDTS(fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"));
       });
 
       it("should recognize types from definition", () => {
-        let structure = pcc.parseDTS(dts);
-        expect(structure.className).to.equal("InputMath");
+        expect(meta.className).to.equal("InputMath");
 
-        expect(structure.properties).to.deep.equal([
+        expect(meta.properties).to.deep.equal([
           { name: "HISTORY_SIZE", type: "Number", "static": true },
           { name: "SYMBOLS_BASIC", type: "Array", "static": true },
           { name: "SYMBOLS_GREEK", type: "Array", "static": true },
@@ -201,7 +200,7 @@ describe("PCC", () => {
           { name: "_editor", "private": true }
         ]);
 
-        expect(structure.methods).to.deep.equal([
+        expect(meta.methods).to.deep.equal([
           {
             name: "created",
             type: "void",
@@ -264,20 +263,70 @@ describe("PCC", () => {
       });
     });
     describe("parseJS", () => {
-      let js, meta;
+      let meta;
 
       before(() => {
-        js = fs.readFileSync(`${__dirname}/assets/input-math.js`, "utf8");
-        meta = pcc.parseDTS(fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"));
+        meta = pcc.parseJS(
+          fs.readFileSync(`${__dirname}/assets/input-math.js`, "utf8"),
+          pcc.parseDTS(fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"))
+        );
       });
 
       it("should fetch default values from parsed constructor", () => {
-        expect(pcc.parseJS(js, meta).values).to.deep.equal({
+        expect(meta.values).to.deep.equal({
           value: '""',
           fn: '() => typeof window',
           _observerLocked: 'false',
           _freezeHistory: 'false'
         });
+      });
+      it("should fetch decorators for all properties and methods", () => {
+        let { decorators } = meta;
+        expect(decorators).to.have.property("value");
+        expect(decorators).to.have.property("symbols");
+        expect(decorators).to.have.property("showSymbols");
+        expect(decorators).to.have.property("valueChanged");
+        expect(decorators).to.have.property("symbolsChanged");
+        expect(decorators).to.have.property("keyShortcuts");
+      });
+      it("should fetch list of decorators used per field", () => {
+        let { decorators: { value, symbols, showSymbols, valueChanged, symbolsChanged, keyShortcuts } } = meta;
+
+        expect(value.names).to.include('property');
+        expect(value.names).to.include('test');
+        expect(symbols.names).to.include('property');
+        expect(showSymbols.names).to.include('property');
+        expect(valueChanged.names).to.include('observe');
+        expect(symbolsChanged.names).to.include('observe');
+        expect(keyShortcuts.names).to.include('listen');
+      });
+      it("should return list of JS parsed decorators", () => {
+        let { decorators: { value, symbols, showSymbols, valueChanged, symbolsChanged, keyShortcuts } } = meta;
+
+        function generateNops(count) {
+          return Array.from({ length: count }, () => () => {});
+        }
+
+        let valueCount = value.names.length;
+        let symbolsCount = symbols.names.length;
+        let showSymbolsCount = showSymbols.names.length;
+        let valueChangedCount = valueChanged.names.length;
+        let symbolsChangedCount = symbolsChanged.names.length;
+        let keyShortcutsCount = keyShortcuts.names.length;
+
+        expect(value.calls.apply(null, generateNops(valueCount))).to.have.length(valueCount);
+        expect(symbols.calls.apply(null, generateNops(symbolsCount))).to.have.length(symbolsCount);
+        expect(showSymbols.calls.apply(null, generateNops(showSymbolsCount))).to.have.length(showSymbolsCount);
+        expect(valueChanged.calls.apply(null, generateNops(valueChangedCount))).to.have.length(valueChangedCount);
+        expect(symbolsChanged.calls.apply(null, generateNops(symbolsChangedCount))).to.have.length(symbolsChangedCount);
+        expect(keyShortcuts.calls.apply(null, generateNops(keyShortcutsCount))).to.have.length(keyShortcutsCount);
+      });
+      it("should call the decorator generator", () => {
+        let { decorators: { value } } = meta;
+
+        let arr = value.calls.call(null, args => (() => () => args)(), (() => () => "test")());
+        expect(arr[ 0 ]()).to.deep.equal({ type: String, value: '', reflectToAttribute: true });
+        expect(arr[ 1 ]()).to.equal("test");
       });
     });
   });
