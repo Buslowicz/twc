@@ -67,8 +67,25 @@ function lint() {
 exports.goTo = goTo;
 function goTo(src, term, index = 0) {
   let char;
+  let prevChar = null;
   let checkRegExp = typeof term !== "string";
+  let stringOpen = false;
+
+  function openString(char, prevChar) {
+    if (prevChar === "\\") {
+      return;
+    }
+    if (stringOpen === char) {
+      stringOpen = false;
+    } else if (stringOpen === false) {
+      stringOpen = char;
+    }
+  }
+
   while ((char = src.charAt(index))) {
+    if (!stringOpen && (checkRegExp && term.test(char) || char === term)) {
+      return index;
+    }
     switch (char) {
       case "{":
         index = findClosing(src, index, findClosing.OBJECT);
@@ -82,14 +99,33 @@ function goTo(src, term, index = 0) {
       case "(":
         index = findClosing(src, index, findClosing.PARENTHESIS);
         break;
-      default:
-        if (checkRegExp && term.test(char) || char === term) {
-          return index;
-        }
+      case "'":
+        openString(char, prevChar);
+        break;
+      case "`":
+        openString(char, prevChar);
+        break;
+      case `"`:
+        openString(char, prevChar);
+        break;
     }
+    prevChar = char;
     index++;
   }
   return -1;
+}
+
+exports.split = split;
+function split(src, term, trim = false) {
+  let start = 0;
+  let chunks = [];
+  do {
+    let comma = goTo(src, term, start);
+    let chunk = comma === -1 ? src.substr(start) : src.slice(start, comma);
+    chunks.push(trim ? chunk.trim() : chunk);
+    start = comma + 1;
+  } while (start > 0);
+  return chunks;
 }
 
 exports.findClosing = findClosing;
@@ -414,7 +450,7 @@ function parseJS(src, { className, properties }, { definedAnnotations = [] } = {
       let comma = goTo(definition, ",", start);
       let decor = (comma === -1 ? definition.substr(start) : definition.slice(start, comma)).trim();
       let ptr = decor.indexOf("(");
-      let [name, params] = ptr !== -1 ? [decor.slice(0, ptr), decor.slice(ptr + 1, decor.length - 1)] : [decor];
+      let [name, params] = ptr !== -1 ? [ decor.slice(0, ptr), decor.slice(ptr + 1, decor.length - 1) ] : [ decor ];
       if (definedAnnotations.includes(name)) {
         usedAnnotations.push({ name, params, descriptor });
       }

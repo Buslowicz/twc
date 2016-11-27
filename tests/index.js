@@ -12,11 +12,26 @@ describe("PCC", () => {
         expect(pcc.goTo("= () => {let test = 10; return 2 * test;};", ";", 1)).to.equal(41);
         expect(pcc.goTo("= () => {let test = 10; return 2 * test;};", /;/, 1)).to.equal(41);
         expect(pcc.goTo("= () => {let test = 10; return 2 * test;},", /;|,/, 1)).to.equal(41);
+        expect(pcc.goTo(`= ";";`, /;|,/, 1)).to.equal(5);
+        expect(pcc.goTo(`= ';';`, /;|,/, 1)).to.equal(5);
+        expect(pcc.goTo("= `;`;", /;|,/, 1)).to.equal(5);
+        expect(pcc.goTo(`= "\\";";`, ";", 1)).to.equal(7);
+        expect(pcc.goTo(`= "\\";";`, /"/, 1)).to.equal(2);
       });
       it("should return -1 if searched term was not found", () => {
         expect(pcc.goTo("() => test() * 2", ";")).to.equal(-1);
         expect(pcc.goTo("() => {let test = test(); return test * 2;}", ";")).to.equal(-1);
         expect(pcc.goTo("() => {let test = test(); return test * 2;}", /;/)).to.equal(-1);
+      });
+    });
+    describe("split", () => {
+      it("should split the string by search pattern, ignoring all kinds of parentheses", () => {
+        expect(pcc.split("a, b, c", ",")).to.deep.equal([ "a", " b", " c" ]);
+        expect(pcc.split("a, b, c", ",", true)).to.deep.equal([ "a", "b", "c" ]);
+        expect(pcc.split("a(b, c), d(e, f)", ",", true)).to.deep.equal([ "a(b, c)", "d(e, f)" ]);
+        expect(pcc.split("a(b, c), d(e, f)", ",", true)).to.deep.equal([ "a(b, c)", "d(e, f)" ]);
+        expect(pcc.split("a('b, c'), d('e, f')", ",", true)).to.deep.equal([ "a('b, c')", "d('e, f')" ]);
+        expect(pcc.split(`a("b, c"), d("e, f")`, ",", true)).to.deep.equal([ `a("b, c")`, `d("e, f")` ]);
       });
     });
     describe("findClosing", () => {
@@ -321,12 +336,12 @@ describe("PCC", () => {
       it("should fetch list of annotations used per field", () => {
         let { annotations: { value, symbols } } = meta;
 
-        let valueAnnotation = value[0];
+        let valueAnnotation = value[ 0 ];
 
         expect(valueAnnotation.name).to.equal("test");
         expect(valueAnnotation.params).to.equal(undefined);
 
-        let symbolsAnnotation = symbols[0];
+        let symbolsAnnotation = symbols[ 0 ];
 
         expect(symbolsAnnotation.name).to.equal("test2");
         expect(symbolsAnnotation.params).to.equal("5");
