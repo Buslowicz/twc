@@ -67,10 +67,9 @@ function lint() {
 exports.goTo = goTo;
 function goTo(src, term, index = 0) {
   let char;
+  let checkRegExp = typeof term !== "string";
   while ((char = src.charAt(index))) {
     switch (char) {
-      case term:
-        return index;
       case "{":
         index = findClosing(src, index, findClosing.OBJECT);
         break;
@@ -83,6 +82,10 @@ function goTo(src, term, index = 0) {
       case "(":
         index = findClosing(src, index, findClosing.PARENTHESIS);
         break;
+      default:
+        if (checkRegExp && term.test(char) || char === term) {
+          return index;
+        }
     }
     index++;
   }
@@ -157,6 +160,7 @@ function getPropertyNoType(src, from, to) {
 exports.getType = getType;
 function getType(src, from = 0) {
   // FIXME function interface type ( () => void; )
+  // TODO change loop to use goTo function ?
   let start = regExpIndexOf(src, from);
   let done = false;
   let index = start;

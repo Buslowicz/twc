@@ -10,10 +10,13 @@ describe("PCC", () => {
         expect(pcc.goTo("= 20;", ";", 1)).to.equal(4);
         expect(pcc.goTo("= { value: 20 };", ";", 1)).to.equal(15);
         expect(pcc.goTo("= () => {let test = 10; return 2 * test;};", ";", 1)).to.equal(41);
+        expect(pcc.goTo("= () => {let test = 10; return 2 * test;};", /;/, 1)).to.equal(41);
+        expect(pcc.goTo("= () => {let test = 10; return 2 * test;},", /;|,/, 1)).to.equal(41);
       });
       it("should return -1 if searched term was not found", () => {
         expect(pcc.goTo("() => test() * 2", ";")).to.equal(-1);
         expect(pcc.goTo("() => {let test = test(); return test * 2;}", ";")).to.equal(-1);
+        expect(pcc.goTo("() => {let test = test(); return test * 2;}", /;/)).to.equal(-1);
       });
     });
     describe("findClosing", () => {
