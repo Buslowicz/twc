@@ -445,10 +445,8 @@ function parseJS(src, { className, properties }, { definedAnnotations = [] } = {
 
     definition = definition.trim();
     // get each decorator name and execution params
-    let start = 0;
-    do {
-      let comma = goTo(definition, ",", start);
-      let decor = (comma === -1 ? definition.substr(start) : definition.slice(start, comma)).trim();
+    for (let decors = split(definition, ",", true), i = 0, l = decors.length; i < l; i++) {
+      let decor = decors[i];
       let ptr = decor.indexOf("(");
       let [name, params] = ptr !== -1 ? [ decor.slice(0, ptr), decor.slice(ptr + 1, decor.length - 1) ] : [ decor ];
       if (definedAnnotations.includes(name)) {
@@ -457,8 +455,7 @@ function parseJS(src, { className, properties }, { definedAnnotations = [] } = {
       else {
         usedDecorators.push(name);
       }
-      start = comma + 1;
-    } while (start > 0);
+    }
 
     decorators[ name ] = usedDecorators;
     annotations[ name ] = usedAnnotations;
