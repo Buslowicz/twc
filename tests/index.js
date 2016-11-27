@@ -5,6 +5,17 @@ const pcc = require("../src/lib");
 
 describe("PCC", () => {
   describe("static analyser", () => {
+    describe("goTo", () => {
+      it("should return the index of searched term, omitting all kind of brackets", () => {
+        expect(pcc.goTo("= 20;", ";", 1)).to.equal(4);
+        expect(pcc.goTo("= { value: 20 };", ";", 1)).to.equal(15);
+        expect(pcc.goTo("= () => {let test = 10; return 2 * test;};", ";", 1)).to.equal(41);
+      });
+      it("should return -1 if searched term was not found", () => {
+        expect(pcc.goTo("() => test() * 2", ";")).to.equal(-1);
+        expect(pcc.goTo("() => {let test = test(); return test * 2;}", ";")).to.equal(-1);
+      });
+    });
     describe("findClosing", () => {
       it("should find the index of a closing bracket", () => {
         expect(pcc.findClosing("test(...)", 4, "()")).to.equal(8);
@@ -269,7 +280,7 @@ describe("PCC", () => {
         meta = pcc.parseJS(
           fs.readFileSync(`${__dirname}/assets/input-math.js`, "utf8"),
           pcc.parseDTS(fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8")),
-          { definedAnnotations: [ "test" ] }
+          { definedAnnotations: [ "test", "test2" ] }
         );
       });
 
@@ -293,24 +304,29 @@ describe("PCC", () => {
       it("should fetch list of decorators used per field", () => {
         let { decorators: { value, symbols, showSymbols, valueChanged, symbolsChanged, keyShortcuts } } = meta;
 
-        expect(value.list).to.include("property");
-        expect(symbols.list).to.include("property");
-        expect(showSymbols.list).to.include("property");
-        expect(valueChanged.list).to.include("observe");
-        expect(symbolsChanged.list).to.include("observe");
-        expect(keyShortcuts.list).to.include("listen");
+        expect(value).to.include("property");
+        expect(symbols).to.include("property");
+        expect(showSymbols).to.include("property");
+        expect(valueChanged).to.include("observe");
+        expect(symbolsChanged).to.include("observe");
+        expect(keyShortcuts).to.include("listen");
       });
       it("should exclude annotations from decorators list", () => {
         let { decorators: { value } } = meta;
-        expect(value.list).to.not.include("test");
+        expect(value).to.not.include("test");
       });
       it("should fetch list of annotations used per field", () => {
-        let { annotations: { value } } = meta;
+        let { annotations: { value, symbols } } = meta;
 
         let valueAnnotation = value[0];
 
         expect(valueAnnotation.name).to.equal("test");
         expect(valueAnnotation.params).to.equal(undefined);
+
+        let symbolsAnnotation = symbols[0];
+
+        expect(symbolsAnnotation.name).to.equal("test2");
+        expect(symbolsAnnotation.params).to.equal("5");
       });
     });
   });

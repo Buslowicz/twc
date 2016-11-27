@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "experimentalDecorators": true,
+        "declaration": true,
+        "target": "es6",
+        "noEmitHelpers": true
+    },
+    "files": [
+        "input-math",
+        "types"
+    ]
+}

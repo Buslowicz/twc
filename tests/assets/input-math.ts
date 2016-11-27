@@ -12,7 +12,11 @@ interface PolymerEvent extends Event {
 }
 
 function test(a, b) {
-  console.log(a, b);
+  console.log(a, b, this);
+}
+
+function test2(conf) {
+  return test.bind(conf);
 }
 
 @component("input-math")
@@ -61,6 +65,7 @@ class InputMath extends polymer.Base {
       InputMath.SYMBOLS_GREEK
     ]
   })
+  @test2(5)
   symbols: ICmd[][];
 
   @property({ type: String, value: "" })

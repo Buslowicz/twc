@@ -64,6 +64,31 @@ function lint() {
     .on("error", reject));
 }
 
+exports.goTo = goTo;
+function goTo(src, term, index = 0) {
+  let char;
+  while ((char = src.charAt(index))) {
+    switch (char) {
+      case term:
+        return index;
+      case "{":
+        index = findClosing(src, index, findClosing.OBJECT);
+        break;
+      case "[":
+        index = findClosing(src, index, findClosing.ARRAY);
+        break;
+      case "<":
+        index = findClosing(src, index, findClosing.GENERIC);
+        break;
+      case "(":
+        index = findClosing(src, index, findClosing.PARENTHESIS);
+        break;
+    }
+    index++;
+  }
+  return -1;
+}
+
 exports.findClosing = findClosing;
 function findClosing(src, ptr, brackets) {
   let start = ptr;
@@ -340,11 +365,10 @@ function parseDTS(src) {
 
 exports.parseJS = parseJS;
 function parseJS(src, { className, properties }, { definedAnnotations = [] } = {}) {
-  // TODO Remove design-time annotations from output (like @attr)
   // TODO Remove default values (as an option) ??
   const constructorPattern = new RegExp(`(class|function)[\\s]*${className}.*?{`);
   const defaultValuePattern = new RegExp(`this\\.(${properties.map(itm => itm.name).join("|")}) = (.*);\\n`, "g");
-  const decoratorPattern = new RegExp(`__decorate\\((\\[[\\W\\w]*?]), (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g");
+  const decoratorPattern = new RegExp(`__decorate\\(\\[([\\W\\w]*?)], (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g");
 
   let { index, 1: match } = src.match(constructorPattern) || {};
 
@@ -375,33 +399,34 @@ function parseJS(src, { className, properties }, { definedAnnotations = [] } = {
   let decoratorsSrc = src.substr(decorStart);
 
   // get decorators
-  decoratorsSrc = decoratorsSrc.replace(decoratorPattern, (_, definition, proto, name, descriptor) => {
+  decoratorsSrc.replace(decoratorPattern, (_, definition, proto, name, descriptor) => {
     let usedDecorators = [];
     let usedAnnotations = [];
 
+    definition = definition.trim();
     // get each decorator name and execution params
-    definition = definition.replace(/(?:,[\s]*?)?([\w$]+)(?:\(([\W\w]*)\))?,?\n/g, (_, name, params) => {
-      // if decorator is on list of annotations, remove it
+    let start = 0;
+    do {
+      let comma = goTo(definition, ",", start);
+      let decor = (comma === -1 ? definition.substr(start) : definition.slice(start, comma)).trim();
+      let ptr = decor.indexOf("(");
+      let [name, params] = ptr !== -1 ? [decor.slice(0, ptr), decor.slice(ptr + 1, decor.length - 1)] : [decor];
       if (definedAnnotations.includes(name)) {
-        usedAnnotations.push({ name, params });
-        return "";
+        usedAnnotations.push({ name, params, descriptor });
       }
+      else {
+        usedDecorators.push(name);
+      }
+      start = comma + 1;
+    } while (start > 0);
 
-      usedDecorators.push(name);
-      return _;
-    });
-
-    decorators[ name ] = {
-      list: usedDecorators,
-      toString: () => definition
-    };
-
+    decorators[ name ] = usedDecorators;
     annotations[ name ] = usedAnnotations;
 
-    return `__decorate(${definition}), ${proto}, "${name}", ${descriptor});`
+//    return `__decorate(${definition}), ${proto}, "${name}", ${descriptor});`
   });
 
-  return { values, decorators, annotations, src: src.slice(0, end) + decoratorsSrc };
+  return { values, decorators, annotations, src: src.slice(0, end) };
 }
 
 exports.buildHTML = buildHTML;
