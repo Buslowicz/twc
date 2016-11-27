@@ -339,42 +339,69 @@ function parseDTS(src) {
 }
 
 exports.parseJS = parseJS;
-function parseJS(src, { className, properties }) {
+function parseJS(src, { className, properties }, { definedAnnotations = [] } = {}) {
   // TODO Remove design-time annotations from output (like @attr)
   // TODO Remove default values (as an option) ??
   const constructorPattern = new RegExp(`(class|function)[\\s]*${className}.*?{`);
   const defaultValuePattern = new RegExp(`this\\.(${properties.map(itm => itm.name).join("|")}) = (.*);\\n`, "g");
-  const decoratorPattern = new RegExp(`__decorate\\((\\[[\\W\\w]*?]), ${className}\\.prototype, "(.*?)", .*?\\);`, "g");
+  const decoratorPattern = new RegExp(`__decorate\\((\\[[\\W\\w]*?]), (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g");
 
   let { index, 1: match } = src.match(constructorPattern) || {};
 
   if (!match) {
     return {};
   }
+
+  // find constructor if es6 class was found
   if (match === "class") {
     index = src.indexOf("constructor", index);
   }
 
+  // find beginning of the constructor body
   index = src.indexOf("{", index);
 
+  // find closing of the constructor body
   let end = findClosing(src, index, findClosing.OBJECT);
 
   let values = {};
   let decorators = {};
+  let annotations = {};
 
+  // get default values
   src.slice(index + 1, end).replace(defaultValuePattern, (_, name, value) => values[ name ] = value);
-  src.replace(decoratorPattern, (_, definition, name) => {
+
+  // find where decorators meta start
+  let decorStart = src.indexOf("__decorate([", end);
+  let decoratorsSrc = src.substr(decorStart);
+
+  // get decorators
+  decoratorsSrc = decoratorsSrc.replace(decoratorPattern, (_, definition, proto, name, descriptor) => {
     let usedDecorators = [];
-    definition.replace(/([\w$]+)(?:\([\W\w]*?\))?,?\n/g, (_, name) => usedDecorators.push(name));
+    let usedAnnotations = [];
+
+    // get each decorator name and execution params
+    definition = definition.replace(/(?:,[\s]*?)?([\w$]+)(?:\(([\W\w]*)\))?,?\n/g, (_, name, params) => {
+      // if decorator is on list of annotations, remove it
+      if (definedAnnotations.includes(name)) {
+        usedAnnotations.push({ name, params });
+        return "";
+      }
+
+      usedDecorators.push(name);
+      return _;
+    });
 
     decorators[ name ] = {
-      names: usedDecorators,
-      calls: Function.apply(null, usedDecorators.concat(`return ${definition}`)),
+      list: usedDecorators,
       toString: () => definition
     };
+
+    annotations[ name ] = usedAnnotations;
+
+    return `__decorate(${definition}), ${proto}, "${name}", ${descriptor});`
   });
 
-  return { values, decorators };
+  return { values, decorators, annotations, src: src.slice(0, end) + decoratorsSrc };
 }
 
 exports.buildHTML = buildHTML;

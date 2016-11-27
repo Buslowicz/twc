@@ -268,16 +268,17 @@ describe("PCC", () => {
       before(() => {
         meta = pcc.parseJS(
           fs.readFileSync(`${__dirname}/assets/input-math.js`, "utf8"),
-          pcc.parseDTS(fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"))
+          pcc.parseDTS(fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8")),
+          { definedAnnotations: [ "test" ] }
         );
       });
 
       it("should fetch default values from parsed constructor", () => {
         expect(meta.values).to.deep.equal({
-          value: '""',
-          fn: '() => typeof window',
-          _observerLocked: 'false',
-          _freezeHistory: 'false'
+          value: `""`,
+          fn: "() => typeof window",
+          _observerLocked: "false",
+          _freezeHistory: "false"
         });
       });
       it("should fetch decorators for all properties and methods", () => {
@@ -292,41 +293,24 @@ describe("PCC", () => {
       it("should fetch list of decorators used per field", () => {
         let { decorators: { value, symbols, showSymbols, valueChanged, symbolsChanged, keyShortcuts } } = meta;
 
-        expect(value.names).to.include('property');
-        expect(value.names).to.include('test');
-        expect(symbols.names).to.include('property');
-        expect(showSymbols.names).to.include('property');
-        expect(valueChanged.names).to.include('observe');
-        expect(symbolsChanged.names).to.include('observe');
-        expect(keyShortcuts.names).to.include('listen');
+        expect(value.list).to.include("property");
+        expect(symbols.list).to.include("property");
+        expect(showSymbols.list).to.include("property");
+        expect(valueChanged.list).to.include("observe");
+        expect(symbolsChanged.list).to.include("observe");
+        expect(keyShortcuts.list).to.include("listen");
       });
-      it("should return list of JS parsed decorators", () => {
-        let { decorators: { value, symbols, showSymbols, valueChanged, symbolsChanged, keyShortcuts } } = meta;
-
-        function generateNops(count) {
-          return Array.from({ length: count }, () => () => {});
-        }
-
-        let valueCount = value.names.length;
-        let symbolsCount = symbols.names.length;
-        let showSymbolsCount = showSymbols.names.length;
-        let valueChangedCount = valueChanged.names.length;
-        let symbolsChangedCount = symbolsChanged.names.length;
-        let keyShortcutsCount = keyShortcuts.names.length;
-
-        expect(value.calls.apply(null, generateNops(valueCount))).to.have.length(valueCount);
-        expect(symbols.calls.apply(null, generateNops(symbolsCount))).to.have.length(symbolsCount);
-        expect(showSymbols.calls.apply(null, generateNops(showSymbolsCount))).to.have.length(showSymbolsCount);
-        expect(valueChanged.calls.apply(null, generateNops(valueChangedCount))).to.have.length(valueChangedCount);
-        expect(symbolsChanged.calls.apply(null, generateNops(symbolsChangedCount))).to.have.length(symbolsChangedCount);
-        expect(keyShortcuts.calls.apply(null, generateNops(keyShortcutsCount))).to.have.length(keyShortcutsCount);
-      });
-      it("should call the decorator generator", () => {
+      it("should exclude annotations from decorators list", () => {
         let { decorators: { value } } = meta;
+        expect(value.list).to.not.include("test");
+      });
+      it("should fetch list of annotations used per field", () => {
+        let { annotations: { value } } = meta;
 
-        let arr = value.calls.call(null, args => (() => () => args)(), (() => () => "test")());
-        expect(arr[ 0 ]()).to.deep.equal({ type: String, value: '', reflectToAttribute: true });
-        expect(arr[ 1 ]()).to.equal("test");
+        let valueAnnotation = value[0];
+
+        expect(valueAnnotation.name).to.equal("test");
+        expect(valueAnnotation.params).to.equal(undefined);
       });
     });
   });
