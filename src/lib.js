@@ -408,7 +408,8 @@ function parseJS(src, { className, properties }, { definedAnnotations = [] } = {
   // TODO Remove default values (as an option) ??
   const constructorPattern = new RegExp(`(class|function)[\\s]*${className}.*?{`);
   const defaultValuePattern = new RegExp(`this\\.(${properties.map(itm => itm.name).join("|")}) = (.*);\\n`, "g");
-  const decoratorPattern = new RegExp(`__decorate\\(\\[([\\W\\w]*?)], (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g");
+  const fieldDecoratorPattern = new RegExp(`__decorate\\(\\[([\\W\\w]*?)], (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g");
+  const classDecoratorPattern = new RegExp(`${className} = (.*?) = __decorate\\(\\[([\\W\\w]*?)], (${className})\\);`, "g");
 
   let { index, 1: match } = src.match(constructorPattern) || {};
 
@@ -430,6 +431,7 @@ function parseJS(src, { className, properties }, { definedAnnotations = [] } = {
   let values = {};
   let decorators = {};
   let annotations = {};
+  let generatedName;
 
   // get default values
   src.slice(index + 1, end).replace(defaultValuePattern, (_, name, value) => values[ name ] = value);
@@ -439,11 +441,12 @@ function parseJS(src, { className, properties }, { definedAnnotations = [] } = {
   let decoratorsSrc = src.substr(decorStart);
 
   // get decorators
-  decoratorsSrc.replace(decoratorPattern, (_, definition, proto, name, descriptor) => {
+  decoratorsSrc.replace(fieldDecoratorPattern, (_, definition, proto, name, descriptor) => {
     let usedDecorators = [];
     let usedAnnotations = [];
 
     definition = definition.trim();
+
     // get each decorator name and execution params
     for (let decors = split(definition, ",", true), i = 0, l = decors.length; i < l; i++) {
       let decor = decors[i];
@@ -463,7 +466,32 @@ function parseJS(src, { className, properties }, { definedAnnotations = [] } = {
 //    return `__decorate(${definition}), ${proto}, "${name}", ${descriptor});`
   });
 
-  return { values, decorators, annotations, src: src.slice(0, end) };
+  decoratorsSrc.replace(classDecoratorPattern, (_, secondName, definition) => {
+    generatedName = secondName;
+
+    let usedDecorators = [];
+    let usedAnnotations = [];
+
+    definition = definition.trim();
+
+    // get each decorator name and execution params
+    for (let decors = split(definition, ",", true), i = 0, l = decors.length; i < l; i++) {
+      let decor = decors[i];
+      let ptr = decor.indexOf("(");
+      let [name, params] = ptr !== -1 ? [ decor.slice(0, ptr), decor.slice(ptr + 1, decor.length - 1) ] : [ decor ];
+      if (definedAnnotations.includes(name)) {
+        usedAnnotations.push({ name, params });
+      }
+      else {
+        usedDecorators.push(name);
+      }
+    }
+
+    decorators[ "class" ] = usedDecorators;
+    annotations[ "class" ] = usedAnnotations;
+  });
+
+  return { generatedName, values, decorators, annotations, src: src.slice(0, end) };
 }
 
 exports.buildHTML = buildHTML;

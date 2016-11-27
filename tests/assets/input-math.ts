@@ -19,7 +19,12 @@ function test2(conf) {
   return test.bind(conf);
 }
 
+function template(str) {
+  return target => console.log(str);
+}
+
 @component("input-math")
+@template("<input>")
 class InputMath extends polymer.Base {
   static HISTORY_SIZE: number = 20;
 

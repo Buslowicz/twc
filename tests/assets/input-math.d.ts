@@ -9,6 +9,7 @@ interface PolymerEvent extends Event {
 }
 declare function test(a: any, b: any): void;
 declare function test2(conf: any): any;
+declare function template(str: any): (target: any) => void;
 declare class InputMath extends polymer.Base {
     static HISTORY_SIZE: number;
     static SYMBOLS_BASIC: ICmd[];

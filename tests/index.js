@@ -298,10 +298,13 @@ describe("PCC", () => {
         meta = pcc.parseJS(
           fs.readFileSync(`${__dirname}/assets/input-math.js`, "utf8"),
           pcc.parseDTS(fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8")),
-          { definedAnnotations: [ "test", "test2" ] }
+          { definedAnnotations: [ "test", "test2", "template" ] }
         );
       });
 
+      it("should fetch additional generated class name", () => {
+        expect(meta.generatedName).to.equal("InputMath_1");
+      });
       it("should fetch default values from parsed constructor", () => {
         expect(meta.values).to.deep.equal({
           value: `""`,
@@ -329,7 +332,7 @@ describe("PCC", () => {
         expect(symbolsChanged).to.include("observe");
         expect(keyShortcuts).to.include("listen");
       });
-      it("should exclude annotations from decorators list", () => {
+      it("should exclude annotations from fields decorators list", () => {
         let { decorators: { value } } = meta;
         expect(value).to.not.include("test");
       });
@@ -345,6 +348,23 @@ describe("PCC", () => {
 
         expect(symbolsAnnotation.name).to.equal("test2");
         expect(symbolsAnnotation.params).to.equal("5");
+      });
+      it("should fetch decorators for class under 'class' field", () => {
+        expect(meta.decorators).to.have.property("class");
+      });
+      it("should fetch list of class decorators", () => {
+        let classDecorators = meta.decorators.class;
+        expect(classDecorators).to.include("component");
+      });
+      it("should exclude annotations from class decorators list", () => {
+        let classDecorators = meta.decorators.class;
+        expect(classDecorators).to.not.include("template");
+      });
+      it("should fetch annotations for class under 'class' field", () => {
+        let classAnnotation = meta.annotations.class[0];
+
+        expect(classAnnotation.name).to.equal("template");
+        expect(classAnnotation.params).to.equal(`"<input>"`);
       });
     });
   });

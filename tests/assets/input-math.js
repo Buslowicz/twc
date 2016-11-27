@@ -6,6 +6,9 @@ function test(a, b) {
 function test2(conf) {
     return test.bind(conf);
 }
+function template(str) {
+    return target => console.log(str);
+}
 let InputMath_1 = class InputMath extends polymer.Base {
     constructor() {
         super(...arguments);
@@ -134,6 +137,7 @@ __decorate([
     listen("keydown")
 ], InputMath.prototype, "keyShortcuts", null);
 InputMath = InputMath_1 = __decorate([
-    component("input-math")
+    component("input-math"),
+    template("<input>")
 ], InputMath);
 InputMath.register();
