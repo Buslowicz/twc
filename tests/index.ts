@@ -1,8 +1,8 @@
 import { expect } from "chai";
 import * as fs from "fs";
 import {
-  goTo, split, findClosing, regExpClosestIndexOf, getPropertyNoType, getType, arrToObject, parseDTS, regExpIndexOf,
-  parseParams, buildField, parseJS
+  goTo, split, findClosing, regExpClosestIndexOf, getPropertyNoType, getType, arrToObject, parseDTS, parseParams,
+  buildField, parseJS
 } from "../src/parser";
 
 describe("PCC", () => {
@@ -62,16 +62,6 @@ describe("PCC", () => {
       });
       it("should return -1 for index and null for value, if nothing is found", () => {
         expect(regExpClosestIndexOf("def", /b|c/, 0)).to.deep.equal({ index: -1, found: null });
-      });
-    });
-    describe("regExpIndexOf", () => {
-      it("should return index of the first character that matches pattern", () => {
-        expect(regExpIndexOf("abc", 0, /a|b|c/)).to.equal(0);
-        expect(regExpIndexOf("abc", 0, /b|c/)).to.equal(1);
-        expect(regExpIndexOf("abc", 0, /c|b/)).to.equal(1);
-      });
-      it("should return -1 if nothing is found", () => {
-        expect(regExpIndexOf("def", 0, /b|c/)).to.equal(-1);
       });
     });
     describe("getPropertyNoType", () => {

@@ -203,27 +203,6 @@ export function regExpClosestIndexOf(src: string, term: RegExp, offset: number =
 }
 
 /**
- * Works just like indexOf, but using RegExp for matching
- * @deprecated migrate to goTo
- *
- * @param src String to search
- * @param offset (Optional) Search offset
- * @param term (Optional) Search term
- *
- * @returns Index of found character or -1 if not found
- */
-export function regExpIndexOf(src: string, offset: number = 0, term: RegExp = /\S/): number {
-  let char;
-  while ((char = src.charAt(offset))) {
-    if (term.test(char)) {
-      return offset;
-    }
-    offset++;
-  }
-  return -1;
-}
-
-/**
  * Get modifiers and name of a property or method (does not get types)
  *
  * @param src String to search
@@ -242,15 +221,15 @@ export function getPropertyNoType(src: string, from: number = 0, to: number = sr
  * Get type of property, method or param. Inline structures are casted to Object or Array.
  * Combined types are casted to Object. Generic types are stripped.
  *
+ * @fixme function interface type ( () => void; )
+ *
  * @param src String to search
  * @param offset (Optional) Search offset
  *
  * @returns Found type and index of the END of type declaration or null and -1 if not found
  */
 export function getType(src: string, offset: number = 0): FoundType {
-  // FIXME function interface type ( () => void; )
-  // TODO change loop to use goTo function ?
-  let start = regExpIndexOf(src, offset);
+  let start = goTo(src, /\S/, offset);
   let done = false;
   let index = start;
   let types = [];
@@ -433,7 +412,7 @@ export function parseDTS(src: string): DTSParsedData {
   ) {
     let params, match;
     // skip whitespace
-    let from = ptr = regExpIndexOf(src, ptr);
+    let from = ptr = goTo(src, /\S/, ptr);
 
     // is it the end of class?
     if (src.charAt(from) === "}") {
