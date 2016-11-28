@@ -242,14 +242,12 @@ export function getPropertyNoType(src: string, from: number = 0, to: number = sr
  * Get type of property, method or param. Inline structures are casted to Object or Array.
  * Combined types are casted to Object. Generic types are stripped.
  *
- * @todo return object with -1 and null if nothing was found, instead of null
- *
  * @param src String to search
  * @param offset (Optional) Search offset
  *
- * @returns Found type and index of the END of type declaration or null if not found
+ * @returns Found type and index of the END of type declaration or null and -1 if not found
  */
-export function getType(src: string, offset: number = 0): FoundType|null {
+export function getType(src: string, offset: number = 0): FoundType {
   // FIXME function interface type ( () => void; )
   // TODO change loop to use goTo function ?
   let start = regExpIndexOf(src, offset);
@@ -305,7 +303,7 @@ export function getType(src: string, offset: number = 0): FoundType|null {
         }
         break;
       case "":
-        return null;
+        return { type: null, end: -1 };
       default:
         index++;
     }
@@ -365,11 +363,11 @@ export function parseParams(src: string, from: number = 0, to: number = src.leng
     let param: ParamConfig = { name: src.slice(from, firstStop.index).trim() };
 
     if (firstStop.found === ":") {
-      let typeData = getType(src, firstStop.index + 1);
-      if (typeData.type) {
-        param.type = typeData.type;
+      let { type, end } = getType(src, firstStop.index + 1);
+      if (type) {
+        param.type = type;
       }
-      from = typeData.end + 1;
+      from = end + 1;
     }
     else {
       from = firstStop.index + 1;
