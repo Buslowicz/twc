@@ -2,7 +2,7 @@ import { expect } from "chai";
 import * as fs from "fs";
 import {
   goTo, split, findClosing, regExpClosestIndexOf, getPropertyNoType, getType, arrToObject, parseDTS, regExpIndexOf,
-  parseParams, buildField, getParamsData, parseJS
+  parseParams, buildField, parseJS
 } from "../src/parser";
 
 describe("PCC", () => {
@@ -174,7 +174,7 @@ describe("PCC", () => {
         expect(field).to.have.property("name");
       });
       it("should have params and type if they are defined", () => {
-        let field = buildField([ "modifier" ], "name", "params", "type");
+        let field = buildField([ "modifier" ], "name", [ { name: "params" } ], "type");
         expect(field).to.have.property("type");
         expect(field).to.have.property("params");
       });
@@ -182,26 +182,6 @@ describe("PCC", () => {
         let field = buildField([ "modifier" ], "name", null, null);
         expect(field).to.not.have.property("type");
         expect(field).to.not.have.property("params");
-      });
-    });
-    describe("getParamsData", () => {
-      it("should return index of parenthesis close index and params details", () => {
-        expect(getParamsData("(test1: {a: number, b: any;}, test2: any)", 0)).to.deep.equal({
-          closeIndex: 40,
-          params: [
-            { name: "test1", type: "Object" },
-            { name: "test2", type: "any" }
-          ]
-        });
-      });
-      it("should throw and error if parenthesis is not closed", () => {
-        expect(() => getParamsData("(test1: any")).to.throw(`Parenthesis has no closing at line 1.`);
-        let classDefinition = `class Test {
-  test1(test1: any);
-  test2(test2: any;
-}`;
-        expect(() => getParamsData(classDefinition, classDefinition.indexOf("test2(") + 5))
-          .to.throw(`Parenthesis has no closing at line 3.`);
       });
     });
     describe("parseDTS", () => {

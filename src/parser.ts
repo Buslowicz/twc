@@ -1,6 +1,48 @@
-export interface Param {
+export interface Annotation {
+  name: string;
+  params: string;
+  descriptor: string;
+}
+export interface FoundMatch {
+  index: number;
+  found: any;
+}
+export interface FoundType {
+  end: number;
+  type: string;
+}
+export interface ParamConfig {
   name: string;
   type?: string
+}
+export interface PropertyConfig {
+  name: string;
+  modifiers: Array<string>;
+}
+export interface FieldConfig {
+  name: string;
+  type: string;
+  static?: boolean;
+  private?: boolean;
+  protected?: boolean;
+  public?: boolean;
+  readonly?: boolean;
+}
+export interface DTSParsedData {
+  className: string;
+  parent: string;
+  properties: Array<FieldConfig>;
+  methods: Array<FieldConfig>;
+}
+export interface JSParsedData {
+  generatedName: string;
+  values: {[fieldName: string]: string;};
+  decorators: {[fieldName: string]: Array<string>};
+  annotations: {[fieldName: string]: Array<Annotation>};
+  src: string;
+}
+export interface JSParserOptions {
+  definedAnnotations: Array<string>;
 }
 
 const TYPES = {
@@ -19,7 +61,16 @@ const ARRAY_BRACKETS = "[]";
 const GENERIC_BRACKETS = "<>";
 const ROUND_BRACKETS = "()";
 
-export function goTo(src, term, index = 0) {
+/**
+ * Works just like indexOf, but skips all kinds of brackets and strings
+ *
+ * @param src String to search
+ * @param term Search term
+ * @param offset (Optional) Search offset
+ *
+ * @returns Index of found character or -1 if not found
+ */
+export function goTo(src: string, term: string|RegExp, offset: number = 0): number {
   let char;
   let prevChar = null;
   let checkRegExp = typeof term !== "string";
@@ -37,22 +88,22 @@ export function goTo(src, term, index = 0) {
     }
   }
 
-  while ((char = src.charAt(index))) {
-    if (!stringOpen && (checkRegExp && term.test(char) || char === term)) {
-      return index;
+  while ((char = src.charAt(offset))) {
+    if (!stringOpen && (checkRegExp && (<RegExp>term).test(char) || char === term)) {
+      return offset;
     }
     switch (char) {
       case "{":
-        index = findClosing(src, index, OBJECT_BRACKETS);
+        offset = findClosing(src, offset, OBJECT_BRACKETS);
         break;
       case "[":
-        index = findClosing(src, index, ARRAY_BRACKETS);
+        offset = findClosing(src, offset, ARRAY_BRACKETS);
         break;
       case "<":
-        index = findClosing(src, index, GENERIC_BRACKETS);
+        offset = findClosing(src, offset, GENERIC_BRACKETS);
         break;
       case "(":
-        index = findClosing(src, index, ROUND_BRACKETS);
+        offset = findClosing(src, offset, ROUND_BRACKETS);
         break;
       case "'":
         openString(char, prevChar);
@@ -65,12 +116,21 @@ export function goTo(src, term, index = 0) {
         break;
     }
     prevChar = char;
-    index++;
+    offset++;
   }
   return -1;
 }
 
-export function split(src, term, trim = false) {
+/**
+ * Splits the string by given term, skips all kinds of brackets and strings
+ *
+ * @param src String to split
+ * @param term Search term (split by this)
+ * @param trim (Optional) Should chunks be trimmed
+ *
+ * @returns List of strings split by searched term
+ */
+export function split(src: string, term: string|RegExp, trim: boolean = false): string[] {
   let start = 0;
   let chunks = [];
   do {
@@ -83,11 +143,22 @@ export function split(src, term, trim = false) {
   return chunks;
 }
 
-export function findClosing(src, ptr, brackets) {
-  let start = ptr;
+/**
+ * Find index of matching closing bracket
+ *
+ * @param src String to search
+ * @param offset Search offset
+ * @param brackets Brackets pair to match (i.e. {}, [], (), <>)
+ *
+ * @throws SyntaxError - Bracket has no closing
+ *
+ * @returns Index of found bracket
+ */
+export function findClosing(src: string, offset: number, brackets: string): number {
+  let start = offset;
   let opened = 1;
   let char;
-  while ((char = src.charAt(++ptr))) {
+  while ((char = src.charAt(++offset))) {
     switch (char) {
       case brackets[ 0 ]:
         opened++;
@@ -95,7 +166,7 @@ export function findClosing(src, ptr, brackets) {
       case brackets[ 1 ]:
         opened--;
         if (opened <= 0) {
-          return ptr;
+          return offset;
         }
         break;
     }
@@ -109,40 +180,81 @@ export function findClosing(src, ptr, brackets) {
   throw new SyntaxError(`Parenthesis has no closing at line ${line}.`);
 }
 
-export function regExpClosestIndexOf(src, index = 0, chars = /;|:|\(/) {
+/**
+ * Finds first character that matches the search criteria and returns the found character and index
+ *
+ * @todo replace order of arguments, make term optional
+ *
+ * @param src String to search
+ * @param offset (Optional) Search offset
+ * @param term (Optional) Search term
+ *
+ * @returns Found character and index or -1 and null, if nothing was found
+ */
+export function regExpClosestIndexOf(src: string, offset: number = 0, term: RegExp = /;|:|\(/): FoundMatch {
   let char;
-  while ((char = src.charAt(index))) {
-    let match = char.match(chars);
+  while ((char = src.charAt(offset))) {
+    let match = char.match(term);
     if (!match) {
-      index++;
+      offset++;
       continue;
     }
-    return { index, found: match[ 0 ] };
+    return { index: offset, found: match[ 0 ] };
   }
   return { index: -1, found: null };
 }
 
-export function regExpIndexOf(src, ptr, match = /\S/) {
+/**
+ * Works just like indexOf, but using RegExp for matching
+ * @deprecated migrate to goTo
+ *
+ * @param src String to search
+ * @param offset (Optional) Search offset
+ * @param term (Optional) Search term
+ *
+ * @returns Index of found character or -1 if not found
+ */
+export function regExpIndexOf(src: string, offset: number = 0, term: RegExp = /\S/): number {
   let char;
-  while ((char = src.charAt(ptr))) {
-    if (match.test(char)) {
-      return ptr;
+  while ((char = src.charAt(offset))) {
+    if (term.test(char)) {
+      return offset;
     }
-    ptr++;
+    offset++;
   }
   return -1;
 }
 
-export function getPropertyNoType(src, from?, to?) {
-  let [...modifiers] = src.slice(from || 0, to ? to : src.indexOf(";")).split(" ");
+/**
+ * Get modifiers and name of a property or method (does not get types)
+ *
+ * @param src String to search
+ * @param from (Optional) Search from this index
+ * @param to (Optional) Search up to this index
+ *
+ * @returns name and array of property/method modifiers
+ */
+export function getPropertyNoType(src: string, from: number = 0, to: number = src.indexOf(";")): PropertyConfig {
+  let [...modifiers] = src.slice(from, to).split(" ");
   let name = modifiers.pop();
   return { name, modifiers };
 }
 
-export function getType(src, from = 0) {
+/**
+ * Get type of property, method or param. Inline structures are casted to Object or Array.
+ * Combined types are casted to Object. Generic types are stripped.
+ *
+ * @todo return object with -1 and null if nothing was found, instead of null
+ *
+ * @param src String to search
+ * @param offset (Optional) Search offset
+ *
+ * @returns Found type and index of the END of type declaration or null if not found
+ */
+export function getType(src: string, offset: number = 0): FoundType|null {
   // FIXME function interface type ( () => void; )
   // TODO change loop to use goTo function ?
-  let start = regExpIndexOf(src, from);
+  let start = regExpIndexOf(src, offset);
   let done = false;
   let index = start;
   let types = [];
@@ -219,7 +331,15 @@ export function getType(src, from = 0) {
   return { type, end: index };
 }
 
-export function arrToObject(arr, value: any = true) {
+/**
+ * Convert array to object, using given value (default `true`) as value
+ *
+ * @param arr Array of strings to convert
+ * @param value Value to assign to keys
+ *
+ * @returns An object with array values as keys and given value as object values
+ */
+export function arrToObject(arr: Array<string>, value: any = true): any {
   let obj = {};
   for (let i = 0, l = arr.length; i < l; i++) {
     obj[ arr[ i ] ] = value;
@@ -227,7 +347,16 @@ export function arrToObject(arr, value: any = true) {
   return obj;
 }
 
-export function parseParams(src, from = 0, to = src.length) {
+/**
+ * Get list of params with their types
+ *
+ * @param src String to search
+ * @param from (Optional) Search from this index
+ * @param to (Optional) Search up to this index
+ *
+ * @returns List of parameter names and types
+ */
+export function parseParams(src: string, from: number = 0, to: number = src.length): Array<ParamConfig> {
   let params = [];
   while (from < to) {
     let firstStop = regExpClosestIndexOf(src, from, /,|:/);
@@ -235,7 +364,7 @@ export function parseParams(src, from = 0, to = src.length) {
       params.push({ name: src.slice(from, to).trim() });
       break;
     }
-    let param: Param = { name: src.slice(from, firstStop.index).trim() };
+    let param: ParamConfig = { name: src.slice(from, firstStop.index).trim() };
 
     if (firstStop.found === ":") {
       let typeData = getType(src, firstStop.index + 1);
@@ -254,26 +383,37 @@ export function parseParams(src, from = 0, to = src.length) {
   return params;
 }
 
-export function buildField(modifiers, name, params?, type?) {
-  let config: {name: string, params?: Array<Param>, type?: string} = { name };
+/**
+ * Build a full property config
+ *
+ * @param mods List of field modifiers
+ * @param name Property/method name
+ * @param params List of parameters (names and types)
+ * @param type Type of field
+ *
+ * @returns Field configuration object
+ */
+export function buildField(mods: Array<string>, name: string, params?: Array<ParamConfig>, type?: string): FieldConfig {
+  let config: {name: string, params?: Array<ParamConfig>, type?: string} = { name };
   if (params) {
     config.params = params;
   }
   if (type) {
     config.type = type;
   }
-  return Object.assign({}, arrToObject(modifiers), config);
+  return Object.assign({}, arrToObject(mods), config);
 }
 
-export function getParamsData(src, ptr = 0) {
-  let closeIndex = findClosing(src, ptr, ROUND_BRACKETS);
-
-  // find the colon to start searching for type
-  let params = parseParams(src, ptr + 1, closeIndex);
-  return { closeIndex, params };
-}
-
-export function parseDTS(src) {
+/**
+ * Parse TypeScript declaration to fetch class name, super class, properties and methods names, types and modifiers
+ *
+ * @param src String to parse
+ *
+ * @throws Error if no class was found
+ *
+ * @returns Class name, super class, properties and methods names, types and modifiers
+ */
+export function parseDTS(src: string): DTSParsedData {
   let match = src.match(/[\s\n]class ([\w$_]+)(?:[\s]+extends ([^{]+))?[\s]*\{/);
   if (!match) {
     throw new Error("no class found");
@@ -295,7 +435,7 @@ export function parseDTS(src) {
     // post-actions
     char = src.charAt(++ptr)
   ) {
-    let params, match, decorator;
+    let params, match;
     // skip whitespace
     let from = ptr = regExpIndexOf(src, ptr);
 
@@ -313,10 +453,12 @@ export function parseDTS(src) {
     // method
     if (match === "(") {
       // find end of parameters declaration
-      let closeIndex;
-      ({ params, closeIndex } = getParamsData(src, ptr));
+      let end = findClosing(src, ptr, ROUND_BRACKETS);
 
-      let closing = regExpClosestIndexOf(src, closeIndex, /;|:/);
+      // find the colon to start searching for type
+      params = parseParams(src, ptr + 1, end);
+
+      let closing = regExpClosestIndexOf(src, end, /;|:/);
 
       ptr = closing.index + 1;
 
@@ -345,17 +487,35 @@ export function parseDTS(src) {
   return { className, parent, properties, methods };
 }
 
-export function parseJS(src, { className, properties }, { definedAnnotations = [] } = {}) {
-  // TODO Remove default values (as an option) ??
-  const constructorPattern = new RegExp(`(class|function)[\\s]*${className}.*?{`);
-  const defaultValuePattern = new RegExp(`this\\.(${properties.map(itm => itm.name).join("|")}) = (.*);\\n`, "g");
-  const fieldDecoratorPattern = new RegExp(`__decorate\\(\\[([\\W\\w]*?)], (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g");
-  const classDecoratorPattern = new RegExp(`${className} = (?:(.*?) = )?__decorate\\(\\[([\\W\\w]*?)], (${className})\\);`, "g");
+/**
+ * Parse JavaScript output to fetch default values, decorators, annotations, generated additional variable name and
+ * pre-formatted JavaScript src
+ *
+ * @todo consider removing default values as an option
+ * @todo parse default values using goTo function
+ *
+ * @param src String to parse
+ * @param dtsData Data fetched from TypeScript declaration
+ * @param options Options passed to parser
+ * @param options.definedAnnotations Available design-time annotations
+ *
+ * @throws Error if no class was found
+ *
+ * @returns default values, decorators, annotations, generated additional variable name and pre-formatted JavaScript src
+ */
+export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOptions = <any> {}): JSParsedData {
+  const { definedAnnotations = [] } = options;
+  const { className, properties } = dtsData;
 
-  let { index = -1, 1: match = null } = src.match(constructorPattern) || {};
+  const constructor = new RegExp(`(class|function)[\\s]*${className}.*?{`);
+  const defaultValue = new RegExp(`this\\.(${properties.map(itm => itm.name).join("|")}) = (.*);\\n`, "g");
+  const fieldDecor = new RegExp(`__decorate\\(\\[([\\W\\w]*?)], (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g");
+  const classDecor = new RegExp(`${className} = (?:(.*?) = )?__decorate\\(\\[([\\W\\w]*?)], (${className})\\);`, "g");
+
+  let { index = -1, 1: match = null } = src.match(constructor) || {};
 
   if (!match) {
-    throw new Error ("no class found");
+    throw new Error("no class found");
   }
 
   // find constructor if es6 class was found
@@ -375,14 +535,14 @@ export function parseJS(src, { className, properties }, { definedAnnotations = [
   let generatedName;
 
   // get default values
-  src.slice(index + 1, end).replace(defaultValuePattern, (_, name, value) => values[ name ] = value);
+  src.slice(index + 1, end).replace(defaultValue, (_, name, value) => values[ name ] = value);
 
   // find where decorators meta start
   let decorStart = src.indexOf("__decorate([", end);
   let decoratorsSrc = src.substr(decorStart);
 
   // get decorators
-  decoratorsSrc.replace(fieldDecoratorPattern, (_, definition, proto, name, descriptor) => {
+  decoratorsSrc.replace(fieldDecor, (_, definition, proto, name, descriptor) => {
     let usedDecorators = [];
     let usedAnnotations = [];
 
@@ -392,7 +552,10 @@ export function parseJS(src, { className, properties }, { definedAnnotations = [
     for (let decors = split(definition, ",", true), i = 0, l = decors.length; i < l; i++) {
       let decor = decors[ i ];
       let ptr = decor.indexOf("(");
-      let [name, params = undefined] = ptr !== -1 ? [ decor.slice(0, ptr), decor.slice(ptr + 1, decor.length - 1) ] : [ decor ];
+      let [name, params = undefined] = ptr !== -1 ? [
+        decor.slice(0, ptr),
+        decor.slice(ptr + 1, decor.length - 1)
+      ] : [ decor ];
       if (definedAnnotations.indexOf(name) !== -1) {
         usedAnnotations.push({ name, params, descriptor });
       }
@@ -405,9 +568,10 @@ export function parseJS(src, { className, properties }, { definedAnnotations = [
     annotations[ name ] = usedAnnotations;
 
     //    return `__decorate(${definition}), ${proto}, "${name}", ${descriptor});`
+    return _;
   });
 
-  decoratorsSrc.replace(classDecoratorPattern, (_, secondName, definition) => {
+  decoratorsSrc.replace(classDecor, (_, secondName, definition) => {
     generatedName = secondName;
 
     let usedDecorators = [];
@@ -419,7 +583,10 @@ export function parseJS(src, { className, properties }, { definedAnnotations = [
     for (let decors = split(definition, ",", true), i = 0, l = decors.length; i < l; i++) {
       let decor = decors[ i ];
       let ptr = decor.indexOf("(");
-      let [name, params = undefined] = ptr !== -1 ? [ decor.slice(0, ptr), decor.slice(ptr + 1, decor.length - 1) ] : [ decor ];
+      let [name, params = undefined] = ptr !== -1 ? [
+        decor.slice(0, ptr),
+        decor.slice(ptr + 1, decor.length - 1)
+      ] : [ decor ];
       if (definedAnnotations.indexOf(name) !== -1) {
         usedAnnotations.push({ name, params });
       }
@@ -430,6 +597,8 @@ export function parseJS(src, { className, properties }, { definedAnnotations = [
 
     decorators[ "class" ] = usedDecorators;
     annotations[ "class" ] = usedAnnotations;
+
+    return _;
   });
 
   return { generatedName, values, decorators, annotations, src: src.slice(0, end) };

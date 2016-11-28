@@ -169,7 +169,7 @@ describe("PCC", () => {
                 chai_1.expect(field).to.have.property("name");
             });
             it("should have params and type if they are defined", () => {
-                let field = parser_1.buildField(["modifier"], "name", "params", "type");
+                let field = parser_1.buildField(["modifier"], "name", [{ name: "params" }], "type");
                 chai_1.expect(field).to.have.property("type");
                 chai_1.expect(field).to.have.property("params");
             });
@@ -177,26 +177,6 @@ describe("PCC", () => {
                 let field = parser_1.buildField(["modifier"], "name", null, null);
                 chai_1.expect(field).to.not.have.property("type");
                 chai_1.expect(field).to.not.have.property("params");
-            });
-        });
-        describe("getParamsData", () => {
-            it("should return index of parenthesis close index and params details", () => {
-                chai_1.expect(parser_1.getParamsData("(test1: {a: number, b: any;}, test2: any)", 0)).to.deep.equal({
-                    closeIndex: 40,
-                    params: [
-                        { name: "test1", type: "Object" },
-                        { name: "test2", type: "any" }
-                    ]
-                });
-            });
-            it("should throw and error if parenthesis is not closed", () => {
-                chai_1.expect(() => parser_1.getParamsData("(test1: any")).to.throw(`Parenthesis has no closing at line 1.`);
-                let classDefinition = `class Test {
-  test1(test1: any);
-  test2(test2: any;
-}`;
-                chai_1.expect(() => parser_1.getParamsData(classDefinition, classDefinition.indexOf("test2(") + 5))
-                    .to.throw(`Parenthesis has no closing at line 3.`);
             });
         });
         describe("parseDTS", () => {
