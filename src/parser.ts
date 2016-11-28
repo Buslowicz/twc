@@ -1,14 +1,7 @@
-"use strict";
-const path = require("path");
-const ts = require("gulp-typescript");
-const del = require("del");
-const gulp = require("gulp");
-const tslint = require("gulp-tslint");
-const rename = require("gulp-rename");
-const transform = require("gulp-transform");
-const merge = require("merge2");
-
-const CWD = process.cwd();
+export interface Param {
+  name: string;
+  type?: string
+}
 
 const TYPES = {
   IS_PRIMITIVE: type => "boolean|number|string|object".indexOf(type) !== -1,
@@ -21,51 +14,12 @@ const TYPES = {
   ARRAY: "Array"
 };
 
-let globalTSConfig;
-let projectTSConfig;
+const OBJECT_BRACKETS = "{}";
+const ARRAY_BRACKETS = "[]";
+const GENERIC_BRACKETS = "<>";
+const ROUND_BRACKETS = "()";
 
-let project;
-
-let dest;
-let srcs;
-
-exports.init = init;
-function init({
-  globalConfig = require(path.join(__dirname, "tsconfig.json")),
-  projectConfig = require(path.join(CWD, "tsconfig.json")),
-  dist = path.join(CWD, "dist"),
-  src = (projectConfig.files || []).concat(projectConfig.include || []).map(src => path.join(CWD, src))
-}) {
-  globalTSConfig = globalConfig;
-  projectTSConfig = projectConfig;
-  dest = dist;
-  srcs = src;
-
-  project = ts.createProject(Object.assign({},
-    globalConfig.compilerOptions,
-    projectConfig.compilerOptions,
-    { noEmit: false }
-  ));
-}
-
-exports.clean = clean;
-function clean() {
-  return del([ dest ]);
-}
-
-exports.lint = lint;
-function lint() {
-  //noinspection JSCheckFunctionSignatures
-  return new Promise((resolve, reject) => gulp
-    .src(srcs)
-    .pipe(tslint({ formatter: "prose" }))
-    .pipe(tslint.report())
-    .on("end", resolve)
-    .on("error", reject));
-}
-
-exports.goTo = goTo;
-function goTo(src, term, index = 0) {
+export function goTo(src, term, index = 0) {
   let char;
   let prevChar = null;
   let checkRegExp = typeof term !== "string";
@@ -77,7 +31,8 @@ function goTo(src, term, index = 0) {
     }
     if (stringOpen === char) {
       stringOpen = false;
-    } else if (stringOpen === false) {
+    }
+    else if (stringOpen === false) {
       stringOpen = char;
     }
   }
@@ -88,16 +43,16 @@ function goTo(src, term, index = 0) {
     }
     switch (char) {
       case "{":
-        index = findClosing(src, index, findClosing.OBJECT);
+        index = findClosing(src, index, OBJECT_BRACKETS);
         break;
       case "[":
-        index = findClosing(src, index, findClosing.ARRAY);
+        index = findClosing(src, index, ARRAY_BRACKETS);
         break;
       case "<":
-        index = findClosing(src, index, findClosing.GENERIC);
+        index = findClosing(src, index, GENERIC_BRACKETS);
         break;
       case "(":
-        index = findClosing(src, index, findClosing.PARENTHESIS);
+        index = findClosing(src, index, ROUND_BRACKETS);
         break;
       case "'":
         openString(char, prevChar);
@@ -115,8 +70,7 @@ function goTo(src, term, index = 0) {
   return -1;
 }
 
-exports.split = split;
-function split(src, term, trim = false) {
+export function split(src, term, trim = false) {
   let start = 0;
   let chunks = [];
   do {
@@ -124,12 +78,12 @@ function split(src, term, trim = false) {
     let chunk = comma === -1 ? src.substr(start) : src.slice(start, comma);
     chunks.push(trim ? chunk.trim() : chunk);
     start = comma + 1;
-  } while (start > 0);
+  }
+  while (start > 0);
   return chunks;
 }
 
-exports.findClosing = findClosing;
-function findClosing(src, ptr, brackets) {
+export function findClosing(src, ptr, brackets) {
   let start = ptr;
   let opened = 1;
   let char;
@@ -155,13 +109,7 @@ function findClosing(src, ptr, brackets) {
   throw new SyntaxError(`Parenthesis has no closing at line ${line}.`);
 }
 
-findClosing.OBJECT = "{}";
-findClosing.ARRAY = "[]";
-findClosing.GENERIC = "<>";
-findClosing.PARENTHESIS = "()";
-
-exports.regExpClosestIndexOf = regExpClosestIndexOf;
-function regExpClosestIndexOf(src, index = 0, chars = /;|:|\(/) {
+export function regExpClosestIndexOf(src, index = 0, chars = /;|:|\(/) {
   let char;
   while ((char = src.charAt(index))) {
     let match = char.match(chars);
@@ -174,8 +122,7 @@ function regExpClosestIndexOf(src, index = 0, chars = /;|:|\(/) {
   return { index: -1, found: null };
 }
 
-exports.regExpIndexOf = regExpIndexOf;
-function regExpIndexOf(src, ptr, match = /\S/) {
+export function regExpIndexOf(src, ptr, match = /\S/) {
   let char;
   while ((char = src.charAt(ptr))) {
     if (match.test(char)) {
@@ -186,15 +133,13 @@ function regExpIndexOf(src, ptr, match = /\S/) {
   return -1;
 }
 
-exports.getPropertyNoType = getPropertyNoType;
-function getPropertyNoType(src, from, to) {
+export function getPropertyNoType(src, from?, to?) {
   let [...modifiers] = src.slice(from || 0, to ? to : src.indexOf(";")).split(" ");
   let name = modifiers.pop();
   return { name, modifiers };
 }
 
-exports.getType = getType;
-function getType(src, from = 0) {
+export function getType(src, from = 0) {
   // FIXME function interface type ( () => void; )
   // TODO change loop to use goTo function ?
   let start = regExpIndexOf(src, from);
@@ -217,12 +162,12 @@ function getType(src, from = 0) {
         break;
       case "{":
         types.push(TYPES.OBJECT);
-        index = findClosing(src, index, findClosing.OBJECT);
+        index = findClosing(src, index, OBJECT_BRACKETS);
         start = ++index;
         break;
       case "[":
         types.push(TYPES.ARRAY);
-        index = findClosing(src, index, findClosing.ARRAY);
+        index = findClosing(src, index, ARRAY_BRACKETS);
         start = ++index;
         break;
       case "<":
@@ -230,7 +175,7 @@ function getType(src, from = 0) {
         if (type.length > 0) {
           types.push(type);
         }
-        index = findClosing(src, index, findClosing.GENERIC);
+        index = findClosing(src, index, GENERIC_BRACKETS);
         if (index === -1) {
           return { type: null, end: -1 };
         }
@@ -274,8 +219,7 @@ function getType(src, from = 0) {
   return { type, end: index };
 }
 
-exports.arrToObject = arrToObject;
-function arrToObject(arr, value = true) {
+export function arrToObject(arr, value: any = true) {
   let obj = {};
   for (let i = 0, l = arr.length; i < l; i++) {
     obj[ arr[ i ] ] = value;
@@ -283,8 +227,7 @@ function arrToObject(arr, value = true) {
   return obj;
 }
 
-exports.parseParams = parseParams;
-function parseParams(src, from = 0, to = src.length) {
+export function parseParams(src, from = 0, to = src.length) {
   let params = [];
   while (from < to) {
     let firstStop = regExpClosestIndexOf(src, from, /,|:/);
@@ -292,7 +235,7 @@ function parseParams(src, from = 0, to = src.length) {
       params.push({ name: src.slice(from, to).trim() });
       break;
     }
-    let param = { name: src.slice(from, firstStop.index).trim() };
+    let param: Param = { name: src.slice(from, firstStop.index).trim() };
 
     if (firstStop.found === ":") {
       let typeData = getType(src, firstStop.index + 1);
@@ -300,7 +243,8 @@ function parseParams(src, from = 0, to = src.length) {
         param.type = typeData.type;
       }
       from = typeData.end + 1;
-    } else {
+    }
+    else {
       from = firstStop.index + 1;
     }
 
@@ -310,9 +254,8 @@ function parseParams(src, from = 0, to = src.length) {
   return params;
 }
 
-exports.buildField = buildField;
-function buildField(modifiers, name, params, type) {
-  let config = { name };
+export function buildField(modifiers, name, params?, type?) {
+  let config: {name: string, params?: Array<Param>, type?: string} = { name };
   if (params) {
     config.params = params;
   }
@@ -322,20 +265,18 @@ function buildField(modifiers, name, params, type) {
   return Object.assign({}, arrToObject(modifiers), config);
 }
 
-exports.getParamsData = getParamsData;
-function getParamsData(src, ptr = 0) {
-  let closeIndex = findClosing(src, ptr, findClosing.PARENTHESIS);
+export function getParamsData(src, ptr = 0) {
+  let closeIndex = findClosing(src, ptr, ROUND_BRACKETS);
 
   // find the colon to start searching for type
   let params = parseParams(src, ptr + 1, closeIndex);
   return { closeIndex, params };
 }
 
-exports.parseDTS = parseDTS;
-function parseDTS(src) {
+export function parseDTS(src) {
   let match = src.match(/[\s\n]class ([\w$_]+)(?:[\s]+extends ([^{]+))?[\s]*\{/);
   if (!match) {
-    return {};
+    throw new Error("no class found");
   }
 
   const className = match[ 1 ];
@@ -395,7 +336,8 @@ function parseDTS(src) {
 
     if (params) {
       methods.push(buildField(modifiers, name, params, type));
-    } else {
+    }
+    else {
       properties.push(buildField(modifiers, name, null, type));
     }
   }
@@ -403,18 +345,17 @@ function parseDTS(src) {
   return { className, parent, properties, methods };
 }
 
-exports.parseJS = parseJS;
-function parseJS(src, { className, properties }, { definedAnnotations = [] } = {}) {
+export function parseJS(src, { className, properties }, { definedAnnotations = [] } = {}) {
   // TODO Remove default values (as an option) ??
   const constructorPattern = new RegExp(`(class|function)[\\s]*${className}.*?{`);
   const defaultValuePattern = new RegExp(`this\\.(${properties.map(itm => itm.name).join("|")}) = (.*);\\n`, "g");
   const fieldDecoratorPattern = new RegExp(`__decorate\\(\\[([\\W\\w]*?)], (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g");
-  const classDecoratorPattern = new RegExp(`${className} = (.*?) = __decorate\\(\\[([\\W\\w]*?)], (${className})\\);`, "g");
+  const classDecoratorPattern = new RegExp(`${className} = (?:(.*?) = )?__decorate\\(\\[([\\W\\w]*?)], (${className})\\);`, "g");
 
-  let { index, 1: match } = src.match(constructorPattern) || {};
+  let { index = -1, 1: match = null } = src.match(constructorPattern) || {};
 
   if (!match) {
-    return {};
+    throw new Error ("no class found");
   }
 
   // find constructor if es6 class was found
@@ -426,7 +367,7 @@ function parseJS(src, { className, properties }, { definedAnnotations = [] } = {
   index = src.indexOf("{", index);
 
   // find closing of the constructor body
-  let end = findClosing(src, index, findClosing.OBJECT);
+  let end = findClosing(src, index, OBJECT_BRACKETS);
 
   let values = {};
   let decorators = {};
@@ -449,10 +390,10 @@ function parseJS(src, { className, properties }, { definedAnnotations = [] } = {
 
     // get each decorator name and execution params
     for (let decors = split(definition, ",", true), i = 0, l = decors.length; i < l; i++) {
-      let decor = decors[i];
+      let decor = decors[ i ];
       let ptr = decor.indexOf("(");
-      let [name, params] = ptr !== -1 ? [ decor.slice(0, ptr), decor.slice(ptr + 1, decor.length - 1) ] : [ decor ];
-      if (definedAnnotations.includes(name)) {
+      let [name, params = undefined] = ptr !== -1 ? [ decor.slice(0, ptr), decor.slice(ptr + 1, decor.length - 1) ] : [ decor ];
+      if (definedAnnotations.indexOf(name) !== -1) {
         usedAnnotations.push({ name, params, descriptor });
       }
       else {
@@ -463,7 +404,7 @@ function parseJS(src, { className, properties }, { definedAnnotations = [] } = {
     decorators[ name ] = usedDecorators;
     annotations[ name ] = usedAnnotations;
 
-//    return `__decorate(${definition}), ${proto}, "${name}", ${descriptor});`
+    //    return `__decorate(${definition}), ${proto}, "${name}", ${descriptor});`
   });
 
   decoratorsSrc.replace(classDecoratorPattern, (_, secondName, definition) => {
@@ -476,10 +417,10 @@ function parseJS(src, { className, properties }, { definedAnnotations = [] } = {
 
     // get each decorator name and execution params
     for (let decors = split(definition, ",", true), i = 0, l = decors.length; i < l; i++) {
-      let decor = decors[i];
+      let decor = decors[ i ];
       let ptr = decor.indexOf("(");
-      let [name, params] = ptr !== -1 ? [ decor.slice(0, ptr), decor.slice(ptr + 1, decor.length - 1) ] : [ decor ];
-      if (definedAnnotations.includes(name)) {
+      let [name, params = undefined] = ptr !== -1 ? [ decor.slice(0, ptr), decor.slice(ptr + 1, decor.length - 1) ] : [ decor ];
+      if (definedAnnotations.indexOf(name) !== -1) {
         usedAnnotations.push({ name, params });
       }
       else {
@@ -492,55 +433,4 @@ function parseJS(src, { className, properties }, { definedAnnotations = [] } = {
   });
 
   return { generatedName, values, decorators, annotations, src: src.slice(0, end) };
-}
-
-exports.buildHTML = buildHTML;
-function buildHTML() {
-  return new Promise((resolve, reject) => {
-    const stream = gulp
-      .src(srcs)
-      .pipe(project());
-
-    merge([ // Merge the two output streams, so this task is finished when the IO of both operations is done.
-      stream.dts
-        .pipe(transform(model => {
-          console.log(parseDTS(model.toString()));
-        })),
-
-      stream.js
-        .pipe(transform(content => {
-          let links = [];
-          let scripts = [];
-          content = content
-            .toString()
-            .replace(/require\(['"](link|script)!(.*?)['"]\);\n?/g, (m, type, module) => {
-              switch (type) {
-                case "link":
-                  links.push(module);
-                  break;
-                case "script":
-                  scripts.push(module);
-                  break;
-              }
-              return "";
-            });
-          return Buffer.from(
-            links.map(module => `<link rel="import" href="${module}">\n`).join("") +
-            scripts.map(module => `<script src="${module}"></script>\n`).join("") +
-            "<script>\n" + content + "\n</script>"
-          );
-        }))
-        .pipe(rename({ extname: ".html" }))
-        .pipe(gulp.dest(dest))
-    ])
-      .on("end", resolve)
-      .on("error", reject);
-  });
-}
-
-exports.build = build;
-function build() {
-  clean()
-    .then(lint)
-    .then(buildHTML);
 }

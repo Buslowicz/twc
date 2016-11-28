@@ -1,6 +1,5 @@
-/// <reference path="types.d.ts"/>
 "use strict";
-function test(a, b) {
+function test1(a, b) {
     console.log(a, b, this);
 }
 function test2(conf) {
@@ -113,13 +112,13 @@ InputMath.SYMBOLS_PHYSICS = [
 ];
 __decorate([
     property({ type: String, value: "", reflectToAttribute: true }),
-    test
+    test1
 ], InputMath.prototype, "value", void 0);
 __decorate([
     property({
         type: Array, value: () => [
-            InputMath_1.SYMBOLS_BASIC,
-            InputMath_1.SYMBOLS_GREEK
+            InputMath.SYMBOLS_BASIC,
+            InputMath.SYMBOLS_GREEK
         ]
     }),
     test2(5)

@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "noEmit": true,
     "experimentalDecorators": true,
     "noEmitHelpers": true,
     "sourceMap": false,
@@ -12,6 +13,6 @@
     ]
   },
   "include": [
-    "*.ts"
+    "index"
   ]
 }

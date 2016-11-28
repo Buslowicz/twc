@@ -1,13 +1,18 @@
 {
-    "compilerOptions": {
-        "noEmit": true,
-        "experimentalDecorators": true,
-        "declaration": true,
-        "target": "es5",
-        "module": "commonjs",
-        "lib": [
-            "dom",
-            "es6"
-        ]
-    }
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "noEmitHelpers": true,
+    "sourceMap": false,
+    "declaration": true,
+    "target": "es6",
+    "module": "commonjs",
+    "lib": [
+      "dom",
+      "es6"
+    ]
+  },
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts"
+  ]
 }

@@ -1,5 +1,3 @@
-/// <reference path="types.d.ts"/>
-
 "use strict";
 interface ICmd {
   cmd: string;
@@ -11,7 +9,7 @@ interface PolymerEvent extends Event {
   model: any;
 }
 
-function test(a, b) {
+function test1(a, b) {
   console.log(a, b, this);
 }
 
@@ -61,7 +59,7 @@ class InputMath extends polymer.Base {
   testValue: "yep"|"nope";
 
   @property({ type: String, value: "", reflectToAttribute: true })
-  @test
+  @test1
   value: string|null = "";
 
   @property({

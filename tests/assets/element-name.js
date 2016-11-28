@@ -1,5 +1,6 @@
-import "link!bower_components/polymer/polymer.html";
-import "link!node_modules/easy-polymer/dist/esp.html";
+"use strict";
+require("link!bower_components/polymer/polymer.html");
+require("link!node_modules/easy-polymer/dist/esp.html");
 class ElementName {
     constructor() {
         this.test = "tester";

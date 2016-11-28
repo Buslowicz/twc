@@ -1,4 +1,3 @@
-/// <reference path="types.d.ts" />
 interface ICmd {
     cmd: string;
     name: string;
@@ -7,7 +6,7 @@ interface ICmd {
 interface PolymerEvent extends Event {
     model: any;
 }
-declare function test(a: any, b: any): void;
+declare function test1(a: any, b: any): void;
 declare function test2(conf: any): any;
 declare function template(str: any): (target: any) => void;
 declare class InputMath extends polymer.Base {
