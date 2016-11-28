@@ -117,8 +117,8 @@ __decorate([
 __decorate([
     property({
         type: Array, value: () => [
-            InputMath_1.SYMBOLS_BASIC,
-            InputMath_1.SYMBOLS_GREEK
+            InputMath.SYMBOLS_BASIC,
+            InputMath.SYMBOLS_GREEK
         ]
     }),
     test2(5)

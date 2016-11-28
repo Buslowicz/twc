@@ -2,17 +2,13 @@
   "compilerOptions": {
     "noEmit": true,
     "experimentalDecorators": true,
-    "noEmitHelpers": true,
-    "sourceMap": false,
-    "declaration": true,
     "target": "es6",
-    "module": "commonjs",
     "lib": [
       "dom",
       "es6"
     ]
   },
   "include": [
-    "index"
+    "*.test"
   ]
 }
