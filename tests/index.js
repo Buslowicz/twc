@@ -53,12 +53,12 @@ describe("PCC", () => {
         });
         describe("regExpClosestIndexOf", () => {
             it("should return index of the first character that matches pattern", () => {
-                chai_1.expect(parser_1.regExpClosestIndexOf("abc", 0, /a|b|c/)).to.deep.equal({ index: 0, found: "a" });
-                chai_1.expect(parser_1.regExpClosestIndexOf("abc", 0, /b|c/)).to.deep.equal({ index: 1, found: "b" });
-                chai_1.expect(parser_1.regExpClosestIndexOf("abc", 0, /c|b/)).to.deep.equal({ index: 1, found: "b" });
+                chai_1.expect(parser_1.regExpClosestIndexOf("abc", /a|b|c/, 0)).to.deep.equal({ index: 0, found: "a" });
+                chai_1.expect(parser_1.regExpClosestIndexOf("abc", /b|c/, 0)).to.deep.equal({ index: 1, found: "b" });
+                chai_1.expect(parser_1.regExpClosestIndexOf("abc", /c|b/, 0)).to.deep.equal({ index: 1, found: "b" });
             });
             it("should return -1 for index and null for value, if nothing is found", () => {
-                chai_1.expect(parser_1.regExpClosestIndexOf("def", 0, /b|c/)).to.deep.equal({ index: -1, found: null });
+                chai_1.expect(parser_1.regExpClosestIndexOf("def", /b|c/, 0)).to.deep.equal({ index: -1, found: null });
             });
         });
         describe("regExpIndexOf", () => {

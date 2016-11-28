@@ -183,15 +183,13 @@ export function findClosing(src: string, offset: number, brackets: string): numb
 /**
  * Finds first character that matches the search criteria and returns the found character and index
  *
- * @todo replace order of arguments, make term optional
- *
  * @param src String to search
+ * @param term Search term
  * @param offset (Optional) Search offset
- * @param term (Optional) Search term
  *
  * @returns Found character and index or -1 and null, if nothing was found
  */
-export function regExpClosestIndexOf(src: string, offset: number = 0, term: RegExp = /;|:|\(/): FoundMatch {
+export function regExpClosestIndexOf(src: string, term: RegExp, offset: number = 0): FoundMatch {
   let char;
   while ((char = src.charAt(offset))) {
     let match = char.match(term);
@@ -359,7 +357,7 @@ export function arrToObject(arr: Array<string>, value: any = true): any {
 export function parseParams(src: string, from: number = 0, to: number = src.length): Array<ParamConfig> {
   let params = [];
   while (from < to) {
-    let firstStop = regExpClosestIndexOf(src, from, /,|:/);
+    let firstStop = regExpClosestIndexOf(src, /,|:/, from);
     if (firstStop.index === -1) {
       params.push({ name: src.slice(from, to).trim() });
       break;
@@ -445,7 +443,7 @@ export function parseDTS(src: string): DTSParsedData {
     }
 
     // find next stop (semicolon for the end of line, colon for end of prop name, parenthesis for end of method name
-    ({ index: ptr, found: match } = regExpClosestIndexOf(src, ptr));
+    ({ index: ptr, found: match } = regExpClosestIndexOf(src, /;|:|\(/, ptr));
 
     // get name and modifiers
     let { name, modifiers } = getPropertyNoType(src, from, ptr);
@@ -458,7 +456,7 @@ export function parseDTS(src: string): DTSParsedData {
       // find the colon to start searching for type
       params = parseParams(src, ptr + 1, end);
 
-      let closing = regExpClosestIndexOf(src, end, /;|:/);
+      let closing = regExpClosestIndexOf(src, /;|:/, end);
 
       ptr = closing.index + 1;
 

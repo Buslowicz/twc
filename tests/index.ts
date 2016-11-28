@@ -56,12 +56,12 @@ describe("PCC", () => {
     });
     describe("regExpClosestIndexOf", () => {
       it("should return index of the first character that matches pattern", () => {
-        expect(regExpClosestIndexOf("abc", 0, /a|b|c/)).to.deep.equal({ index: 0, found: "a" });
-        expect(regExpClosestIndexOf("abc", 0, /b|c/)).to.deep.equal({ index: 1, found: "b" });
-        expect(regExpClosestIndexOf("abc", 0, /c|b/)).to.deep.equal({ index: 1, found: "b" });
+        expect(regExpClosestIndexOf("abc", /a|b|c/, 0)).to.deep.equal({ index: 0, found: "a" });
+        expect(regExpClosestIndexOf("abc", /b|c/, 0)).to.deep.equal({ index: 1, found: "b" });
+        expect(regExpClosestIndexOf("abc", /c|b/, 0)).to.deep.equal({ index: 1, found: "b" });
       });
       it("should return -1 for index and null for value, if nothing is found", () => {
-        expect(regExpClosestIndexOf("def", 0, /b|c/)).to.deep.equal({ index: -1, found: null });
+        expect(regExpClosestIndexOf("def", /b|c/, 0)).to.deep.equal({ index: -1, found: null });
       });
     });
     describe("regExpIndexOf", () => {
