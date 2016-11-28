@@ -12,7 +12,7 @@ let InputMath_1 = class InputMath extends polymer.Base {
     constructor() {
         super(...arguments);
         this.value = "";
-        this.fn = () => typeof window;
+        this.fn = function () { return typeof window; };
         this._observerLocked = false;
         this._freezeHistory = false;
     }
@@ -117,8 +117,8 @@ __decorate([
 __decorate([
     property({
         type: Array, value: () => [
-            InputMath.SYMBOLS_BASIC,
-            InputMath.SYMBOLS_GREEK
+            InputMath_1.SYMBOLS_BASIC,
+            InputMath_1.SYMBOLS_GREEK
         ]
     }),
     test2(5)

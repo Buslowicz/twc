@@ -74,7 +74,7 @@ class InputMath extends polymer.Base {
   @property({ type: String, value: "" })
   showSymbols: string;
 
-  fn: Function = () => typeof window;
+  fn: Function = function () { return typeof window; };
 
   private _history: string[];
   private _mathField: MathQuill.EditableField;

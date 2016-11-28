@@ -275,12 +275,12 @@ describe("PCC", () => {
       });
 
       it("should fetch additional generated class name", () => {
-        expect(meta.generatedName).to.equal("InputMath_1");
+        expect(meta.generatedName).to.be.oneOf([ "InputMath_1", undefined ]);
       });
       it("should fetch default values from parsed constructor", () => {
         expect(meta.values).to.deep.equal({
           value: `""`,
-          fn: "() => typeof window",
+          fn: "function () { return typeof window; }",
           _observerLocked: "false",
           _freezeHistory: "false"
         });
