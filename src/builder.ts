@@ -4,7 +4,8 @@ import * as ts from "gulp-typescript";
 import * as del from "del";
 import * as gulp from "gulp";
 import * as rename from "gulp-rename";
-import * as merge from "merge2";
+import { parseDTS, parseJS, DTSParsedData, JSParsedData } from "./parser";
+import { Stream } from "stream";
 
 interface Callable {
   (...args: any[]): any;
@@ -66,38 +67,31 @@ export function buildHTML() {
       .src(srcs)
       .pipe(project());
 
-    merge([ // Merge the two output streams, so this task is finished when the IO of both operations is done.
-      stream.dts
-        .pipe(transform(model => {
-          // console.log(parseDTS(model.toString()));
-        })),
-
-      stream.js
-        .pipe(transform(content => {
-          let links = [];
-          let scripts = [];
-          content = content
-            .toString()
-            .replace(/require\(['"](link|script)!(.*?)['"]\);\n?/g, (m, type, module) => {
-              switch (type) {
-                case "link":
-                  links.push(module);
-                  break;
-                case "script":
-                  scripts.push(module);
-                  break;
-              }
-              return "";
-            });
-          return Buffer.from(
-            links.map(module => `<link rel="import" href="${module}">\n`).join("") +
-            scripts.map(module => `<script src="${module}"></script>\n`).join("") +
-            "<script>\n" + content + "\n</script>"
-          );
-        }))
-        .pipe(rename({ extname: ".html" }))
-        .pipe(gulp.dest(dest))
-    ])
+    stream.js
+      .pipe(transform(content => {
+        let links = [];
+        let scripts = [];
+        content = content
+          .toString()
+          .replace(/require\(['"](link|script)!(.*?)['"]\);\n?/g, (m, type, module) => {
+            switch (type) {
+              case "link":
+                links.push(module);
+                break;
+              case "script":
+                scripts.push(module);
+                break;
+            }
+            return "";
+          });
+        return Buffer.from(
+          links.map(module => `<link rel="import" href="${module}">\n`).join("") +
+          scripts.map(module => `<script src="${module}"></script>\n`).join("") +
+          "<script>\n" + content + "\n</script>"
+        );
+      }))
+      .pipe(rename({ extname: ".html" }))
+      .pipe(gulp.dest(dest))
       .on("end", resolve)
       .on("error", reject);
   });
@@ -107,4 +101,36 @@ export function build() {
   clean()
     .then(lint)
     .then(buildHTML);
+}
+
+export function parse([dtsSrc, jsSrc]: Array<File & {contents: Buffer}>): DTSParsedData & JSParsedData {
+  let dtsMeta = parseDTS(dtsSrc.contents.toString());
+  let jsMeta = parseJS(jsSrc.contents.toString(), dtsMeta);
+  let meta = Object.assign({}, dtsMeta, jsMeta);
+  dtsMeta.properties.forEach(prop => {
+    let val = jsMeta.values[ prop.name ];
+    if (val) {
+      prop.defaultValue = val;
+    }
+  });
+  delete meta.values;
+  return meta;
+}
+
+export function streamToPromise(stream: Stream): Promise<File & {contents: Buffer}> {
+  return new Promise((resolve, reject) => stream.on("data", src => resolve(src)).on("error", err => reject(err)));
+}
+
+export function buildConfig() {
+  let stream = gulp
+    .src(srcs)
+    .pipe(project());
+
+  let dts = streamToPromise(stream.dts);
+  let js = streamToPromise(stream.js);
+
+  return {
+    dts, js,
+    config: Promise.all([ dts, js ]).then(parse)
+  };
 }
