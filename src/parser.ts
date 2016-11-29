@@ -22,6 +22,7 @@ export interface PropertyConfig {
 export interface FieldConfig {
   name: string;
   type: string;
+  defaultValue?: string;
   static?: boolean;
   private?: boolean;
   protected?: boolean;
@@ -507,7 +508,7 @@ export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOp
   let values = {};
   let decorators = {};
   let annotations = {};
-  let generatedName;
+  let generatedName = null;
 
   // get default values
   src.slice(index + 1, end).replace(defaultValue, (_, name, value) => values[ name ] = value);
@@ -576,5 +577,5 @@ export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOp
     return _;
   });
 
-  return { generatedName, values, decorators, annotations, src: src.slice(0, end) };
+  return { generatedName, values, decorators, annotations, src: src.slice(0, decorStart) };
 }

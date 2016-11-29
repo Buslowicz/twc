@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import * as fs from "fs";
+import { readFileSync } from "fs";
 import {
   goTo, split, findClosing, regExpClosestIndexOf, getPropertyNoType, getType, arrToObject, parseDTS, parseParams,
   buildField, parseJS
@@ -177,7 +177,7 @@ describe("static analyser", () => {
     let meta;
 
     before(() => {
-      meta = parseDTS(fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"));
+      meta = parseDTS(readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"));
     });
 
     it("should recognize types from definition", () => {
@@ -267,8 +267,8 @@ describe("static analyser", () => {
 
     before(() => {
       meta = parseJS(
-        fs.readFileSync(`${__dirname}/assets/input-math.js`, "utf8"),
-        parseDTS(fs.readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8")),
+        readFileSync(`${__dirname}/assets/input-math.js`, "utf8"),
+        parseDTS(readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8")),
         { definedAnnotations: [ "test1", "test2", "template" ] }
       );
     });

@@ -6,3 +6,4 @@ class ElementName {
         this.test = "tester";
     }
 }
+exports.ElementName = ElementName;
