@@ -1,7 +1,8 @@
-export interface Annotation {
+export interface Decorator {
+  src: string;
   name: string;
   params: string;
-  descriptor: string;
+  descriptor?: string;
 }
 export interface FoundMatch {
   index: number;
@@ -23,9 +24,13 @@ export interface FieldConfig {
   name: string;
   type: string;
   defaultValue?: string;
+  //noinspection ReservedWordAsName
   static?: boolean;
+  //noinspection ReservedWordAsName
   private?: boolean;
+  //noinspection ReservedWordAsName
   protected?: boolean;
+  //noinspection ReservedWordAsName
   public?: boolean;
   readonly?: boolean;
 }
@@ -38,8 +43,9 @@ export interface DTSParsedData {
 export interface JSParsedData {
   generatedName: string;
   values: {[fieldName: string]: string;};
-  decorators: {[fieldName: string]: Array<string>};
-  annotations: {[fieldName: string]: Array<Annotation>};
+  methodBodies: {[fieldName: string]: string;};
+  decorators: {[fieldName: string]: Array<Decorator>};
+  annotations: {[fieldName: string]: Array<Decorator>};
   src: string;
 }
 export interface JSParserOptions {
@@ -481,46 +487,83 @@ export function parseDTS(src: string): DTSParsedData {
  */
 export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOptions = <any> {}): JSParsedData {
   const { definedAnnotations = [] } = options;
-  const { className, properties } = dtsData;
+  const { className, properties, methods } = dtsData;
 
-  const constructor = new RegExp(`(class|function)[\\s]*${className}.*?{`);
   const defaultValue = new RegExp(`this\\.(${properties.map(itm => itm.name).join("|")}) = (.*);\\n`, "g");
-  const fieldDecor = new RegExp(`__decorate\\(\\[([\\W\\w]*?)], (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g");
-  const classDecor = new RegExp(`${className} = (?:(.*?) = )?__decorate\\(\\[([\\W\\w]*?)], (${className})\\);`, "g");
+  const fieldDecor = new RegExp(`[\\s]*__decorate\\(\\[([\\W\\w]*?)], (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g");
+  const classDecor = new RegExp(`[\\s]*${className} = (?:(.*?) = )?__decorate\\(\\[([\\W\\w]*?)], (${className})\\);`, "g");
 
-  let { index = -1, 1: match = null } = src.match(constructor) || {};
+  let isES6;
+  let classBody = {
+    es5: src.match(new RegExp(`var ${className} = \\(function \\((?:_super)?\\) {`)),
+    es6: src.match(new RegExp(`(?:let ${className}[\\S]* = )?class ${className}(?: extends .+?)? {`)),
+    found: null,
+    start: 0,
+    end: 0
+  };
 
-  if (!match) {
+  if (classBody.es5) {
+    isES6 = false;
+    classBody.found = classBody.es5;
+  }
+  else if (classBody.es6) {
+    isES6 = true;
+    classBody.found = classBody.es6;
+  }
+  else {
     throw new Error("no class found");
   }
 
-  // find constructor if es6 class was found
-  if (match === "class") {
-    index = src.indexOf("constructor", index);
+  classBody.start = classBody.found.index;
+  // TODO find a full body (ES5 has execution)
+  classBody.end = findClosing(src, classBody.start + classBody.found[ 0 ].length, OBJECT_BRACKETS);
+  if (!isES6) {
+    classBody.end = findClosing(src, src.indexOf("(", classBody.end), ROUND_BRACKETS);
   }
+  classBody.end = src.indexOf(";", classBody.end);
 
-  // find beginning of the constructor body
-  index = src.indexOf("{", index);
+  // find constructor
+  let constructorPattern = isES6 ? `constructor(` : `function ${className}(`;
+  let constructor = {
+    start: src.indexOf(constructorPattern, classBody.start),
+    end: 0
+  };
 
-  // find closing of the constructor body
-  let end = findClosing(src, index, OBJECT_BRACKETS);
+  constructor.end = findClosing(src, constructor.start + constructorPattern.length - 1, ROUND_BRACKETS);
+  constructor.end = src.indexOf("{", constructor.end);
+  constructor.end = findClosing(src, constructor.end, OBJECT_BRACKETS);
 
   let values = {};
+  let methodBodies = {};
   let decorators = {};
   let annotations = {};
   let generatedName = null;
 
-  // get default values
-  src.slice(index + 1, end).replace(defaultValue, (_, name, value) => values[ name ] = value);
-
   // find where decorators meta start
-  let decorStart = src.indexOf("__decorate([", end);
-  let decoratorsSrc = src.substr(decorStart);
+  let decorStart = src.indexOf("__decorate([", constructor.end);
+  let decorSrc = src.substr(decorStart);
+
+  // get default values
+  src.slice(constructor.start + 1, constructor.end).replace(defaultValue, (_, name, value) => values[ name ] = value);
+
+  // get method bodies
+  let methodsList = methods.map(itm => itm.name).join("|");
+  src
+    .replace(new RegExp(`__extends(${className}, _super);`), "")
+    .replace(
+      isES6
+        ? new RegExp(`((${methodsList}))\\(.*?\\) {`, "g")
+        : new RegExp(`(${className}.prototype.(${methodsList}) = function ?)\\(.*?\\) {`, "g"),
+      (_, boiler, name, index) => {
+        let end = findClosing(src, src.indexOf("{", index + boiler.length), OBJECT_BRACKETS);
+        methodBodies[ name ] = src.slice(index + boiler.length, end + 1).trim();
+        return _;
+      });
 
   // get decorators
-  decoratorsSrc.replace(fieldDecor, (_, definition, proto, name, descriptor) => {
-    let usedDecorators = [];
-    let usedAnnotations = [];
+  decorSrc = decorSrc.replace(fieldDecor, (_, definition, proto, name, descriptor) => {
+    let usedDecorators: Array<Decorator> = [];
+    let usedAnnotations: Array<Decorator> = [];
 
     definition = definition.trim();
 
@@ -533,25 +576,27 @@ export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOp
         decor.slice(ptr + 1, decor.length - 1)
       ] : [ decor ];
       if (definedAnnotations.indexOf(name) !== -1) {
-        usedAnnotations.push({ name, params, descriptor });
+        usedAnnotations.push({ name, params, descriptor, src: decor });
       }
       else {
-        usedDecorators.push(name);
+        usedDecorators.push({ name, params, descriptor, src: decor });
       }
     }
 
     decorators[ name ] = usedDecorators;
     annotations[ name ] = usedAnnotations;
 
-    //    return `__decorate(${definition}), ${proto}, "${name}", ${descriptor});`
-    return _;
+    if (usedDecorators.length === 0) {
+      return "";
+    }
+    return `\n__decorate([${usedDecorators.map(n => n.src).toString()}], ${proto}, "${name}", ${descriptor});`
   });
 
-  decoratorsSrc.replace(classDecor, (_, secondName, definition) => {
+  decorSrc = decorSrc.replace(classDecor, (_, secondName, definition) => {
     generatedName = secondName;
 
-    let usedDecorators = [];
-    let usedAnnotations = [];
+    let usedDecorators: Array<Decorator> = [];
+    let usedAnnotations: Array<Decorator> = [];
 
     definition = definition.trim();
 
@@ -564,18 +609,28 @@ export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOp
         decor.slice(ptr + 1, decor.length - 1)
       ] : [ decor ];
       if (definedAnnotations.indexOf(name) !== -1) {
-        usedAnnotations.push({ name, params });
+        usedAnnotations.push({ name, params, src: decor });
       }
       else {
-        usedDecorators.push(name);
+        usedDecorators.push({ name, params, src: decor });
       }
     }
 
     decorators[ "class" ] = usedDecorators;
     annotations[ "class" ] = usedAnnotations;
 
-    return _;
+    if (usedDecorators.length === 0) {
+      return "";
+    }
+    if (secondName) {
+      secondName += " = ";
+    }
+    else {
+      secondName = "";
+    }
+    return `\n${className} = ${secondName}__decorate([${usedDecorators.map(n => n.src).toString()}], ${className});`
   });
 
-  return { generatedName, values, decorators, annotations, src: src.slice(0, decorStart) };
+  // TODO: return classBody start/end data or update source in place
+  return { generatedName, values, methodBodies, decorators, annotations, src: src.slice(0, decorStart) + decorSrc };
 }

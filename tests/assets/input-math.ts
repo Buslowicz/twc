@@ -83,7 +83,7 @@ class InputMath extends polymer.Base {
   private _editor: HTMLElement;
 
   created(): void {
-    let editor: HTMLElement = this._editor = document.createElement("div");
+    var editor: HTMLElement = this._editor = document.createElement("div");
     editor.id = "editor";
     editor.classList.add(this.is);
     this._mathField = MathQuill.getInterface(2).MathField(editor, {

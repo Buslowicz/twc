@@ -7,3 +7,4 @@ class ElementName {
     }
 }
 exports.ElementName = ElementName;
+//# sourceMappingURL=element-name.js.map

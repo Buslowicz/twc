@@ -17,7 +17,7 @@ let InputMath_1 = class InputMath extends polymer.Base {
         this._freezeHistory = false;
     }
     created() {
-        let editor = this._editor = document.createElement("div");
+        var editor = this._editor = document.createElement("div");
         editor.id = "editor";
         editor.classList.add(this.is);
         this._mathField = MathQuill.getInterface(2).MathField(editor, {
@@ -140,3 +140,4 @@ InputMath = InputMath_1 = __decorate([
     template("<input>")
 ], InputMath);
 InputMath.register();
+//# sourceMappingURL=input-math.js.map

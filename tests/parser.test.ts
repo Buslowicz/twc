@@ -296,16 +296,16 @@ describe("static analyser", () => {
     it("should fetch list of decorators used per field", () => {
       let { decorators: { value, symbols, showSymbols, valueChanged, symbolsChanged, keyShortcuts } } = meta;
 
-      expect(value).to.include("property");
-      expect(symbols).to.include("property");
-      expect(showSymbols).to.include("property");
-      expect(valueChanged).to.include("observe");
-      expect(symbolsChanged).to.include("observe");
-      expect(keyShortcuts).to.include("listen");
+      expect(value).to.have.deep.property("0.name", "property");
+      expect(symbols).to.have.deep.property("0.name", "property");
+      expect(showSymbols).to.have.deep.property("0.name", "property");
+      expect(valueChanged).to.have.deep.property("0.name", "observe");
+      expect(symbolsChanged).to.have.deep.property("0.name", "observe");
+      expect(keyShortcuts).to.have.deep.property("0.name", "listen");
     });
     it("should exclude annotations from fields decorators list", () => {
       let { decorators: { value } } = meta;
-      expect(value).to.not.include("test1");
+      expect(value).to.not.have.deep.property("0.name", "test1");
     });
     it("should fetch list of annotations used per field", () => {
       let { annotations: { value, symbols } } = meta;
@@ -325,17 +325,127 @@ describe("static analyser", () => {
     });
     it("should fetch list of class decorators", () => {
       let classDecorators = meta.decorators.class;
-      expect(classDecorators).to.include("component");
+      expect(classDecorators).to.have.deep.property("0.name", "component");
     });
     it("should exclude annotations from class decorators list", () => {
       let classDecorators = meta.decorators.class;
-      expect(classDecorators).to.not.include("template");
+      expect(classDecorators).to.not.have.deep.property("0.name", "template");
     });
     it("should fetch annotations for class under 'class' field", () => {
       let classAnnotation = meta.annotations.class[ 0 ];
 
       expect(classAnnotation.name).to.equal("template");
       expect(classAnnotation.params).to.equal(`"<input>"`);
+    });
+    it("should fetch method bodies", () => {
+      let methods = meta.methodBodies;
+      let { created, ready, cmd, undo, valueChanged, keyShortcuts, _updateValue, _updateHistory } = methods;
+      expect(methods).to.contain.all.keys([
+        "created", "ready", "cmd", "undo", "valueChanged",
+        "symbolsChanged", "keyShortcuts", "_updateValue", "_updateHistory"
+      ]);
+      expect(created)
+        .to
+        .equal([
+          "() {",
+          "        var editor = this._editor = document.createElement(\"div\");",
+          "        editor.id = \"editor\";",
+          "        editor.classList.add(this.is);",
+          "        this._mathField = MathQuill.getInterface(2).MathField(editor, {",
+          "            spaceBehavesLikeTab: true,", '            handlers: {',
+          "                edit: this._updateValue.bind(this)",
+          "            }",
+          "        });",
+          "    }"
+        ].join("\n"));
+      expect(ready)
+        .to
+        .equal([
+          "() {",
+          "        this.insertBefore(this._editor, this.$.controls);",
+          "    }"
+        ].join("\n"));
+      expect(cmd)
+        .to
+        .equal([
+          "(ev) {",
+          "        this._mathField.cmd(ev.model.item.cmd).focus();",
+          "    }"
+        ].join("\n"));
+      expect(undo)
+        .to
+        .equal([
+          "() {",
+          "        if (this._history && this._history.length > 0) {",
+          "            this._freezeHistory = true;",
+          "            this.value = this._history.pop();",
+          "            this._freezeHistory = false;",
+          "        }",
+          "    }"
+        ].join("\n"));
+      expect(valueChanged)
+        .to
+        .equal([
+          "(value, prevValue) {",
+          "        this._updateHistory(prevValue);",
+          "        if (this._observerLocked) {",
+          "            return;",
+          "        }",
+          "        this._mathField.select().write(value);",
+          "        if (this._mathField.latex() === \"\") {",
+          "            this.undo();",
+          "        }",
+          "    }"
+        ].join("\n"));
+      expect(methods
+        .symbolsChanged
+        .replace(/InputMath_1/, "InputMath")
+        .replace(/groupName => {/, "function (groupName) {"))
+        .to
+        .equal([
+          "(symbols) {",
+          "        if (symbols) {",
+          "            this.symbols = symbols.split(\",\").map(function (groupName) {",
+          "                return InputMath[\"SYMBOLS_\" + groupName.toUpperCase()] || [];",
+          "            });",
+          "        }",
+          "    }"
+        ].join("\n"));
+      expect(keyShortcuts)
+        .to
+        .equal([
+          "(ev) {",
+          "        if (ev.ctrlKey && ev.keyCode === 90) {",
+          "            this.undo();",
+          "        }",
+          "    }"
+        ].join("\n"));
+      expect(_updateValue)
+        .to
+        .equal([
+          "(test) {",
+          "        console.log(test);",
+          "        this._observerLocked = true;",
+          "        this.value = this._mathField.latex();",
+          "        this._observerLocked = false;",
+          "    }"
+        ].join("\n"));
+      expect(_updateHistory.replace(/InputMath_1/, "InputMath"))
+        .to
+        .equal([
+          "(prevValue) {",
+          "        if (!this._history) {",
+          "            this._history = [];",
+          "        }",
+          "        if (this._freezeHistory || prevValue == null) {",
+          "            return;",
+          "        }",
+          "        this._history.push(prevValue);",
+          "        if (this._history.length > InputMath.HISTORY_SIZE) {",
+          "            this._history.shift();",
+          "        }",
+          "    }"
+        ].join("\n"));
     });
   });
 });
