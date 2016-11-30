@@ -470,98 +470,10 @@ export function parseDTS(src: string): DTSParsedData {
 }
 
 /**
- * Parse JavaScript output to fetch default values, decorators, annotations, generated additional variable name and
- * pre-formatted JavaScript src
- *
- * @todo consider removing default values as an option
- * @todo parse default values using goTo function
- *
- * @param src String to parse
- * @param dtsData Data fetched from TypeScript declaration
- * @param options Options passed to parser
- * @param options.definedAnnotations Available design-time annotations
- *
- * @throws Error if no class was found
- *
- * @returns default values, decorators, annotations, generated additional variable name and pre-formatted JavaScript src
+ * Generate a function to find field decorators
  */
-export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOptions = <any> {}): JSParsedData {
-  const { definedAnnotations = [] } = options;
-  const { className, properties, methods } = dtsData;
-
-  const defaultValue = new RegExp(`this\\.(${properties.map(itm => itm.name).join("|")}) = (.*);\\n`, "g");
-  const fieldDecor = new RegExp(`[\\s]*__decorate\\(\\[([\\W\\w]*?)], (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g");
-  const classDecor = new RegExp(`[\\s]*${className} = (?:(.*?) = )?__decorate\\(\\[([\\W\\w]*?)], (${className})\\);`, "g");
-
-  let isES6;
-  let classBody = {
-    es5: src.match(new RegExp(`var ${className} = \\(function \\((?:_super)?\\) {`)),
-    es6: src.match(new RegExp(`(?:let ${className}[\\S]* = )?class ${className}(?: extends .+?)? {`)),
-    found: null,
-    start: 0,
-    end: 0
-  };
-
-  if (classBody.es5) {
-    isES6 = false;
-    classBody.found = classBody.es5;
-  }
-  else if (classBody.es6) {
-    isES6 = true;
-    classBody.found = classBody.es6;
-  }
-  else {
-    throw new Error("no class found");
-  }
-
-  classBody.start = classBody.found.index;
-  // TODO find a full body (ES5 has execution)
-  classBody.end = findClosing(src, classBody.start + classBody.found[ 0 ].length, OBJECT_BRACKETS);
-  if (!isES6) {
-    classBody.end = findClosing(src, src.indexOf("(", classBody.end), ROUND_BRACKETS);
-  }
-  classBody.end = src.indexOf(";", classBody.end);
-
-  // find constructor
-  let constructorPattern = isES6 ? `constructor(` : `function ${className}(`;
-  let constructor = {
-    start: src.indexOf(constructorPattern, classBody.start),
-    end: 0
-  };
-
-  constructor.end = findClosing(src, constructor.start + constructorPattern.length - 1, ROUND_BRACKETS);
-  constructor.end = src.indexOf("{", constructor.end);
-  constructor.end = findClosing(src, constructor.end, OBJECT_BRACKETS);
-
-  let values = {};
-  let methodBodies = {};
-  let decorators = {};
-  let annotations = {};
-  let generatedName = null;
-
-  // find where decorators meta start
-  let decorStart = src.indexOf("__decorate([", constructor.end);
-  let decorSrc = src.substr(decorStart);
-
-  // get default values
-  src.slice(constructor.start + 1, constructor.end).replace(defaultValue, (_, name, value) => values[ name ] = value);
-
-  // get method bodies
-  let methodsList = methods.map(itm => itm.name).join("|");
-  src
-    .replace(new RegExp(`__extends(${className}, _super);`), "")
-    .replace(
-      isES6
-        ? new RegExp(`((${methodsList}))\\(.*?\\) {`, "g")
-        : new RegExp(`(${className}.prototype.(${methodsList}) = function ?)\\(.*?\\) {`, "g"),
-      (_, boiler, name, index) => {
-        let end = findClosing(src, src.indexOf("{", index + boiler.length), OBJECT_BRACKETS);
-        methodBodies[ name ] = src.slice(index + boiler.length, end + 1).trim();
-        return _;
-      });
-
-  // get decorators
-  decorSrc = decorSrc.replace(fieldDecor, (_, definition, proto, name, descriptor) => {
+function fieldDecoratorsAnalyzerGenerator({ definedAnnotations, decorators, annotations }) {
+  return (_, definition, proto, name, descriptor) => {
     let usedDecorators: Array<Decorator> = [];
     let usedAnnotations: Array<Decorator> = [];
 
@@ -590,11 +502,14 @@ export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOp
       return "";
     }
     return `\n__decorate([${usedDecorators.map(n => n.src).toString()}], ${proto}, "${name}", ${descriptor});`
-  });
+  };
+}
 
-  decorSrc = decorSrc.replace(classDecor, (_, secondName, definition) => {
-    generatedName = secondName;
-
+/**
+ * Generate a function to find a class decorators
+ */
+function classDecoratorsAnalyzerGenerator({ definedAnnotations, decorators, annotations, className, generatedName }) {
+  return (_, definition) => {
     let usedDecorators: Array<Decorator> = [];
     let usedAnnotations: Array<Decorator> = [];
 
@@ -622,14 +537,122 @@ export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOp
     if (usedDecorators.length === 0) {
       return "";
     }
-    if (secondName) {
-      secondName += " = ";
+    if (generatedName) {
+      generatedName += " = ";
     }
     else {
-      secondName = "";
+      generatedName = "";
     }
-    return `\n${className} = ${secondName}__decorate([${usedDecorators.map(n => n.src).toString()}], ${className});`
-  });
+    return `\n${className} = ${generatedName}__decorate([${usedDecorators.map(n => n.src).toString()}], ${className});`
+  };
+}
+
+/**
+ * Generate a function to find method bodies
+ */
+function methodsAnalyzerGenerator({ src, methodBodies }) {
+  return (_, boiler, name, index) => {
+    let end = findClosing(src, src.indexOf("{", index + boiler.length), OBJECT_BRACKETS);
+    methodBodies[ name ] = src.slice(index + boiler.length, end + 1).trim();
+    return _;
+  }
+}
+
+/**
+ * Parse JavaScript output to fetch default values, decorators, annotations, generated additional variable name and
+ * pre-formatted JavaScript src
+ *
+ * @todo consider removing default values as an option
+ * @todo parse default values using goTo function
+ *
+ * @param src String to parse
+ * @param dtsData Data fetched from TypeScript declaration
+ * @param options Options passed to parser
+ * @param options.definedAnnotations Available design-time annotations
+ *
+ * @throws Error if no class was found
+ *
+ * @returns default values, decorators, annotations, generated additional variable name and pre-formatted JavaScript src
+ */
+export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOptions = <any> {}): JSParsedData {
+  const { definedAnnotations = [] } = options;
+  const { className, properties, methods } = dtsData;
+
+  const defaultValue = new RegExp(`this\\.(${properties.map(itm => itm.name).join("|")}) = (.*);\\n`, "g");
+  const fieldDecor = new RegExp(`[\\s]*__decorate\\(\\[([\\W\\w]*?)], (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g");
+  const classDecor = new RegExp(`[\\s]*${className} = (?:.*? = )?__decorate\\(\\[([\\W\\w]*?)], (${className})\\);`, "g");
+
+  let isES6;
+  let classBody = {
+    es5: src.match(new RegExp(`var ${className} = \\(function \\((?:_super)?\\) {`)),
+    es6: src.match(new RegExp(`(?:let (${className}[\\S]*) = )?class ${className}(?: extends .+?)? {`)),
+    found: null,
+    start: 0,
+    end: 0
+  };
+
+  if (classBody.es5) {
+    isES6 = false;
+    classBody.found = classBody.es5;
+  }
+  else if (classBody.es6) {
+    isES6 = true;
+    classBody.found = classBody.es6;
+  }
+  else {
+    throw new Error("no class found");
+  }
+
+  classBody.start = classBody.found.index;
+
+  classBody.end = findClosing(src, classBody.start + classBody.found[ 0 ].length, OBJECT_BRACKETS);
+  if (!isES6) {
+    classBody.end = findClosing(src, src.indexOf("(", classBody.end), ROUND_BRACKETS);
+  }
+  classBody.end = src.indexOf(";", classBody.end);
+
+  // find constructor
+  let constructorPattern = isES6 ? `constructor(` : `function ${className}(`;
+  let constructor = {
+    start: src.indexOf(constructorPattern, classBody.start),
+    end: 0
+  };
+
+  constructor.end = findClosing(src, constructor.start + constructorPattern.length - 1, ROUND_BRACKETS);
+  constructor.end = src.indexOf("{", constructor.end);
+  constructor.end = findClosing(src, constructor.end, OBJECT_BRACKETS);
+
+  let values = {};
+  let methodBodies = {};
+  let decorators = {};
+  let annotations = {};
+  let generatedName = classBody.found[ 1 ];
+
+  // find where decorators meta start
+  let decorStart = src.indexOf("__decorate([", constructor.end);
+  let decorSrc = src.substr(decorStart);
+
+  // get default values
+  src.slice(constructor.start + 1, constructor.end).replace(defaultValue, (_, name, value) => values[ name ] = value);
+
+  // get method bodies
+  let methodsList = methods.map(itm => itm.name).join("|");
+
+  src
+    .replace(new RegExp(`__extends(${className}, _super);`), "")
+    .replace(
+      isES6
+        ? new RegExp(`((${methodsList}))\\(.*?\\) {`, "g")
+        : new RegExp(`(${className}.prototype.(${methodsList}) = function ?)\\(.*?\\) {`, "g"),
+      methodsAnalyzerGenerator({ src, methodBodies }));
+
+  // get decorators
+  decorSrc = decorSrc
+    .replace(fieldDecor, fieldDecoratorsAnalyzerGenerator({ annotations, decorators, definedAnnotations }))
+    .replace(classDecor, classDecoratorsAnalyzerGenerator({
+      generatedName, annotations, decorators,
+      definedAnnotations, className
+    }));
 
   // TODO: return classBody start/end data or update source in place
   return { generatedName, values, methodBodies, decorators, annotations, src: src.slice(0, decorStart) + decorSrc };
