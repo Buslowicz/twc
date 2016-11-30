@@ -1,3 +1,4 @@
+export declare type Replacer = [RegExp, string | ((...args: Array<string>) => string)];
 export interface Decorator {
     src: string;
     name: string;
