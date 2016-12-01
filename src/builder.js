@@ -84,7 +84,14 @@ function parse([dtsSrc, jsSrc]) {
             prop.defaultValue = val;
         }
     });
+    dtsMeta.methods.forEach(prop => {
+        let body = jsMeta.methodBodies[prop.name];
+        if (body) {
+            prop.body = body;
+        }
+    });
     delete meta.values;
+    delete meta.methodBodies;
     return meta;
 }
 exports.parse = parse;

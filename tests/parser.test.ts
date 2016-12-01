@@ -1,9 +1,10 @@
 import { expect } from "chai";
 import { readFileSync } from "fs";
-import {
-  goTo, split, findClosing, regExpClosestIndexOf, getPropertyNoType, getType, arrToObject, parseDTS, parseParams,
-  buildField, parseJS
-} from "../src/parser";
+import { parseDTS, parseJS } from "../src/parser";
+import { goTo, split, findClosing, regExpClosestIndexOf } from "../src/parser/source-crawlers";
+import { getPropertyNoType, getType, parseParams } from "../src/parser/ts-parsers";
+import { buildField } from "../src/parser/code-builders";
+import { arrToObject } from "../src/parser/misc";
 
 describe("static analyser", () => {
   describe("goTo", () => {
@@ -447,5 +448,8 @@ describe("static analyser", () => {
           "    }"
         ].join("\n"));
     });
+    // it("should build a proper body", () => {
+    //   console.log(meta.src);
+    // });
   });
 });

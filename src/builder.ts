@@ -4,7 +4,7 @@ import * as ts from "gulp-typescript";
 import * as del from "del";
 import * as gulp from "gulp";
 import * as rename from "gulp-rename";
-import { parseDTS, parseJS, DTSParsedData, JSParsedData } from "./parser";
+import { parseDTS, parseJS } from "./parser";
 import { Stream } from "stream";
 
 interface Callable {
@@ -113,7 +113,14 @@ export function parse([dtsSrc, jsSrc]: Array<File & {contents: Buffer}>): DTSPar
       prop.defaultValue = val;
     }
   });
+  dtsMeta.methods.forEach(prop => {
+    let body = jsMeta.methodBodies[ prop.name ];
+    if (body) {
+      prop.body = body;
+    }
+  });
   delete meta.values;
+  delete meta.methodBodies;
   return meta;
 }
 

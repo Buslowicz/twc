@@ -1,5 +1,4 @@
 /// <reference types="node" />
-import { DTSParsedData, JSParsedData } from "./parser";
 import { Stream } from "stream";
 export declare function init({globalConfig, projectConfig, dist, src}: {
     globalConfig?: any;
