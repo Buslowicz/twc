@@ -1,10 +1,16 @@
 "use strict";
 const source_crawlers_1 = require('./source-crawlers');
 /**
- * Get field decorators
- * @todo docs
+ * Return pattern and replacer function to find field level decorators
+ *
+ * @param definedAnnotations Available field annotations
+ * @param decorators List of run-time decorators
+ * @param annotations List of design-time annotations
+ * @param className Name of the class
+ *
+ * @returns RegExp pattern and replacer function
  */
-function fieldDecoratorsAnalyzer({ definedAnnotations, decorators, annotations, className }) {
+function getFieldDecorators({ definedAnnotations, decorators, annotations, className }) {
     return [
         new RegExp(`[\\s]*__decorate\\(\\[([\\W\\w]*?)], (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g"),
             (_, definition, proto, name, descriptor) => {
@@ -35,12 +41,19 @@ function fieldDecoratorsAnalyzer({ definedAnnotations, decorators, annotations, 
         }
     ];
 }
-exports.fieldDecoratorsAnalyzer = fieldDecoratorsAnalyzer;
+exports.getFieldDecorators = getFieldDecorators;
 /**
- * Get class decorators
- * @todo docs
+ * Return pattern and replacer function to find class level decorators
+ *
+ * @param definedAnnotations Available field annotations
+ * @param decorators List of run-time decorators
+ * @param annotations List of design-time annotations
+ * @param className Name of the class
+ * @param generatedName Generated helper name
+ *
+ * @returns RegExp pattern and replacer function
  */
-function classDecoratorsAnalyzer({ definedAnnotations, decorators, annotations, className, generatedName }) {
+function getClassDecorators({ definedAnnotations, decorators, annotations, className, generatedName }) {
     return [
         new RegExp(`[\\s]*${className} = (?:.*? = )?__decorate\\(\\[([\\W\\w]*?)], (${className})\\);`, "g"),
             (_, definition) => {
@@ -78,39 +91,54 @@ function classDecoratorsAnalyzer({ definedAnnotations, decorators, annotations, 
         }
     ];
 }
-exports.classDecoratorsAnalyzer = classDecoratorsAnalyzer;
+exports.getClassDecorators = getClassDecorators;
 /**
- * Get method bodies
- * @todo docs
+ * Return pattern and replacer function to find method bodies
+ *
+ * @param src Parsed source
+ * @param methods List of methods config
+ * @param isES6
+ * @param className Name of the class
+ *
+ * @returns RegExp pattern and replacer function
  */
-function methodsAnalyzer({ src, methodBodies, methods, isES6, className }) {
-    let methodsList = methods.map(itm => itm.name).join("|");
+function getMethodBodies({ src, methods, isES6, className }) {
+    let methodsList = Array.from(methods.values()).map(itm => itm.name).join("|");
     return [
         isES6
             ? new RegExp(`((${methodsList}))\\(.*?\\) {`, "g")
             : new RegExp(`(${className}.prototype.(${methodsList}) = function ?)\\(.*?\\) {`, "g"),
             (_, boiler, name, index) => {
             let end = source_crawlers_1.findClosing(src, src.indexOf("{", index + boiler.length), "{}");
-            methodBodies[name] = src.slice(index + boiler.length, end + 1).trim();
+            methods.get(name).body = src.slice(index + boiler.length, end + 1).trim();
             return _;
         }
     ];
 }
-exports.methodsAnalyzer = methodsAnalyzer;
+exports.getMethodBodies = getMethodBodies;
 /**
- * Get default values
- * @todo docs
+ * Return pattern and replacer function to find default values
+ *
+ * @param properties List of properties config
+ *
+ * @returns RegExp pattern and replacer function
  */
-function defaultValueAnalyzer({ properties, values }) {
+function getDefaultValues({ properties }) {
     return [
-        new RegExp(`this\\.(${properties.map(itm => itm.name).join("|")}) = (.*);\\n`, "g"),
-            (_, name, value) => values[name] = value
+        new RegExp(`this\\.(${Array.from(properties.values()).map(itm => itm.name).join("|")}) = (.*);\\n`, "g"),
+            (_, name, value) => {
+            console.log(properties, name, properties[name], value);
+            return properties.get(name).defaultValue = value;
+        }
     ];
 }
-exports.defaultValueAnalyzer = defaultValueAnalyzer;
+exports.getDefaultValues = getDefaultValues;
 /**
  * Remove __extend helper from ES5
- * @todo docs
+ *
+ * @param className Name of the class
+ *
+ * @returns RegExp pattern and replacer function
  */
 function removeExtend({ className }) {
     return [
@@ -121,7 +149,11 @@ function removeExtend({ className }) {
 exports.removeExtend = removeExtend;
 /**
  * Find class source start index, end index, generated helper name and flag if source is ES6 (class based)
- * @todo docs
+ *
+ * @param src String to search
+ * @param className Name of the class to find
+ *
+ * @returns Position of class in source and info is this ES6 class and generated helper name
  */
 function findClassBody({ src, className }) {
     let matchES5 = src.match(new RegExp(`var ${className} = \\(function \\((?:_super)?\\) {`));
@@ -151,10 +183,16 @@ function findClassBody({ src, className }) {
 }
 exports.findClassBody = findClassBody;
 /**
- * Find constructor position
- * @todo docs
+ * Find constructor position in source
+ *
+ * @param src String to search
+ * @param className Name of the class to find
+ * @param isES6 Flag to indicate if we deal with ES6 class
+ * @param classStart Starting position of the class body
+ *
+ * @returns Position of constructor in source
  */
-function findConstructor({ isES6, className, src, classStart }) {
+function findConstructor({ src, className, isES6, classStart }) {
     let constructorPattern = isES6 ? `constructor(` : `function ${className}(`;
     let start = src.indexOf(constructorPattern, classStart);
     let end = source_crawlers_1.findClosing(src, start + constructorPattern.length - 1, "()");

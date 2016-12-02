@@ -1,4 +1,4 @@
-import { goTo , findClosing, regExpClosestIndexOf } from './source-crawlers';
+import { goTo, findClosing, regExpClosestIndexOf } from './source-crawlers';
 
 const TYPES = {
   IS_PRIMITIVE: type => "boolean|number|string|object".indexOf(type) !== -1,

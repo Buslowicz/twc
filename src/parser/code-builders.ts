@@ -23,9 +23,13 @@ export function buildField(mods: Array<string>, name: string, params?: Array<Par
 }
 
 /**
- * @todo docs
+ * Build a Polymer property config
+ *
+ * @param prop Property configuration
+ *
+ * @returns String representation of property config object
  */
-export function buildProperty(prop) {
+export function buildProperty(prop: FieldConfig): string {
   let keyMap = { readonly: "readOnly", defaultValue: "value" };
   let valueMap = "Boolean|Date|Number|String|Array|Object";
   let allowedFields = "type|value|reflectToAttribute|readOnly|notify|computed|observer";
@@ -44,13 +48,18 @@ export function buildProperty(prop) {
 }
 
 /**
- * Generate a polymer v1 component declaration
- * @todo docs
+ * Generate a Polymer v1 component declaration
+ *
+ * @param className Name of the component
+ * @param properties Component properties list
+ * @param methods Component methods list
+ *
+ * @returns String representation of polymer component declaration
  */
-export function buildPolymerV1({ className, properties, methods }) {
+export function buildPolymerV1(className: string, properties: FieldConfigMap, methods: FieldConfigMap): string {
   return `Polymer({${[
     `is: "${kebabCase(className)}"`,
-    nonEmpty`properties: {${properties.filter(prop => !prop.static).map(buildProperty)}}`,
-    ...methods.map(method => `${method.name}: function${method.body}`)
+    nonEmpty`properties: {${Array.from(properties.values()).filter(prop => !prop.static).map(buildProperty)}}`,
+    ...Array.from(methods.values()).map(method => `${method.name}: function${method.body}`)
   ]}});`;
 }

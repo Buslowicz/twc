@@ -1,10 +1,21 @@
 import { split, findClosing } from './source-crawlers';
 
 /**
- * Get field decorators
- * @todo docs
+ * Return pattern and replacer function to find field level decorators
+ *
+ * @param definedAnnotations Available field annotations
+ * @param decorators List of run-time decorators
+ * @param annotations List of design-time annotations
+ * @param className Name of the class
+ *
+ * @returns RegExp pattern and replacer function
  */
-export function fieldDecoratorsAnalyzer({ definedAnnotations, decorators, annotations, className }): Replacer {
+export function getFieldDecorators({ definedAnnotations, decorators, annotations, className }: {
+  definedAnnotations: Array<string>;
+  decorators: DecoratorsMap;
+  annotations: DecoratorsMap;
+  className: string;
+}): Replacer {
   return [
     new RegExp(`[\\s]*__decorate\\(\\[([\\W\\w]*?)], (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g"),
     (_, definition, proto, name, descriptor) => {
@@ -41,10 +52,23 @@ export function fieldDecoratorsAnalyzer({ definedAnnotations, decorators, annota
 }
 
 /**
- * Get class decorators
- * @todo docs
+ * Return pattern and replacer function to find class level decorators
+ *
+ * @param definedAnnotations Available field annotations
+ * @param decorators List of run-time decorators
+ * @param annotations List of design-time annotations
+ * @param className Name of the class
+ * @param generatedName Generated helper name
+ *
+ * @returns RegExp pattern and replacer function
  */
-export function classDecoratorsAnalyzer({ definedAnnotations, decorators, annotations, className, generatedName }): Replacer {
+export function getClassDecorators({ definedAnnotations, decorators, annotations, className, generatedName }: {
+  definedAnnotations: Array<string>;
+  decorators: DecoratorsMap;
+  annotations: DecoratorsMap;
+  className: string;
+  generatedName: string;
+}): Replacer {
   return [
     new RegExp(`[\\s]*${className} = (?:.*? = )?__decorate\\(\\[([\\W\\w]*?)], (${className})\\);`, "g"),
     (_, definition) => {
@@ -88,40 +112,60 @@ export function classDecoratorsAnalyzer({ definedAnnotations, decorators, annota
 }
 
 /**
- * Get method bodies
- * @todo docs
+ * Return pattern and replacer function to find method bodies
+ *
+ * @param src Parsed source
+ * @param methods List of methods config
+ * @param isES6
+ * @param className Name of the class
+ *
+ * @returns RegExp pattern and replacer function
  */
-export function methodsAnalyzer({ src, methodBodies, methods, isES6, className }): Replacer {
-  let methodsList = methods.map(itm => itm.name).join("|");
+export function getMethodBodies({ src, methods, isES6, className }: {
+  src: string;
+  methods: FieldConfigMap;
+  isES6: boolean;
+  className: string;
+}): Replacer {
+  let methodsList = Array.from(methods.values()).map(itm => itm.name).join("|");
 
   return [
     isES6
       ? new RegExp(`((${methodsList}))\\(.*?\\) {`, "g")
       : new RegExp(`(${className}.prototype.(${methodsList}) = function ?)\\(.*?\\) {`, "g"),
     (_, boiler, name, index) => {
-      let end = findClosing(src, src.indexOf("{", index + boiler.length), "{}");
-      methodBodies[ name ] = src.slice(index + boiler.length, end + 1).trim();
+      let end = findClosing(src, src.indexOf("{", <any> index + boiler.length), "{}");
+      methods.get(name).body = src.slice(<any> index + boiler.length, end + 1).trim();
       return _;
     }
   ];
 }
 
 /**
- * Get default values
- * @todo docs
+ * Return pattern and replacer function to find default values
+ *
+ * @param properties List of properties config
+ *
+ * @returns RegExp pattern and replacer function
  */
-export function defaultValueAnalyzer({ properties, values }): Replacer {
+export function getDefaultValues({ properties }: { properties: FieldConfigMap; }): Replacer {
   return [
-    new RegExp(`this\\.(${properties.map(itm => itm.name).join("|")}) = (.*);\\n`, "g"),
-    (_, name, value) => values[ name ] = value
+    new RegExp(`this\\.(${Array.from(properties.values()).map(itm => itm.name).join("|")}) = (.*);\\n`, "g"),
+    (_, name, value) => {
+      console.log(properties, name, properties[ name ], value);
+      return properties.get(name).defaultValue = value;
+    }
   ];
 }
 
 /**
  * Remove __extend helper from ES5
- * @todo docs
+ *
+ * @param className Name of the class
+ *
+ * @returns RegExp pattern and replacer function
  */
-export function removeExtend({ className }): Replacer {
+export function removeExtend({ className }: { className: string; }): Replacer {
   return [
     new RegExp(`__extends(${className}, _super);`),
     ""
@@ -130,9 +174,16 @@ export function removeExtend({ className }): Replacer {
 
 /**
  * Find class source start index, end index, generated helper name and flag if source is ES6 (class based)
- * @todo docs
+ *
+ * @param src String to search
+ * @param className Name of the class to find
+ *
+ * @returns Position of class in source and info is this ES6 class and generated helper name
  */
-export function findClassBody({ src, className }): { isES6: boolean; start: number; end: number; generatedName: string } {
+export function findClassBody({ src, className }: {
+  src: string;
+  className: string;
+}): PositionInSource & { isES6: boolean; generatedName: string } {
   let matchES5 = src.match(new RegExp(`var ${className} = \\(function \\((?:_super)?\\) {`));
   let matchES6 = src.match(new RegExp(`(?:let (${className}[\\S]*) = )?class ${className}(?: extends .+?)? {`));
   let isES6;
@@ -165,10 +216,21 @@ export function findClassBody({ src, className }): { isES6: boolean; start: numb
 }
 
 /**
- * Find constructor position
- * @todo docs
+ * Find constructor position in source
+ *
+ * @param src String to search
+ * @param className Name of the class to find
+ * @param isES6 Flag to indicate if we deal with ES6 class
+ * @param classStart Starting position of the class body
+ *
+ * @returns Position of constructor in source
  */
-export function findConstructor({ isES6, className, src, classStart }): { start: number; end: number } {
+export function findConstructor({ src, className, isES6, classStart }: {
+  src: string;
+  className: string;
+  isES6: boolean;
+  classStart: number;
+}): PositionInSource {
   let constructorPattern = isES6 ? `constructor(` : `function ${className}(`;
   let start = src.indexOf(constructorPattern, classStart);
   let end = findClosing(src, start + constructorPattern.length - 1, "()");

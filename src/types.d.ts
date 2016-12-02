@@ -1,5 +1,11 @@
 declare type Replacer = [RegExp, string | ((...args: Array<string>) => string)];
+declare type DecoratorsMap = {[fieldName: string]: Array<Decorator>};
+declare type FieldConfigMap = Map<string, FieldConfig>;
 
+declare interface PositionInSource {
+  start: number;
+  end: number;
+}
 declare interface Decorator {
   src: string;
   name: string;
@@ -40,15 +46,13 @@ declare interface FieldConfig {
 declare interface DTSParsedData {
   className: string;
   parent: string;
-  properties: Array<FieldConfig>;
-  methods: Array<FieldConfig>;
+  properties: FieldConfigMap;
+  methods: FieldConfigMap;
 }
 declare interface JSParsedData {
   generatedName: string;
-  values: {[fieldName: string]: string;};
-  methodBodies: {[fieldName: string]: string;};
-  decorators: {[fieldName: string]: Array<Decorator>};
-  annotations: {[fieldName: string]: Array<Decorator>};
+  decorators: DecoratorsMap;
+  annotations: DecoratorsMap;
   src: string;
 }
 declare interface JSParserOptions {

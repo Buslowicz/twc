@@ -1,8 +1,8 @@
 import { goTo, findClosing, regExpClosestIndexOf } from "./source-crawlers";
 import { getPropertyNoType, getType, parseParams } from "./ts-parsers";
 import {
-  fieldDecoratorsAnalyzer, classDecoratorsAnalyzer, methodsAnalyzer,
-  defaultValueAnalyzer, removeExtend, findClassBody, findConstructor
+  getFieldDecorators, getClassDecorators, getMethodBodies,
+  getDefaultValues, removeExtend, findClassBody, findConstructor
 } from "./js-parsers";
 import { buildField, buildPolymerV1 } from './code-builders';
 
@@ -24,8 +24,8 @@ export function parseDTS(src: string): DTSParsedData {
   const className = match[ 1 ];
   const parent = match[ 2 ];
 
-  const properties = [];
-  const methods = [];
+  const properties = new Map();
+  const methods = new Map();
 
   let start = match.index + match[ 0 ].length;
 
@@ -65,13 +65,13 @@ export function parseDTS(src: string): DTSParsedData {
       ptr = closing.index + 1;
 
       if (closing.found === ";") {
-        methods.push(buildField(modifiers, name, params));
+        methods.set(name, buildField(modifiers, name, params));
         continue;
       }
     }
     // no type property
     else if (match === ";") {
-      properties.push(buildField(modifiers, name));
+      properties.set(name, buildField(modifiers, name));
       continue;
     }
 
@@ -79,10 +79,10 @@ export function parseDTS(src: string): DTSParsedData {
     ptr = src.indexOf(";", typeEnd);
 
     if (params) {
-      methods.push(buildField(modifiers, name, params, type));
+      methods.set(name, buildField(modifiers, name, params, type));
     }
     else {
-      properties.push(buildField(modifiers, name, null, type));
+      properties.set(name, buildField(modifiers, name, null, type));
     }
   }
 
@@ -106,12 +106,12 @@ export function parseDTS(src: string): DTSParsedData {
  * @returns default values, decorators, annotations, generated additional variable name and pre-formatted JavaScript src
  */
 export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOptions = <any> {}): JSParsedData {
-  const { definedAnnotations = [], polymerVersion = 1 } = options;
-  const { className, properties, methods } = dtsData;
+  let definedAnnotations, polymerVersion, className, properties, methods;
+  console.log(options);
+  ({ definedAnnotations = [], polymerVersion = 1 } = options);
+  ({ className, properties, methods } = dtsData);
 
   /********** declare result objects **********/
-  const values = {};
-  const methodBodies = {};
   const decorators = {};
   const annotations = {};
 
@@ -124,41 +124,27 @@ export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOp
   /********** get default values **********/
   (<any> src)
     .slice(constructorStart + 1, constructorEnd)
-    .replace(...defaultValueAnalyzer({ values, properties }));
+    .replace(...getDefaultValues({ properties }));
 
   /********** get method bodies **********/
   (<any> src)
     .replace(...removeExtend({ className }))
-    .replace(...methodsAnalyzer({ src, methodBodies, methods, isES6, className }));
+    .replace(...getMethodBodies({ src, methods, isES6, className }));
 
   /********** get decorators and remove them if needed **********/
   let decorStart = src.indexOf("__decorate([", constructorEnd);
   let decorSrc = (<any> src
     .substr(decorStart))
-    .replace(...fieldDecoratorsAnalyzer({ annotations, decorators, definedAnnotations, className }))
-    .replace(...classDecoratorsAnalyzer({ generatedName, annotations, decorators, definedAnnotations, className }));
-
-  dtsData.properties.forEach(prop => {
-    let val = values[ prop.name ];
-    if (val) {
-      prop.defaultValue = val;
-    }
-  });
-
-  dtsData.methods.forEach(prop => {
-    let body = methodBodies[ prop.name ];
-    if (body) {
-      prop.body = body;
-    }
-  });
+    .replace(...getFieldDecorators({ annotations, decorators, definedAnnotations, className }))
+    .replace(...getClassDecorators({ generatedName, annotations, decorators, definedAnnotations, className }));
 
   let polymerSrc;
 
   if (polymerVersion === 1) {
-    polymerSrc = buildPolymerV1(dtsData);
+    polymerSrc = buildPolymerV1(className, properties, methods);
   }
   else {
-    polymerSrc = buildPolymerV1(dtsData);
+    polymerSrc = buildPolymerV1(className, properties, methods);
   }
 
   let finalSrc = [
@@ -168,5 +154,5 @@ export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOp
     decorSrc
   ].join("");
 
-  return { values, methodBodies, decorators, annotations, generatedName, src: finalSrc };
+  return { decorators, annotations, generatedName, src: finalSrc };
 }

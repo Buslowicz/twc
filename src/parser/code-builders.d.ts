@@ -10,15 +10,20 @@
  */
 export declare function buildField(mods: Array<string>, name: string, params?: Array<ParamConfig>, type?: string): FieldConfig;
 /**
- * @todo docs
+ * Build a Polymer property config
+ *
+ * @param prop Property configuration
+ *
+ * @returns String representation of property config object
  */
-export declare function buildProperty(prop: any): string;
+export declare function buildProperty(prop: FieldConfig): string;
 /**
- * Generate a polymer v1 component declaration
- * @todo docs
+ * Generate a Polymer v1 component declaration
+ *
+ * @param className Name of the component
+ * @param properties Component properties list
+ * @param methods Component methods list
+ *
+ * @returns String representation of polymer component declaration
  */
-export declare function buildPolymerV1({className, properties, methods}: {
-    className: any;
-    properties: any;
-    methods: any;
-}): string;
+export declare function buildPolymerV1(className: string, properties: FieldConfigMap, methods: FieldConfigMap): string;

@@ -16,13 +16,18 @@ function arrToObject(arr, value = true) {
 }
 exports.arrToObject = arrToObject;
 /**
- * @todo docs
+ * Template string tag to return empty string if param is an empty array
+ *
+ * @param stringsArray List of template string constants
+ * @param param List of params passed to template string
+ *
+ * @returns Built template string or empty string if params list is empty
  */
-function nonEmpty(consts, param) {
+function nonEmpty(stringsArray, param) {
     if (param.length) {
         return "";
     }
-    return consts[0] + param + consts[1];
+    return stringsArray[0] + param + stringsArray[1];
 }
 exports.nonEmpty = nonEmpty;
 //# sourceMappingURL=misc.js.map

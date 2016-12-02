@@ -1,73 +1,101 @@
 /**
- * Get field decorators
- * @todo docs
+ * Return pattern and replacer function to find field level decorators
+ *
+ * @param definedAnnotations Available field annotations
+ * @param decorators List of run-time decorators
+ * @param annotations List of design-time annotations
+ * @param className Name of the class
+ *
+ * @returns RegExp pattern and replacer function
  */
-export declare function fieldDecoratorsAnalyzer({definedAnnotations, decorators, annotations, className}: {
-    definedAnnotations: any;
-    decorators: any;
-    annotations: any;
-    className: any;
+export declare function getFieldDecorators({definedAnnotations, decorators, annotations, className}: {
+    definedAnnotations: Array<string>;
+    decorators: DecoratorsMap;
+    annotations: DecoratorsMap;
+    className: string;
 }): Replacer;
 /**
- * Get class decorators
- * @todo docs
+ * Return pattern and replacer function to find class level decorators
+ *
+ * @param definedAnnotations Available field annotations
+ * @param decorators List of run-time decorators
+ * @param annotations List of design-time annotations
+ * @param className Name of the class
+ * @param generatedName Generated helper name
+ *
+ * @returns RegExp pattern and replacer function
  */
-export declare function classDecoratorsAnalyzer({definedAnnotations, decorators, annotations, className, generatedName}: {
-    definedAnnotations: any;
-    decorators: any;
-    annotations: any;
-    className: any;
-    generatedName: any;
+export declare function getClassDecorators({definedAnnotations, decorators, annotations, className, generatedName}: {
+    definedAnnotations: Array<string>;
+    decorators: DecoratorsMap;
+    annotations: DecoratorsMap;
+    className: string;
+    generatedName: string;
 }): Replacer;
 /**
- * Get method bodies
- * @todo docs
+ * Return pattern and replacer function to find method bodies
+ *
+ * @param src Parsed source
+ * @param methods List of methods config
+ * @param isES6
+ * @param className Name of the class
+ *
+ * @returns RegExp pattern and replacer function
  */
-export declare function methodsAnalyzer({src, methodBodies, methods, isES6, className}: {
-    src: any;
-    methodBodies: any;
-    methods: any;
-    isES6: any;
-    className: any;
+export declare function getMethodBodies({src, methods, isES6, className}: {
+    src: string;
+    methods: FieldConfigMap;
+    isES6: boolean;
+    className: string;
 }): Replacer;
 /**
- * Get default values
- * @todo docs
+ * Return pattern and replacer function to find default values
+ *
+ * @param properties List of properties config
+ *
+ * @returns RegExp pattern and replacer function
  */
-export declare function defaultValueAnalyzer({properties, values}: {
-    properties: any;
-    values: any;
+export declare function getDefaultValues({properties}: {
+    properties: FieldConfigMap;
 }): Replacer;
 /**
  * Remove __extend helper from ES5
- * @todo docs
+ *
+ * @param className Name of the class
+ *
+ * @returns RegExp pattern and replacer function
  */
 export declare function removeExtend({className}: {
-    className: any;
+    className: string;
 }): Replacer;
 /**
  * Find class source start index, end index, generated helper name and flag if source is ES6 (class based)
- * @todo docs
+ *
+ * @param src String to search
+ * @param className Name of the class to find
+ *
+ * @returns Position of class in source and info is this ES6 class and generated helper name
  */
 export declare function findClassBody({src, className}: {
-    src: any;
-    className: any;
-}): {
+    src: string;
+    className: string;
+}): PositionInSource & {
     isES6: boolean;
-    start: number;
-    end: number;
     generatedName: string;
 };
 /**
- * Find constructor position
- * @todo docs
+ * Find constructor position in source
+ *
+ * @param src String to search
+ * @param className Name of the class to find
+ * @param isES6 Flag to indicate if we deal with ES6 class
+ * @param classStart Starting position of the class body
+ *
+ * @returns Position of constructor in source
  */
-export declare function findConstructor({isES6, className, src, classStart}: {
-    isES6: any;
-    className: any;
-    src: any;
-    classStart: any;
-}): {
-    start: number;
-    end: number;
-};
+export declare function findConstructor({src, className, isES6, classStart}: {
+    src: string;
+    className: string;
+    isES6: boolean;
+    classStart: number;
+}): PositionInSource;
