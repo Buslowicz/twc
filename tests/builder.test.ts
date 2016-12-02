@@ -14,35 +14,35 @@ describe("module builder", () => {
   describe("buildConfig", () => {
     it("should create a valid config", (done) => {
       buildConfig().config.then(meta => {
-        expect(meta).to.deep.equal({
-          className: "ElementName",
-          parent: undefined,
-          properties: [
-            { name: "greetings", type: "Array" },
-            {
-              readonly: true,
-              name: "test",
-              type: "String",
-              defaultValue: `"tester"`
-            },
-            { name: "profile", type: "any" }
-          ],
-          methods: [],
-          generatedName: null,
-          decorators: {},
-          annotations: {},
-          src: [
-            '"use strict";',
-            'require("link!bower_components/polymer/polymer.html");',
-            'require("link!node_modules/easy-polymer/dist/esp.html");',
-            'class ElementName {',
-            '    constructor() {',
-            '        this.test = "tester";',
-            '    }',
-            '}',
-            'exports.ElementName = ElementName;'
-          ].join('\n')
-        });
+        expect(meta.className).to.equal("ElementName");
+        expect(meta.classBody).to.deep.equal([ 126, 237 ]);
+        expect(meta.parent).to.equal(undefined);
+        expect(meta.generatedName).to.equal(undefined);
+        expect(meta.decorators).to.deep.equal({});
+        expect(meta.annotations).to.deep.equal({});
+        expect(meta.src).to.equal([
+          '"use strict";',
+          'require("link!bower_components/polymer/polymer.html");',
+          'require("link!node_modules/easy-polymer/dist/esp.html");',
+          'class ElementName {',
+          '    constructor() {',
+          '        this.test = "tester";',
+          '    }',
+          '}',
+          'exports.ElementName = ElementName;',
+          ''
+        ].join('\n'));
+        expect(Array.from(meta.methods.values())).to.deep.equal([]);
+        expect(Array.from(meta.properties.values())).to.deep.equal([
+          { name: "greetings", type: "Array" },
+          {
+            readonly: true,
+            name: "test",
+            type: "String",
+            defaultValue: `"tester"`
+          },
+          { name: "profile", type: "any" }
+        ]);
         done();
       }).catch(done);
     });

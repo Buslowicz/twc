@@ -19,6 +19,8 @@ export declare function parseDTS(src: string): DTSParsedData;
  * @param dtsData Data fetched from TypeScript declaration
  * @param options Options passed to parser
  * @param options.definedAnnotations Available design-time annotations
+ * @param options.polymerVersion Targeted Polymer version
+ * @param options.allowDecorators Whether decorators should be allowed (TODO)
  *
  * @throws Error if no class was found
  *

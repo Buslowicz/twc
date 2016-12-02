@@ -1,5 +1,4 @@
 declare type Replacer = [RegExp, string | ((...args: Array<string>) => string)];
-declare type DecoratorsMap = {[fieldName: string]: Array<Decorator>};
 declare type FieldConfigMap = Map<string, FieldConfig>;
 
 declare interface PositionInSource {
@@ -11,6 +10,11 @@ declare interface Decorator {
   name: string;
   params: string;
   descriptor?: string;
+}
+declare interface DecoratorsMap {
+  //noinspection ReservedWordAsName
+  class?: Array<Decorator>;
+  [fieldName: string]: Array<Decorator>;
 }
 declare interface FoundMatch {
   index: number;
@@ -54,8 +58,10 @@ declare interface JSParsedData {
   decorators: DecoratorsMap;
   annotations: DecoratorsMap;
   src: string;
+  classBody: Array<number>;
 }
 declare interface JSParserOptions {
   definedAnnotations: Array<string>;
-  polymerVersion?: boolean;
+  polymerVersion?: number;
+  allowDecorators?: boolean;
 }

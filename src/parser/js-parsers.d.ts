@@ -1,36 +1,36 @@
 /**
  * Return pattern and replacer function to find field level decorators
  *
- * @param definedAnnotations Available field annotations
  * @param decorators List of run-time decorators
  * @param annotations List of design-time annotations
  * @param className Name of the class
+ * @param options JSParser options
  *
  * @returns RegExp pattern and replacer function
  */
-export declare function getFieldDecorators({definedAnnotations, decorators, annotations, className}: {
-    definedAnnotations: Array<string>;
+export declare function getFieldDecorators({decorators, annotations, className, options}: {
     decorators: DecoratorsMap;
     annotations: DecoratorsMap;
     className: string;
+    options: JSParserOptions;
 }): Replacer;
 /**
  * Return pattern and replacer function to find class level decorators
  *
- * @param definedAnnotations Available field annotations
  * @param decorators List of run-time decorators
  * @param annotations List of design-time annotations
  * @param className Name of the class
  * @param generatedName Generated helper name
+ * @param options JSParser options
  *
  * @returns RegExp pattern and replacer function
  */
-export declare function getClassDecorators({definedAnnotations, decorators, annotations, className, generatedName}: {
-    definedAnnotations: Array<string>;
+export declare function getClassDecorators({decorators, annotations, className, generatedName, options}: {
     decorators: DecoratorsMap;
     annotations: DecoratorsMap;
     className: string;
     generatedName: string;
+    options: JSParserOptions;
 }): Replacer;
 /**
  * Return pattern and replacer function to find method bodies

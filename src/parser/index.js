@@ -78,15 +78,15 @@ exports.parseDTS = parseDTS;
  * @param dtsData Data fetched from TypeScript declaration
  * @param options Options passed to parser
  * @param options.definedAnnotations Available design-time annotations
+ * @param options.polymerVersion Targeted Polymer version
+ * @param options.allowDecorators Whether decorators should be allowed (TODO)
  *
  * @throws Error if no class was found
  *
  * @returns default values, decorators, annotations, generated additional variable name and pre-formatted JavaScript src
  */
 function parseJS(src, dtsData, options = {}) {
-    let definedAnnotations, polymerVersion, className, properties, methods;
-    console.log(options);
-    ({ definedAnnotations = [], polymerVersion = 1 } = options);
+    let className, properties, methods;
     ({ className, properties, methods } = dtsData);
     /********** declare result objects **********/
     const decorators = {};
@@ -100,29 +100,12 @@ function parseJS(src, dtsData, options = {}) {
         .slice(constructorStart + 1, constructorEnd)
         .replace(...js_parsers_1.getDefaultValues({ properties }));
     /********** get method bodies **********/
-    src
+    src = src
+        .replace(...js_parsers_1.getMethodBodies({ src, methods, isES6, className }))
         .replace(...js_parsers_1.removeExtend({ className }))
-        .replace(...js_parsers_1.getMethodBodies({ src, methods, isES6, className }));
-    /********** get decorators and remove them if needed **********/
-    let decorStart = src.indexOf("__decorate([", constructorEnd);
-    let decorSrc = src
-        .substr(decorStart)
-        .replace(...js_parsers_1.getFieldDecorators({ annotations, decorators, definedAnnotations, className }))
-        .replace(...js_parsers_1.getClassDecorators({ generatedName, annotations, decorators, definedAnnotations, className }));
-    let polymerSrc;
-    if (polymerVersion === 1) {
-        polymerSrc = code_builders_1.buildPolymerV1(className, properties, methods);
-    }
-    else {
-        polymerSrc = code_builders_1.buildPolymerV1(className, properties, methods);
-    }
-    let finalSrc = [
-        src.slice(0, classStart),
-        polymerSrc,
-        src.slice(classEnd + 1, decorStart),
-        decorSrc
-    ].join("");
-    return { decorators, annotations, generatedName, src: finalSrc };
+        .replace(...js_parsers_1.getFieldDecorators({ annotations, decorators, className, options }))
+        .replace(...js_parsers_1.getClassDecorators({ annotations, decorators, className, options, generatedName }));
+    return { decorators, annotations, src, generatedName, classBody: [classStart, classEnd] };
 }
 exports.parseJS = parseJS;
 //# sourceMappingURL=index.js.map

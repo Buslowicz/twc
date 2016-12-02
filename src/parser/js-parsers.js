@@ -3,14 +3,14 @@ const source_crawlers_1 = require('./source-crawlers');
 /**
  * Return pattern and replacer function to find field level decorators
  *
- * @param definedAnnotations Available field annotations
  * @param decorators List of run-time decorators
  * @param annotations List of design-time annotations
  * @param className Name of the class
+ * @param options JSParser options
  *
  * @returns RegExp pattern and replacer function
  */
-function getFieldDecorators({ definedAnnotations, decorators, annotations, className }) {
+function getFieldDecorators({ decorators, annotations, className, options }) {
     return [
         new RegExp(`[\\s]*__decorate\\(\\[([\\W\\w]*?)], (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g"),
             (_, definition, proto, name, descriptor) => {
@@ -25,7 +25,7 @@ function getFieldDecorators({ definedAnnotations, decorators, annotations, class
                     decor.slice(0, ptr),
                     decor.slice(ptr + 1, decor.length - 1)
                 ] : [decor];
-                if (definedAnnotations.indexOf(name) !== -1) {
+                if (options.definedAnnotations.indexOf(name) !== -1) {
                     usedAnnotations.push({ name, params, descriptor, src: decor });
                 }
                 else {
@@ -34,7 +34,7 @@ function getFieldDecorators({ definedAnnotations, decorators, annotations, class
             }
             decorators[name] = usedDecorators;
             annotations[name] = usedAnnotations;
-            if (usedDecorators.length === 0) {
+            if (!options.allowDecorators || usedDecorators.length === 0) {
                 return "";
             }
             return `\n__decorate([${usedDecorators.map(n => n.src).toString()}], ${proto}, "${name}", ${descriptor});`;
@@ -45,15 +45,15 @@ exports.getFieldDecorators = getFieldDecorators;
 /**
  * Return pattern and replacer function to find class level decorators
  *
- * @param definedAnnotations Available field annotations
  * @param decorators List of run-time decorators
  * @param annotations List of design-time annotations
  * @param className Name of the class
  * @param generatedName Generated helper name
+ * @param options JSParser options
  *
  * @returns RegExp pattern and replacer function
  */
-function getClassDecorators({ definedAnnotations, decorators, annotations, className, generatedName }) {
+function getClassDecorators({ decorators, annotations, className, generatedName, options }) {
     return [
         new RegExp(`[\\s]*${className} = (?:.*? = )?__decorate\\(\\[([\\W\\w]*?)], (${className})\\);`, "g"),
             (_, definition) => {
@@ -68,7 +68,7 @@ function getClassDecorators({ definedAnnotations, decorators, annotations, class
                     decor.slice(0, ptr),
                     decor.slice(ptr + 1, decor.length - 1)
                 ] : [decor];
-                if (definedAnnotations.indexOf(name) !== -1) {
+                if (options.definedAnnotations.indexOf(name) !== -1) {
                     usedAnnotations.push({ name, params, src: decor });
                 }
                 else {
@@ -77,7 +77,7 @@ function getClassDecorators({ definedAnnotations, decorators, annotations, class
             }
             decorators["class"] = usedDecorators;
             annotations["class"] = usedAnnotations;
-            if (usedDecorators.length === 0) {
+            if (!options.allowDecorators || usedDecorators.length === 0) {
                 return "";
             }
             if (generatedName) {
@@ -103,6 +103,9 @@ exports.getClassDecorators = getClassDecorators;
  * @returns RegExp pattern and replacer function
  */
 function getMethodBodies({ src, methods, isES6, className }) {
+    if (methods.size === 0) {
+        return [/^$/, ""];
+    }
     let methodsList = Array.from(methods.values()).map(itm => itm.name).join("|");
     return [
         isES6
@@ -124,12 +127,12 @@ exports.getMethodBodies = getMethodBodies;
  * @returns RegExp pattern and replacer function
  */
 function getDefaultValues({ properties }) {
+    if (properties.size === 0) {
+        return [/^$/, ""];
+    }
     return [
         new RegExp(`this\\.(${Array.from(properties.values()).map(itm => itm.name).join("|")}) = (.*);\\n`, "g"),
-            (_, name, value) => {
-            console.log(properties, name, properties[name], value);
-            return properties.get(name).defaultValue = value;
-        }
+            (_, name, value) => properties.get(name).defaultValue = value
     ];
 }
 exports.getDefaultValues = getDefaultValues;

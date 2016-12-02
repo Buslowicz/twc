@@ -3,18 +3,18 @@ import { split, findClosing } from './source-crawlers';
 /**
  * Return pattern and replacer function to find field level decorators
  *
- * @param definedAnnotations Available field annotations
  * @param decorators List of run-time decorators
  * @param annotations List of design-time annotations
  * @param className Name of the class
+ * @param options JSParser options
  *
  * @returns RegExp pattern and replacer function
  */
-export function getFieldDecorators({ definedAnnotations, decorators, annotations, className }: {
-  definedAnnotations: Array<string>;
+export function getFieldDecorators({ decorators, annotations, className, options }: {
   decorators: DecoratorsMap;
   annotations: DecoratorsMap;
   className: string;
+  options: JSParserOptions;
 }): Replacer {
   return [
     new RegExp(`[\\s]*__decorate\\(\\[([\\W\\w]*?)], (${className}\\.prototype), "(.*?)", (.*?)\\);`, "g"),
@@ -32,7 +32,7 @@ export function getFieldDecorators({ definedAnnotations, decorators, annotations
           decor.slice(0, ptr),
           decor.slice(ptr + 1, decor.length - 1)
         ] : [ decor ];
-        if (definedAnnotations.indexOf(name) !== -1) {
+        if (options.definedAnnotations.indexOf(name) !== -1) {
           usedAnnotations.push({ name, params, descriptor, src: decor });
         }
         else {
@@ -43,7 +43,7 @@ export function getFieldDecorators({ definedAnnotations, decorators, annotations
       decorators[ name ] = usedDecorators;
       annotations[ name ] = usedAnnotations;
 
-      if (usedDecorators.length === 0) {
+      if (!options.allowDecorators || usedDecorators.length === 0) {
         return "";
       }
       return `\n__decorate([${usedDecorators.map(n => n.src).toString()}], ${proto}, "${name}", ${descriptor});`
@@ -54,20 +54,20 @@ export function getFieldDecorators({ definedAnnotations, decorators, annotations
 /**
  * Return pattern and replacer function to find class level decorators
  *
- * @param definedAnnotations Available field annotations
  * @param decorators List of run-time decorators
  * @param annotations List of design-time annotations
  * @param className Name of the class
  * @param generatedName Generated helper name
+ * @param options JSParser options
  *
  * @returns RegExp pattern and replacer function
  */
-export function getClassDecorators({ definedAnnotations, decorators, annotations, className, generatedName }: {
-  definedAnnotations: Array<string>;
+export function getClassDecorators({ decorators, annotations, className, generatedName, options }: {
   decorators: DecoratorsMap;
   annotations: DecoratorsMap;
   className: string;
   generatedName: string;
+  options: JSParserOptions;
 }): Replacer {
   return [
     new RegExp(`[\\s]*${className} = (?:.*? = )?__decorate\\(\\[([\\W\\w]*?)], (${className})\\);`, "g"),
@@ -85,7 +85,7 @@ export function getClassDecorators({ definedAnnotations, decorators, annotations
           decor.slice(0, ptr),
           decor.slice(ptr + 1, decor.length - 1)
         ] : [ decor ];
-        if (definedAnnotations.indexOf(name) !== -1) {
+        if (options.definedAnnotations.indexOf(name) !== -1) {
           usedAnnotations.push({ name, params, src: decor });
         }
         else {
@@ -96,7 +96,7 @@ export function getClassDecorators({ definedAnnotations, decorators, annotations
       decorators[ "class" ] = usedDecorators;
       annotations[ "class" ] = usedAnnotations;
 
-      if (usedDecorators.length === 0) {
+      if (!options.allowDecorators || usedDecorators.length === 0) {
         return "";
       }
       if (generatedName) {
@@ -127,6 +127,9 @@ export function getMethodBodies({ src, methods, isES6, className }: {
   isES6: boolean;
   className: string;
 }): Replacer {
+  if (methods.size === 0) {
+    return [/^$/, ""];
+  }
   let methodsList = Array.from(methods.values()).map(itm => itm.name).join("|");
 
   return [
@@ -149,12 +152,12 @@ export function getMethodBodies({ src, methods, isES6, className }: {
  * @returns RegExp pattern and replacer function
  */
 export function getDefaultValues({ properties }: { properties: FieldConfigMap; }): Replacer {
+  if (properties.size === 0) {
+    return [/^$/, ""];
+  }
   return [
     new RegExp(`this\\.(${Array.from(properties.values()).map(itm => itm.name).join("|")}) = (.*);\\n`, "g"),
-    (_, name, value) => {
-      console.log(properties, name, properties[ name ], value);
-      return properties.get(name).defaultValue = value;
-    }
+    (_, name, value) => properties.get(name).defaultValue = value
   ];
 }
 

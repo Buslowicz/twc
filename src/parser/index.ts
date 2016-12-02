@@ -100,15 +100,15 @@ export function parseDTS(src: string): DTSParsedData {
  * @param dtsData Data fetched from TypeScript declaration
  * @param options Options passed to parser
  * @param options.definedAnnotations Available design-time annotations
+ * @param options.polymerVersion Targeted Polymer version
+ * @param options.allowDecorators Whether decorators should be allowed (TODO)
  *
  * @throws Error if no class was found
  *
  * @returns default values, decorators, annotations, generated additional variable name and pre-formatted JavaScript src
  */
 export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOptions = <any> {}): JSParsedData {
-  let definedAnnotations, polymerVersion, className, properties, methods;
-  console.log(options);
-  ({ definedAnnotations = [], polymerVersion = 1 } = options);
+  let className, properties, methods;
   ({ className, properties, methods } = dtsData);
 
   /********** declare result objects **********/
@@ -127,32 +127,13 @@ export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOp
     .replace(...getDefaultValues({ properties }));
 
   /********** get method bodies **********/
-  (<any> src)
-    .replace(...removeExtend({ className }))
-    .replace(...getMethodBodies({ src, methods, isES6, className }));
+  src = (<any> src)
+    .replace(...getMethodBodies({ src, methods, isES6, className }))
 
   /********** get decorators and remove them if needed **********/
-  let decorStart = src.indexOf("__decorate([", constructorEnd);
-  let decorSrc = (<any> src
-    .substr(decorStart))
-    .replace(...getFieldDecorators({ annotations, decorators, definedAnnotations, className }))
-    .replace(...getClassDecorators({ generatedName, annotations, decorators, definedAnnotations, className }));
+    .replace(...removeExtend({ className }))
+    .replace(...getFieldDecorators({ annotations, decorators, className, options }))
+    .replace(...getClassDecorators({ annotations, decorators, className, options, generatedName }));
 
-  let polymerSrc;
-
-  if (polymerVersion === 1) {
-    polymerSrc = buildPolymerV1(className, properties, methods);
-  }
-  else {
-    polymerSrc = buildPolymerV1(className, properties, methods);
-  }
-
-  let finalSrc = [
-    src.slice(0, classStart),
-    polymerSrc,
-    src.slice(classEnd + 1, decorStart),
-    decorSrc
-  ].join("");
-
-  return { decorators, annotations, generatedName, src: finalSrc };
+  return { decorators, annotations, src, generatedName, classBody: [ classStart, classEnd ] };
 }

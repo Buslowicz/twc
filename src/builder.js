@@ -76,23 +76,8 @@ function build() {
 exports.build = build;
 function parse([dtsSrc, jsSrc]) {
     let dtsMeta = parser_1.parseDTS(dtsSrc.contents.toString());
-    let jsMeta = parser_1.parseJS(jsSrc.contents.toString(), dtsMeta);
-    let meta = Object.assign({}, dtsMeta, jsMeta);
-    dtsMeta.properties.forEach(prop => {
-        let val = jsMeta.values[prop.name];
-        if (val) {
-            prop.defaultValue = val;
-        }
-    });
-    dtsMeta.methods.forEach(prop => {
-        let body = jsMeta.methodBodies[prop.name];
-        if (body) {
-            prop.body = body;
-        }
-    });
-    delete meta.values;
-    delete meta.methodBodies;
-    return meta;
+    let jsMeta = parser_1.parseJS(jsSrc.contents.toString(), dtsMeta, { definedAnnotations: ["test"] });
+    return Object.assign({}, dtsMeta, jsMeta);
 }
 exports.parse = parse;
 function streamToPromise(stream) {
