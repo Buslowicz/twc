@@ -5,4 +5,8 @@ export class ElementName {
   greetings: Array<string>;
   readonly test: string = "tester";
   profile: any;
+
+  tester(val: string) {
+    console.log("val:", val);
+  }
 }

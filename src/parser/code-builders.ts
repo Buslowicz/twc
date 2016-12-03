@@ -32,19 +32,20 @@ export function buildField(mods: Array<string>, name: string, params?: Array<Par
 export function buildProperty(prop: FieldConfig): string {
   let keyMap = { readonly: "readOnly", defaultValue: "value" };
   let valueMap = "Boolean|Date|Number|String|Array|Object";
-  let allowedFields = "type|value|reflectToAttribute|readOnly|notify|computed|observer";
 
-  return `${prop.name}: {${Object
-    .keys(prop)
-    .filter(key => allowedFields.includes(key))
-    .map(key => {
-      let value = prop[ key ];
-      if (key === "type" && valueMap.indexOf(prop[ key ]) === -1) {
-        value = "Object";
-      }
-      return `${keyMap[ key ] || key}: ${value}`;
-    })
-    .join(",")}}`;
+  return `${prop.name}:{${
+    Object
+      .keys(prop)
+      .filter(key => key !== "name")
+      .map(key => {
+        let value = prop[ key ];
+        if (key === "type" && valueMap.indexOf(prop[ key ]) === -1) {
+          value = "Object";
+        }
+        return `${keyMap[ key ] || key}:${value}`;
+      })
+      .join(",")
+    }}`;
 }
 
 /**
@@ -58,8 +59,8 @@ export function buildProperty(prop: FieldConfig): string {
  */
 export function buildPolymerV1(className: string, properties: FieldConfigMap, methods: FieldConfigMap): string {
   return `Polymer({${[
-    `is: "${kebabCase(className)}"`,
-    nonEmpty`properties: {${Array.from(properties.values()).filter(prop => !prop.static).map(buildProperty)}}`,
-    ...Array.from(methods.values()).map(method => `${method.name}: function${method.body}`)
+    `is:"${kebabCase(className)}"`,
+    nonEmpty`properties:{${Array.from(properties.values()).map(buildProperty)}}`,
+    ...Array.from(methods.values()).map(method => `${method.name}:function${method.body}`)
   ]}});`;
 }

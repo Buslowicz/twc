@@ -103,12 +103,6 @@ export function build() {
     .then(buildHTML);
 }
 
-export function parse([dtsSrc, jsSrc]: Array<File & {contents: Buffer}>): DTSParsedData & JSParsedData {
-  let dtsMeta = parseDTS(dtsSrc.contents.toString());
-  let jsMeta = parseJS(jsSrc.contents.toString(), dtsMeta, { definedAnnotations: [ "test" ] });
-  return Object.assign({}, dtsMeta, jsMeta);
-}
-
 export function streamToPromise(stream: Stream): Promise<File & {contents: Buffer}> {
   return new Promise((resolve, reject) => stream.on("data", src => resolve(src)).on("error", err => reject(err)));
 }
@@ -121,8 +115,20 @@ export function buildConfig() {
   let dts = streamToPromise(stream.dts);
   let js = streamToPromise(stream.js);
 
+  let config: JSParserOptions = {
+    definedAnnotations: [ "test" ],
+    allowDecorators: false,
+    polymerVersion: 1
+  };
+
   return {
     dts, js,
-    config: Promise.all([ dts, js ]).then(parse)
+    config: Promise
+      .all([ dts, js ])
+      .then(([dtsSrc, jsSrc]: Array<File & {contents: Buffer}>): DTSParsedData & JSParsedData => {
+        let dtsMeta = parseDTS(dtsSrc.contents.toString());
+        let jsMeta = parseJS(jsSrc.contents.toString(), dtsMeta, config);
+        return Object.assign({}, dtsMeta, jsMeta);
+      })
   };
 }

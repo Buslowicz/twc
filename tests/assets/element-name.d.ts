@@ -4,4 +4,5 @@ export declare class ElementName {
     greetings: Array<string>;
     readonly test: string;
     profile: any;
+    tester(val: string): void;
 }

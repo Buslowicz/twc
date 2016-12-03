@@ -5,6 +5,9 @@ class ElementName {
     constructor() {
         this.test = "tester";
     }
+    tester(val) {
+        console.log("val:", val);
+    }
 }
 exports.ElementName = ElementName;
 //# sourceMappingURL=element-name.js.map

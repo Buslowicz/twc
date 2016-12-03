@@ -12,10 +12,13 @@ describe("module builder", () => {
   });
 
   describe("buildConfig", () => {
-    it("should create a valid config", (done) => {
+    it("should create a valid config", function (done) {
+      // this is a huge test (reads data from file) which should not exceed 2s, but on slower machines it might
+      this.timeout(3000);
+
       buildConfig().config.then(meta => {
         expect(meta.className).to.equal("ElementName");
-        expect(meta.classBody).to.deep.equal([ 126, 237 ]);
+        expect(meta.classBody).to.deep.equal([ 126, 295 ]);
         expect(meta.parent).to.equal(undefined);
         expect(meta.generatedName).to.equal(undefined);
         expect(meta.decorators).to.deep.equal({});
@@ -28,11 +31,26 @@ describe("module builder", () => {
           '    constructor() {',
           '        this.test = "tester";',
           '    }',
+          '    tester(val) {',
+          '        console.log("val:", val);',
+          '    }',
           '}',
           'exports.ElementName = ElementName;',
           ''
         ].join('\n'));
-        expect(Array.from(meta.methods.values())).to.deep.equal([]);
+        expect(Array.from(meta.methods.values())).to.deep.equal([
+          {
+            body: "(val) {\n        console.log(\"val:\", val);\n    }",
+            name: "tester",
+            params: [
+              {
+                name: "val",
+                type: "String"
+              }
+            ],
+            type: "void"
+          }
+        ]);
         expect(Array.from(meta.properties.values())).to.deep.equal([
           { name: "greetings", type: "Array" },
           {
@@ -48,19 +66,3 @@ describe("module builder", () => {
     });
   });
 });
-/*
- { className: 'ElementName',
- parent: undefined,
- properties:
- [ { name: 'greetings', type: 'Array' },
- { readonly: true,
- name: 'test',
- type: 'String',
- defaultValue: '"tester"' },
- { name: 'profile', type: 'any' } ],
- methods: [],
- generatedName: undefined,
- decorators: {},
- annotations: {},
- src: 'class ElementName {\n    constructor() {\n        this.test = "tester";\n    ' }
- */
