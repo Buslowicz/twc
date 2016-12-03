@@ -15,7 +15,8 @@ let InputMath_1 = class InputMath extends polymer.Base {
         this.fn = function () { return typeof window; };
         this._observerLocked = false;
         this._freezeHistory = false;
-        var editor = this._editor = document.createElement("div");
+        this._editor = document.createElement("div");
+        var editor = this._editor;
         editor.id = "editor";
         editor.classList.add(this.is);
         this._mathField = MathQuill.getInterface(2).MathField(editor, {

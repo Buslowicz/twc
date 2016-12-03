@@ -128,9 +128,13 @@ export function getMethodBodies({ src, methods, isES6, className }: {
   className: string;
 }): Replacer {
   if (methods.size === 0) {
-    return [/^$/, ""];
+    return [ /^$/, "" ];
   }
-  let methodsList = Array.from(methods.values()).map(itm => itm.name).join("|");
+  let methodsList = Array
+    .from(methods.values())
+    .map(itm => itm.name)
+    .filter(method => method !== "constructor")
+    .join("|");
 
   return [
     isES6
@@ -147,17 +151,23 @@ export function getMethodBodies({ src, methods, isES6, className }: {
 /**
  * Return pattern and replacer function to find default values
  *
+ * @todo wrap non-primitive values in a function to prevent sharing
+ * @todo allow intentional sharing
+ *
  * @param properties List of properties config
  *
  * @returns RegExp pattern and replacer function
  */
 export function getDefaultValues({ properties }: { properties: FieldConfigMap; }): Replacer {
   if (properties.size === 0) {
-    return [/^$/, ""];
+    return [ /^$/, "" ];
   }
   return [
-    new RegExp(`this\\.(${Array.from(properties.values()).map(itm => itm.name).join("|")}) = (.*);\\n`, "g"),
-    (_, name, value) => properties.get(name).defaultValue = value
+    new RegExp(`[\\t ]*this\\.(${Array.from(properties.values()).map(itm => itm.name).join("|")}) = (.*);\\n`, "g"),
+    (_, name, value) => {
+      properties.get(name).defaultValue = value;
+      return ""
+    }
   ];
 }
 
@@ -236,6 +246,9 @@ export function findConstructor({ src, className, isES6, classStart }: {
 }): PositionInSource {
   let constructorPattern = isES6 ? `constructor(` : `function ${className}(`;
   let start = src.indexOf(constructorPattern, classStart);
+  if (start === -1) {
+    return { start: -1, end: -1 };
+  }
   let end = findClosing(src, start + constructorPattern.length - 1, "()");
   end = src.indexOf("{", end);
   end = findClosing(src, end, "{}");

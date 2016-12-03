@@ -80,11 +80,11 @@ class InputMath extends polymer.Base {
   private _mathField: MathQuill.EditableField;
   private _observerLocked: boolean = false;
   private _freezeHistory: boolean = false;
-  private _editor: HTMLElement;
+  private _editor: HTMLElement = document.createElement("div");
 
   constructor() {
     super();
-    var editor: HTMLElement = this._editor = document.createElement("div");
+    var editor: HTMLElement = this._editor;
     editor.id = "editor";
     editor.classList.add(this.is);
     this._mathField = MathQuill.getInterface(2).MathField(editor, {

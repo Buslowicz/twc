@@ -214,7 +214,6 @@ describe("static analyser", () => {
           .replace(/attributeChanged/, "attributeChangedCallback")
       )).to.not.throw(Error);
     });
-
     it("should recognize types from definition", () => {
       expect(meta.className).to.equal("InputMath");
 
@@ -297,28 +296,43 @@ describe("static analyser", () => {
     });
   });
   describe("parseJS", () => {
-    let meta: JSParsedData;
-    let dtsData: DTSParsedData;
+    let complexMeta: JSParsedData;
+    let complexDTSData: DTSParsedData;
+
+    let simpleMeta: JSParsedData;
+    let simpleDTSData: DTSParsedData;
 
     before(() => {
-      dtsData = parseDTS(readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"));
-      meta = parseJS(
-        readFileSync(`${__dirname}/assets/input-math.js`, "utf8"), dtsData,
+      complexDTSData = parseDTS(readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"));
+      complexMeta = parseJS(
+        readFileSync(`${__dirname}/assets/input-math.js`, "utf8"), complexDTSData,
+        { definedAnnotations: [ "test1", "test2", "template" ] }
+      );
+
+      simpleDTSData = parseDTS(readFileSync(`${__dirname}/assets/element-name.d.ts`, "utf8"));
+      simpleMeta = parseJS(
+        readFileSync(`${__dirname}/assets/element-name.js`, "utf8"), simpleDTSData,
         { definedAnnotations: [ "test1", "test2", "template" ] }
       );
     });
 
     it("should fetch additional generated class name", () => {
-      expect(meta.generatedName).to.be.oneOf([ "InputMath_1", undefined ]);
+      expect(complexMeta.generatedName).to.be.oneOf([ "InputMath_1", undefined ]);
+    });
+    it("should fetch constructor body if it was defined in TS file, otherwise it should be skipped", () => {
+      expect(simpleDTSData.methods.get("constructor")).to.equal(undefined);
+      expect(complexDTSData.methods.get("constructor")).to.not.equal(undefined);
+      expect(complexDTSData.methods.get("constructor").body).to.not.equal(undefined);
     });
     it("should fetch default values from parsed constructor", () => {
-      expect(dtsData.properties.get("value").defaultValue).to.equal(`""`);
-      expect(dtsData.properties.get("fn").defaultValue).to.equal("function () { return typeof window; }");
-      expect(dtsData.properties.get("_observerLocked").defaultValue).to.equal("false");
-      expect(dtsData.properties.get("_freezeHistory").defaultValue).to.equal("false");
+      expect(complexDTSData.properties.get("value").defaultValue).to.equal(`""`);
+      expect(complexDTSData.properties.get("fn").defaultValue).to.equal("function () { return typeof window; }");
+      expect(complexDTSData.properties.get("_observerLocked").defaultValue).to.equal("false");
+      expect(complexDTSData.properties.get("_freezeHistory").defaultValue).to.equal("false");
+      expect(complexDTSData.properties.get("_editor").defaultValue).to.equal("document.createElement(\"div\")");
     });
     it("should fetch decorators for all properties and methods", () => {
-      let { decorators } = meta;
+      let { decorators } = complexMeta;
       expect(decorators).to.have.property("value");
       expect(decorators).to.have.property("symbols");
       expect(decorators).to.have.property("showSymbols");
@@ -327,7 +341,7 @@ describe("static analyser", () => {
       expect(decorators).to.have.property("keyShortcuts");
     });
     it("should fetch list of decorators used per field", () => {
-      let { decorators: { value, symbols, showSymbols, valueChanged, symbolsChanged, keyShortcuts } } = meta;
+      let { decorators: { value, symbols, showSymbols, valueChanged, symbolsChanged, keyShortcuts } } = complexMeta;
 
       expect(value).to.have.deep.property("0.name", "property");
       expect(symbols).to.have.deep.property("0.name", "property");
@@ -337,11 +351,11 @@ describe("static analyser", () => {
       expect(keyShortcuts).to.have.deep.property("0.name", "listen");
     });
     it("should exclude annotations from fields decorators list", () => {
-      let { decorators: { value } } = meta;
+      let { decorators: { value } } = complexMeta;
       expect(value).to.not.have.deep.property("0.name", "test1");
     });
     it("should fetch list of annotations used per field", () => {
-      let { annotations: { value, symbols } } = meta;
+      let { annotations: { value, symbols } } = complexMeta;
 
       let valueAnnotation = value[ 0 ];
 
@@ -354,24 +368,24 @@ describe("static analyser", () => {
       expect(symbolsAnnotation.params).to.equal("5");
     });
     it("should fetch decorators for class under 'class' field", () => {
-      expect(meta.decorators).to.have.property("class");
+      expect(complexMeta.decorators).to.have.property("class");
     });
     it("should fetch list of class decorators", () => {
-      let classDecorators = meta.decorators.class;
+      let classDecorators = complexMeta.decorators.class;
       expect(classDecorators).to.have.deep.property("0.name", "component");
     });
     it("should exclude annotations from class decorators list", () => {
-      let classDecorators = meta.decorators.class;
+      let classDecorators = complexMeta.decorators.class;
       expect(classDecorators).to.not.have.deep.property("0.name", "template");
     });
     it("should fetch annotations for class under 'class' field", () => {
-      let classAnnotation = meta.annotations.class[ 0 ];
+      let classAnnotation = complexMeta.annotations.class[ 0 ];
 
       expect(classAnnotation.name).to.equal("template");
       expect(classAnnotation.params).to.equal(`"<input>"`);
     });
     it("should fetch method bodies", () => {
-      let methods = dtsData.methods;
+      let methods = complexDTSData.methods;
       expect(Array.from(methods.keys())).to.deep.equal([
         "constructor", "ready", "cmd", "undo", "valueChanged",
         "symbolsChanged", "keyShortcuts", "_updateValue", "_updateHistory"
@@ -381,11 +395,7 @@ describe("static analyser", () => {
         .equal([
           "() {",
           "        super();",
-          "        this.value = \"\";",
-          "        this.fn = function () { return typeof window; };",
-          "        this._observerLocked = false;",
-          "        this._freezeHistory = false;",
-          "        var editor = this._editor = document.createElement(\"div\");",
+          "        var editor = this._editor;",
           "        editor.id = \"editor\";",
           "        editor.classList.add(this.is);",
           "        this._mathField = MathQuill.getInterface(2).MathField(editor, {",

@@ -112,10 +112,8 @@ export function parseDTS(src: string): DTSParsedData {
  * Parse JavaScript output to fetch default values, decorators, annotations, generated additional variable name and
  * pre-formatted JavaScript src
  *
- * @todo consider removing default values as an option
  * @todo parse default values using goTo function
  * @todo move decorators and annotations to FieldConfig
- * @todo save constructor body
  * @todo update jsdoc
  *
  * @param src String to parse
@@ -143,16 +141,17 @@ export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOp
   /********** get constructor position **********/
   const { start: constructorStart, end: constructorEnd } = findConstructor({ isES6, className, src, classStart });
 
-  /********** get default values **********/
-  (<any> src)
-    .slice(constructorStart + 1, constructorEnd)
-    .replace(...getDefaultValues({ properties }));
+  if (constructorStart !== -1) {
+    (methods.get("constructor") || {}).body = (<any> src)
+      .slice(src.indexOf("(", constructorStart), constructorEnd + 1)
+      .replace(...getDefaultValues({ properties }));
+  }
 
   /********** get method bodies **********/
   src = (<any> src)
     .replace(...getMethodBodies({ src, methods, isES6, className }))
 
-  /********** get decorators and remove them if needed **********/
+    /********** get decorators and remove them if needed **********/
     .replace(...removeExtend({ className }))
     .replace(...getFieldDecorators({ annotations, decorators, className, options }))
     .replace(...getClassDecorators({ annotations, decorators, className, options, generatedName }));
