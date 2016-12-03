@@ -24,7 +24,7 @@ declare class InputMath extends polymer.Base {
     private _observerLocked;
     private _freezeHistory;
     private _editor;
-    created(): void;
+    constructor();
     ready(): void;
     cmd(ev: PolymerEvent): void;
     undo(): void;

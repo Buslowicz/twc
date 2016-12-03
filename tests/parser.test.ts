@@ -176,9 +176,43 @@ describe("static analyser", () => {
   });
   describe("parseDTS", () => {
     let meta;
+    let deprecatedCallbacksDTS;
 
     before(() => {
       meta = parseDTS(readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"));
+      deprecatedCallbacksDTS = readFileSync(`${__dirname}/assets/deprecated-callbacks.d.ts`, "utf8");
+    });
+
+    it("should throw an error if deprecated lifecycle callback is used", () => {
+      expect(() => parseDTS(
+        deprecatedCallbacksDTS
+      )).to.throw("`created` callback is deprecated. Please use `constructor` instead");
+
+      expect(() => parseDTS(
+        deprecatedCallbacksDTS
+          .replace(/created/, "constructor")
+      )).to.throw("`attached` callback is deprecated. Please use `connectedCallback` instead");
+
+      expect(() => parseDTS(
+        deprecatedCallbacksDTS
+          .replace(/created/, "constructor")
+          .replace(/attached/, "connectedCallback")
+      )).to.throw("`detached` callback is deprecated. Please use `disconnectedCallback` instead");
+
+      expect(() => parseDTS(
+        deprecatedCallbacksDTS
+          .replace(/created/, "constructor")
+          .replace(/attached/, "connectedCallback")
+          .replace(/detached/, "disconnectedCallback")
+      )).to.throw("`attributeChanged` callback is deprecated. Please use `attributeChangedCallback` instead");
+
+      expect(() => parseDTS(
+        deprecatedCallbacksDTS
+          .replace(/created/, "constructor")
+          .replace(/attached/, "connectedCallback")
+          .replace(/detached/, "disconnectedCallback")
+          .replace(/attributeChanged/, "attributeChangedCallback")
+      )).to.not.throw(Error);
     });
 
     it("should recognize types from definition", () => {
@@ -203,8 +237,7 @@ describe("static analyser", () => {
 
       expect(Array.from(meta.methods.values())).to.deep.equal([
         {
-          name: "created",
-          type: "void",
+          name: "constructor",
           params: []
         },
         {
@@ -340,13 +373,18 @@ describe("static analyser", () => {
     it("should fetch method bodies", () => {
       let methods = dtsData.methods;
       expect(Array.from(methods.keys())).to.deep.equal([
-        "created", "ready", "cmd", "undo", "valueChanged",
+        "constructor", "ready", "cmd", "undo", "valueChanged",
         "symbolsChanged", "keyShortcuts", "_updateValue", "_updateHistory"
       ]);
-      expect(methods.get("created").body)
+      expect(methods.get("constructor").body)
         .to
         .equal([
           "() {",
+          "        super();",
+          "        this.value = \"\";",
+          "        this.fn = function () { return typeof window; };",
+          "        this._observerLocked = false;",
+          "        this._freezeHistory = false;",
           "        var editor = this._editor = document.createElement(\"div\");",
           "        editor.id = \"editor\";",
           "        editor.classList.add(this.is);",

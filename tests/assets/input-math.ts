@@ -82,7 +82,8 @@ class InputMath extends polymer.Base {
   private _freezeHistory: boolean = false;
   private _editor: HTMLElement;
 
-  created(): void {
+  constructor() {
+    super();
     var editor: HTMLElement = this._editor = document.createElement("div");
     editor.id = "editor";
     editor.classList.add(this.is);

@@ -86,6 +86,25 @@ export function parseDTS(src: string): DTSParsedData {
     }
   }
 
+  const deprecatedNotice = (legacy, native) => `\`${legacy}\` callback is deprecated. Please use \`${native}\` instead`;
+
+  /********** check for lifecycle methods validity **********/
+  if (methods.has("created")) {
+    throw new Error(deprecatedNotice("created", "constructor"));
+  }
+
+  if (methods.has("attached")) {
+    throw new Error(deprecatedNotice("attached", "connectedCallback"));
+  }
+
+  if (methods.has("detached")) {
+    throw new Error(deprecatedNotice("detached", "disconnectedCallback"));
+  }
+
+  if (methods.has("attributeChanged")) {
+    throw new Error(deprecatedNotice("attributeChanged", "attributeChangedCallback"));
+  }
+
   return { className, parent, properties, methods };
 }
 
@@ -95,6 +114,9 @@ export function parseDTS(src: string): DTSParsedData {
  *
  * @todo consider removing default values as an option
  * @todo parse default values using goTo function
+ * @todo move decorators and annotations to FieldConfig
+ * @todo save constructor body
+ * @todo update jsdoc
  *
  * @param src String to parse
  * @param dtsData Data fetched from TypeScript declaration
@@ -105,7 +127,7 @@ export function parseDTS(src: string): DTSParsedData {
  *
  * @throws Error if no class was found
  *
- * @returns default values, decorators, annotations, generated additional variable name and pre-formatted JavaScript src
+ * @returns decorators, annotations, generated additional variable name and pre-formatted JavaScript src
  */
 export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOptions = <any> {}): JSParsedData {
   let className, properties, methods;

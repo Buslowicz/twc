@@ -10,13 +10,11 @@ function template(str) {
 }
 let InputMath_1 = class InputMath extends polymer.Base {
     constructor() {
-        super(...arguments);
+        super();
         this.value = "";
         this.fn = function () { return typeof window; };
         this._observerLocked = false;
         this._freezeHistory = false;
-    }
-    created() {
         var editor = this._editor = document.createElement("div");
         editor.id = "editor";
         editor.classList.add(this.is);
