@@ -147,21 +147,22 @@ export function getMethodBodies({ src, methods, isES6, className }: {
 /**
  * Return pattern and replacer function to find default values
  *
- * @todo wrap non-primitive values in a function to prevent sharing
- * @todo allow intentional sharing
- *
  * @param properties List of properties config
  *
  * @returns RegExp pattern and replacer function
  */
 export function getDefaultValues({ properties }: { properties: FieldConfigMap; }): Replacer {
+  let testPrimitive = /(true|false|^".*"$|^'.*'$|^`.*`$|\d+)/;
+
   if (properties.size === 0) {
     return [ /^$/, "" ];
   }
   return [
     new RegExp(`[\\t ]*this\\.(${Array.from(properties.values()).map(itm => itm.name).join("|")}) = (.*);\\n`, "g"),
     (_, name, value) => {
-      properties.get(name).defaultValue = value;
+      let config = properties.get(name);
+      config.value = value;
+      config.isPrimitive = testPrimitive.test(value);
       return ""
     }
   ];

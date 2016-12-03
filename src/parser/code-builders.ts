@@ -30,7 +30,7 @@ export function buildField(mods: Array<string>, name: string, params?: Array<Par
  * @returns String representation of property config object
  */
 export function buildProperty(prop: FieldConfig): string {
-  let keyMap = { readonly: "readOnly", defaultValue: "value" };
+  let keyMap = { readonly: "readOnly" };
   let valueMap = "Boolean|Date|Number|String|Array|Object";
 
   return `${prop.name}:{${

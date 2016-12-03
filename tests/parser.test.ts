@@ -325,11 +325,11 @@ describe("static analyser", () => {
       expect(complexDTSData.methods.get("constructor").body).to.not.equal(undefined);
     });
     it("should fetch default values from parsed constructor", () => {
-      expect(complexDTSData.properties.get("value").defaultValue).to.equal(`""`);
-      expect(complexDTSData.properties.get("fn").defaultValue).to.equal("function () { return typeof window; }");
-      expect(complexDTSData.properties.get("_observerLocked").defaultValue).to.equal("false");
-      expect(complexDTSData.properties.get("_freezeHistory").defaultValue).to.equal("false");
-      expect(complexDTSData.properties.get("_editor").defaultValue).to.equal("document.createElement(\"div\")");
+      expect(complexDTSData.properties.get("value").value).to.equal(`""`);
+      expect(complexDTSData.properties.get("fn").value).to.equal("function () { return typeof window; }");
+      expect(complexDTSData.properties.get("_observerLocked").value).to.equal("false");
+      expect(complexDTSData.properties.get("_freezeHistory").value).to.equal("false");
+      expect(complexDTSData.properties.get("_editor").value).to.equal("document.createElement(\"div\")");
     });
     it("should fetch list of decorators used per field", () => {
       let { methods, properties } = complexDTSData;

@@ -55,9 +55,10 @@ describe("module builder", () => {
           { name: "greetings", type: "Array" },
           {
             readonly: true,
+            isPrimitive: true,
             name: "test",
             type: "String",
-            defaultValue: `"tester"`
+            value: `"tester"`
           },
           { name: "profile", type: "any" }
         ]);

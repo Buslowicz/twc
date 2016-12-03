@@ -35,7 +35,8 @@ declare interface PropertyConfig {
 declare interface FieldConfig {
   name: string;
   type: string;
-  defaultValue?: string;
+  value?: string;
+  isPrimitive?: boolean;
   body?: string;
   //noinspection ReservedWordAsName
   static?: boolean;
