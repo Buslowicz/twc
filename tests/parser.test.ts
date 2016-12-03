@@ -331,58 +331,41 @@ describe("static analyser", () => {
       expect(complexDTSData.properties.get("_freezeHistory").defaultValue).to.equal("false");
       expect(complexDTSData.properties.get("_editor").defaultValue).to.equal("document.createElement(\"div\")");
     });
-    it("should fetch decorators for all properties and methods", () => {
-      let { decorators } = complexMeta;
-      expect(decorators).to.have.property("value");
-      expect(decorators).to.have.property("symbols");
-      expect(decorators).to.have.property("showSymbols");
-      expect(decorators).to.have.property("valueChanged");
-      expect(decorators).to.have.property("symbolsChanged");
-      expect(decorators).to.have.property("keyShortcuts");
-    });
     it("should fetch list of decorators used per field", () => {
-      let { decorators: { value, symbols, showSymbols, valueChanged, symbolsChanged, keyShortcuts } } = complexMeta;
+      let { methods, properties } = complexDTSData;
 
-      expect(value).to.have.deep.property("0.name", "property");
-      expect(symbols).to.have.deep.property("0.name", "property");
-      expect(showSymbols).to.have.deep.property("0.name", "property");
-      expect(valueChanged).to.have.deep.property("0.name", "observe");
-      expect(symbolsChanged).to.have.deep.property("0.name", "observe");
-      expect(keyShortcuts).to.have.deep.property("0.name", "listen");
-    });
-    it("should exclude annotations from fields decorators list", () => {
-      let { decorators: { value } } = complexMeta;
-      expect(value).to.not.have.deep.property("0.name", "test1");
+      expect(properties.get("value").decorators).to.have.deep.property("0.name", "property");
+      expect(properties.get("symbols").decorators).to.have.deep.property("0.name", "property");
+      expect(properties.get("showSymbols").decorators).to.have.deep.property("0.name", "property");
+      expect(methods.get("valueChanged").decorators).to.have.deep.property("0.name", "observe");
+      expect(methods.get("symbolsChanged").decorators).to.have.deep.property("0.name", "observe");
+      expect(methods.get("keyShortcuts").decorators).to.have.deep.property("0.name", "listen");
     });
     it("should fetch list of annotations used per field", () => {
-      let { annotations: { value, symbols } } = complexMeta;
+      let { properties } = complexDTSData;
 
-      let valueAnnotation = value[ 0 ];
+      expect(properties.get("value").annotations).to.have.deep.property("0.name", "test1");
+      expect(properties.get("value").annotations).to.have.deep.property("0.params", undefined);
 
-      expect(valueAnnotation.name).to.equal("test1");
-      expect(valueAnnotation.params).to.equal(undefined);
-
-      let symbolsAnnotation = symbols[ 0 ];
-
-      expect(symbolsAnnotation.name).to.equal("test2");
-      expect(symbolsAnnotation.params).to.equal("5");
+      expect(properties.get("symbols").annotations).to.have.deep.property("0.name", "test2");
+      expect(properties.get("symbols").annotations).to.have.deep.property("0.params", "5");
     });
-    it("should fetch decorators for class under 'class' field", () => {
-      expect(complexMeta.decorators).to.have.property("class");
+    it("should fetch decorators for class", () => {
+      expect(complexMeta.decorators).to.have.length(1);
     });
     it("should fetch list of class decorators", () => {
-      let classDecorators = complexMeta.decorators.class;
+      let classDecorators = complexMeta.decorators;
       expect(classDecorators).to.have.deep.property("0.name", "component");
     });
     it("should exclude annotations from class decorators list", () => {
-      let classDecorators = complexMeta.decorators.class;
+      let classDecorators = complexMeta.decorators;
       expect(classDecorators).to.not.have.deep.property("0.name", "template");
     });
-    it("should fetch annotations for class under 'class' field", () => {
-      let classAnnotation = complexMeta.annotations.class[ 0 ];
+    it("should fetch annotations for class", () => {
+      let classAnnotation = complexMeta.annotations;
 
-      expect(classAnnotation.name).to.equal("template");
-      expect(classAnnotation.params).to.equal(`"<input>"`);
+      expect(classAnnotation).to.have.deep.property("0.name", "template");
+      expect(classAnnotation).to.have.deep.property("0.params", `"<input>"`);
     });
     it("should fetch method bodies", () => {
       let methods = complexDTSData.methods;

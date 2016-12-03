@@ -113,7 +113,6 @@ export function parseDTS(src: string): DTSParsedData {
  * pre-formatted JavaScript src
  *
  * @todo parse default values using goTo function
- * @todo move decorators and annotations to FieldConfig
  * @todo update jsdoc
  *
  * @param src String to parse
@@ -132,8 +131,8 @@ export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOp
   ({ className, properties, methods } = dtsData);
 
   /********** declare result objects **********/
-  const decorators = {};
-  const annotations = {};
+  const decorators = [];
+  const annotations = [];
 
   /********** get class body position **********/
   const { isES6, start: classStart, end: classEnd, generatedName } = findClassBody({ src, className });
@@ -151,9 +150,9 @@ export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOp
   src = (<any> src)
     .replace(...getMethodBodies({ src, methods, isES6, className }))
 
-    /********** get decorators and remove them if needed **********/
+  /********** get decorators and remove them if needed **********/
     .replace(...removeExtend({ className }))
-    .replace(...getFieldDecorators({ annotations, decorators, className, options }))
+    .replace(...getFieldDecorators({ methods, properties, className, options }))
     .replace(...getClassDecorators({ annotations, decorators, className, options, generatedName }));
 
   return { decorators, annotations, src, generatedName, classBody: [ classStart, classEnd ] };

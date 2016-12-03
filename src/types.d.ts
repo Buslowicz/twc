@@ -46,6 +46,8 @@ declare interface FieldConfig {
   //noinspection ReservedWordAsName
   public?: boolean;
   readonly?: boolean;
+  decorators: Array<Decorator>
+  annotations: Array<Decorator>
 }
 declare interface DTSParsedData {
   className: string;
@@ -55,8 +57,8 @@ declare interface DTSParsedData {
 }
 declare interface JSParsedData {
   generatedName: string;
-  decorators: DecoratorsMap;
-  annotations: DecoratorsMap;
+  decorators: Array<Decorator>;
+  annotations: Array<Decorator>;
   src: string;
   classBody: Array<number>;
 }

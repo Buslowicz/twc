@@ -21,8 +21,8 @@ describe("module builder", () => {
         expect(meta.classBody).to.deep.equal([ 126, 295 ]);
         expect(meta.parent).to.equal(undefined);
         expect(meta.generatedName).to.equal(undefined);
-        expect(meta.decorators).to.deep.equal({});
-        expect(meta.annotations).to.deep.equal({});
+        expect(meta.decorators).to.deep.equal([]);
+        expect(meta.annotations).to.deep.equal([]);
         expect(meta.src).to.equal([
           '"use strict";',
           'require("link!bower_components/polymer/polymer.html");',

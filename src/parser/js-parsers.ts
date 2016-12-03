@@ -3,16 +3,16 @@ import { split, findClosing } from './source-crawlers';
 /**
  * Return pattern and replacer function to find field level decorators
  *
- * @param decorators List of run-time decorators
- * @param annotations List of design-time annotations
+ * @param methods Map of methods configuration
+ * @param properties Map of properties configuration
  * @param className Name of the class
  * @param options JSParser options
  *
  * @returns RegExp pattern and replacer function
  */
-export function getFieldDecorators({ decorators, annotations, className, options }: {
-  decorators: DecoratorsMap;
-  annotations: DecoratorsMap;
+export function getFieldDecorators({ methods, properties, className, options }: {
+  methods: FieldConfigMap;
+  properties: FieldConfigMap;
   className: string;
   options: JSParserOptions;
 }): Replacer {
@@ -40,8 +40,9 @@ export function getFieldDecorators({ decorators, annotations, className, options
         }
       }
 
-      decorators[ name ] = usedDecorators;
-      annotations[ name ] = usedAnnotations;
+      let config = methods.get(name) || properties.get(name);
+      config.decorators = usedDecorators;
+      config.annotations = usedAnnotations;
 
       if (!options.allowDecorators || usedDecorators.length === 0) {
         return "";
@@ -63,8 +64,8 @@ export function getFieldDecorators({ decorators, annotations, className, options
  * @returns RegExp pattern and replacer function
  */
 export function getClassDecorators({ decorators, annotations, className, generatedName, options }: {
-  decorators: DecoratorsMap;
-  annotations: DecoratorsMap;
+  decorators: Array<Decorator>;
+  annotations: Array<Decorator>;
   className: string;
   generatedName: string;
   options: JSParserOptions;
@@ -72,8 +73,6 @@ export function getClassDecorators({ decorators, annotations, className, generat
   return [
     new RegExp(`[\\s]*${className} = (?:.*? = )?__decorate\\(\\[([\\W\\w]*?)], (${className})\\);`, "g"),
     (_, definition) => {
-      let usedDecorators: Array<Decorator> = [];
-      let usedAnnotations: Array<Decorator> = [];
 
       definition = definition.trim();
 
@@ -86,17 +85,14 @@ export function getClassDecorators({ decorators, annotations, className, generat
           decor.slice(ptr + 1, decor.length - 1)
         ] : [ decor ];
         if (options.definedAnnotations.indexOf(name) !== -1) {
-          usedAnnotations.push({ name, params, src: decor });
+          annotations.push({ name, params, src: decor });
         }
         else {
-          usedDecorators.push({ name, params, src: decor });
+          decorators.push({ name, params, src: decor });
         }
       }
 
-      decorators[ "class" ] = usedDecorators;
-      annotations[ "class" ] = usedAnnotations;
-
-      if (!options.allowDecorators || usedDecorators.length === 0) {
+      if (!options.allowDecorators || decorators.length === 0) {
         return "";
       }
       if (generatedName) {
@@ -105,7 +101,7 @@ export function getClassDecorators({ decorators, annotations, className, generat
       else {
         generatedName = "";
       }
-      return `\n${className} = ${generatedName}__decorate([${usedDecorators.map(n => n.src)
+      return `\n${className} = ${generatedName}__decorate([${decorators.map(n => n.src)
         .toString()}], ${className});`
     }
   ];
