@@ -302,17 +302,23 @@ describe("static analyser", () => {
     let simpleMeta: JSParsedData;
     let simpleDTSData: DTSParsedData;
 
+    let testAnnotations = new Map([
+      ["test1", () => {}],
+      ["test2", () => {}],
+      ["template", () => {}]
+    ]);
+
     before(() => {
       complexDTSData = parseDTS(readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"));
       complexMeta = parseJS(
         readFileSync(`${__dirname}/assets/input-math.js`, "utf8"), complexDTSData,
-        { definedAnnotations: [ "test1", "test2", "template" ] }
+        { definedAnnotations: testAnnotations }
       );
 
       simpleDTSData = parseDTS(readFileSync(`${__dirname}/assets/element-name.d.ts`, "utf8"));
       simpleMeta = parseJS(
         readFileSync(`${__dirname}/assets/element-name.js`, "utf8"), simpleDTSData,
-        { definedAnnotations: [ "test1", "test2", "template" ] }
+        { definedAnnotations: testAnnotations }
       );
     });
 

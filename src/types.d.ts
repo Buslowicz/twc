@@ -11,11 +11,6 @@ declare interface Decorator {
   params: string;
   descriptor?: string;
 }
-declare interface DecoratorsMap {
-  //noinspection ReservedWordAsName
-  class?: Array<Decorator>;
-  [fieldName: string]: Array<Decorator>;
-}
 declare interface FoundMatch {
   index: number;
   found: any;
@@ -64,7 +59,7 @@ declare interface JSParsedData {
   classBody: Array<number>;
 }
 declare interface JSParserOptions {
-  definedAnnotations: Array<string>;
+  definedAnnotations: Map<string, Function>;
   polymerVersion?: number;
   allowDecorators?: boolean;
 }

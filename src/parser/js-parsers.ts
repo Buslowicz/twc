@@ -32,7 +32,7 @@ export function getFieldDecorators({ methods, properties, className, options }: 
           decor.slice(0, ptr),
           decor.slice(ptr + 1, decor.length - 1)
         ] : [ decor ];
-        if (options.definedAnnotations.indexOf(name) !== -1) {
+        if (options.definedAnnotations.has(name)) {
           usedAnnotations.push({ name, params, descriptor, src: decor });
         }
         else {
@@ -84,7 +84,7 @@ export function getClassDecorators({ decorators, annotations, className, generat
           decor.slice(0, ptr),
           decor.slice(ptr + 1, decor.length - 1)
         ] : [ decor ];
-        if (options.definedAnnotations.indexOf(name) !== -1) {
+        if (options.definedAnnotations.has(name)) {
           annotations.push({ name, params, src: decor });
         }
         else {
