@@ -5,9 +5,38 @@ class ElementName {
     constructor() {
         this.test = "tester";
     }
-    tester(val) {
+    observer(val) {
         console.log("val:", val);
     }
+    observerAuto(greetings) {
+        console.log("greetings:", greetings);
+    }
+    computedProp(val) {
+        console.log(val);
+        return val + "!";
+    }
+    computedPropAuto(test) {
+        console.log("test:", test);
+        return test + "!";
+    }
 }
+__decorate([
+    attr
+], ElementName.prototype, "greetings", void 0);
+__decorate([
+    notify
+], ElementName.prototype, "profile", void 0);
+__decorate([
+    observe("profile.prop")
+], ElementName.prototype, "observer", null);
+__decorate([
+    observe
+], ElementName.prototype, "observerAuto", null);
+__decorate([
+    computed("test")
+], ElementName.prototype, "computedProp", null);
+__decorate([
+    computed
+], ElementName.prototype, "computedPropAuto", null);
 exports.ElementName = ElementName;
 //# sourceMappingURL=element-name.js.map

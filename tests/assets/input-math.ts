@@ -59,7 +59,7 @@ class InputMath extends polymer.Base {
   testValue: "yep"|"nope";
 
   @property({ type: String, value: "", reflectToAttribute: true })
-  @test1
+  @attr
   value: string|null = "";
 
   @property({
@@ -68,7 +68,7 @@ class InputMath extends polymer.Base {
       InputMath.SYMBOLS_GREEK
     ]
   })
-  @test2(5)
+  @notify
   symbols: ICmd[][];
 
   @property({ type: String, value: "" })

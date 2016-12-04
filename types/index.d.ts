@@ -11,6 +11,16 @@ declare interface Decorator {
   params: string;
   descriptor?: string;
 }
+declare interface AnnotationOptions {
+  properties?: FieldConfigMap;
+  methods?: FieldConfigMap;
+  config?: FieldConfig;
+  propertiesMap?: Map<string, PolymerPropertyConfig>;
+  observers?: Array<string>;
+  method?: FieldConfig;
+  prop?: PolymerPropertyConfig;
+  params?: string;
+}
 declare interface FoundMatch {
   index: number;
   found: any;
@@ -29,10 +39,11 @@ declare interface PropertyConfig {
 }
 declare interface FieldConfig {
   name: string;
-  type: string;
+  type?: string;
   value?: string;
   isPrimitive?: boolean;
   body?: string;
+  params?: Array<ParamConfig>;
   //noinspection ReservedWordAsName
   static?: boolean;
   //noinspection ReservedWordAsName
@@ -42,8 +53,17 @@ declare interface FieldConfig {
   //noinspection ReservedWordAsName
   public?: boolean;
   readonly?: boolean;
-  decorators: Array<Decorator>
-  annotations: Array<Decorator>
+  decorators?: Array<Decorator>
+  annotations?: Array<Decorator>
+}
+declare interface PolymerPropertyConfig {
+  type: string;
+  value?: string;
+  reflectToAttribute?: boolean;
+  readOnly?: boolean;
+  notify?: boolean;
+  computed?: string;
+  observer?: string;
 }
 declare interface DTSParsedData {
   className: string;
@@ -59,7 +79,6 @@ declare interface JSParsedData {
   classBody: Array<number>;
 }
 declare interface JSParserOptions {
-  definedAnnotations: Map<string, Function>;
   polymerVersion?: number;
   allowDecorators?: boolean;
 }

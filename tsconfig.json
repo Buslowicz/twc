@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
     "experimentalDecorators": true,
+    "removeComments": true,
     "noEmitHelpers": true,
     "sourceMap": true,
-    "declaration": true,
     "target": "es6",
     "module": "commonjs",
     "lib": [
@@ -13,6 +13,7 @@
   },
   "include": [
     "src/**/*.ts",
+    "types/**/*.d.ts",
     "tests/**/*.ts"
   ],
   "exclude": [

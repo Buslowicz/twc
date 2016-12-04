@@ -21,5 +21,4 @@ declare namespace MathQuill {
 
 declare var component: (name: string) => any;
 declare var property: (name: any) => any;
-declare var observe: (name: any) => any;
 declare var listen: (name: any) => any;

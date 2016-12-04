@@ -111,7 +111,7 @@ InputMath.SYMBOLS_PHYSICS = [
 ];
 __decorate([
     property({ type: String, value: "", reflectToAttribute: true }),
-    test1
+    attr
 ], InputMath.prototype, "value", void 0);
 __decorate([
     property({
@@ -120,7 +120,7 @@ __decorate([
             InputMath.SYMBOLS_GREEK
         ]
     }),
-    test2(5)
+    notify
 ], InputMath.prototype, "symbols", void 0);
 __decorate([
     property({ type: String, value: "" })

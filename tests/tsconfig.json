@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-    "noEmit": true,
+    "removeComments": true,
     "experimentalDecorators": true,
+    "noEmit": true,
     "target": "es6",
     "lib": [
       "dom",

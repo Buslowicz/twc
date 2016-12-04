@@ -1,4 +1,5 @@
-import { split, findClosing } from './source-crawlers';
+import { split, findClosing } from "./source-crawlers";
+import * as definedAnnotations from "./annotations";
 
 /**
  * Return pattern and replacer function to find field level decorators
@@ -32,7 +33,7 @@ export function getFieldDecorators({ methods, properties, className, options }: 
           decor.slice(0, ptr),
           decor.slice(ptr + 1, decor.length - 1)
         ] : [ decor ];
-        if (options.definedAnnotations.has(name)) {
+        if (name in definedAnnotations) {
           usedAnnotations.push({ name, params, descriptor, src: decor });
         }
         else {
@@ -41,8 +42,12 @@ export function getFieldDecorators({ methods, properties, className, options }: 
       }
 
       let config = methods.get(name) || properties.get(name);
-      config.decorators = usedDecorators;
-      config.annotations = usedAnnotations;
+      if (usedDecorators.length > 0) {
+        config.decorators = usedDecorators;
+      }
+      if (usedAnnotations.length > 0) {
+        config.annotations = usedAnnotations;
+      }
 
       if (!options.allowDecorators || usedDecorators.length === 0) {
         return "";
@@ -84,7 +89,7 @@ export function getClassDecorators({ decorators, annotations, className, generat
           decor.slice(0, ptr),
           decor.slice(ptr + 1, decor.length - 1)
         ] : [ decor ];
-        if (options.definedAnnotations.has(name)) {
+        if (name in definedAnnotations) {
           annotations.push({ name, params, src: decor });
         }
         else {

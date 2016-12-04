@@ -25,6 +25,5 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 /src/**/*.d.ts
-!/src/**/types.d.ts
 /src/**/*.js
 /src/**/*.js.map

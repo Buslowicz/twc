@@ -4,7 +4,7 @@ import {
   getFieldDecorators, getClassDecorators, getMethodBodies,
   getDefaultValues, removeExtend, findClassBody, findConstructor
 } from "./js-parsers";
-import { buildField, buildPolymerV1 } from './code-builders';
+import { buildField } from "./code-builders";
 
 /**
  * Parse TypeScript declaration to fetch class name, super class, properties and methods names, types and modifiers
@@ -150,7 +150,7 @@ export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOp
   src = (<any> src)
     .replace(...getMethodBodies({ src, methods, isES6, className }))
 
-  /********** get decorators and remove them if needed **********/
+    /********** get decorators and remove them if needed **********/
     .replace(...removeExtend({ className }))
     .replace(...getFieldDecorators({ methods, properties, className, options }))
     .replace(...getClassDecorators({ annotations, decorators, className, options, generatedName }));

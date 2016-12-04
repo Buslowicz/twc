@@ -116,14 +116,12 @@ export function buildConfig() {
   let js = streamToPromise(stream.js);
 
   let config: JSParserOptions = {
-    definedAnnotations: [ "test" ],
     allowDecorators: false,
     polymerVersion: 1
   };
 
   return {
-    dts, js,
-    config: Promise
+    dts, js, config: Promise
       .all([ dts, js ])
       .then(([dtsSrc, jsSrc]: Array<File & {contents: Buffer}>): DTSParsedData & JSParsedData => {
         let dtsMeta = parseDTS(dtsSrc.contents.toString());

@@ -1,12 +1,28 @@
+/// <reference path="../../types/annotations.d.ts"/>
+
 import "link!bower_components/polymer/polymer.html";
 import "link!node_modules/easy-polymer/dist/esp.html";
 
 export class ElementName {
-  greetings: Array<string>;
+  @attr greetings: Array<string>;
   readonly test: string = "tester";
-  profile: any;
+  @notify profile: any;
 
-  tester(val: string) {
+  @observe("profile.prop") observer(val: string) {
     console.log("val:", val);
+  }
+
+  @observe observerAuto(greetings: Array<string>) {
+    console.log("greetings:", greetings);
+  }
+
+  @computed("test") computedProp(val: string) {
+    console.log(val);
+    return val + "!";
+  }
+
+  @computed computedPropAuto(test: string) {
+    console.log("test:", test);
+    return test + "!";
   }
 }

@@ -1,10 +1,10 @@
 import { expect } from "chai";
 import { readFileSync } from "fs";
 import { parseDTS, parseJS } from "../src/parser";
-import { goTo, split, findClosing, regExpClosestIndexOf } from "../src/parser/source-crawlers";
-import { getPropertyNoType, getType, parseParams } from "../src/parser/ts-parsers";
-import { buildField } from "../src/parser/code-builders";
-import { arrToObject } from "../src/parser/misc";
+import { goTo, split, findClosing, regExpClosestIndexOf } from "../src/source-crawlers";
+import { getPropertyNoType, getType, parseParams } from "../src/ts-parsers";
+import { buildField } from "../src/code-builders";
+import { arrToObject } from "../src/misc";
 
 describe("static analyser", () => {
   describe("goTo", () => {
@@ -302,24 +302,12 @@ describe("static analyser", () => {
     let simpleMeta: JSParsedData;
     let simpleDTSData: DTSParsedData;
 
-    let testAnnotations = new Map([
-      ["test1", () => {}],
-      ["test2", () => {}],
-      ["template", () => {}]
-    ]);
-
     before(() => {
       complexDTSData = parseDTS(readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"));
-      complexMeta = parseJS(
-        readFileSync(`${__dirname}/assets/input-math.js`, "utf8"), complexDTSData,
-        { definedAnnotations: testAnnotations }
-      );
+      complexMeta = parseJS(readFileSync(`${__dirname}/assets/input-math.js`, "utf8"), complexDTSData);
 
       simpleDTSData = parseDTS(readFileSync(`${__dirname}/assets/element-name.d.ts`, "utf8"));
-      simpleMeta = parseJS(
-        readFileSync(`${__dirname}/assets/element-name.js`, "utf8"), simpleDTSData,
-        { definedAnnotations: testAnnotations }
-      );
+      simpleMeta = parseJS(readFileSync(`${__dirname}/assets/element-name.js`, "utf8"), simpleDTSData);
     });
 
     it("should fetch additional generated class name", () => {
@@ -343,18 +331,22 @@ describe("static analyser", () => {
       expect(properties.get("value").decorators).to.have.deep.property("0.name", "property");
       expect(properties.get("symbols").decorators).to.have.deep.property("0.name", "property");
       expect(properties.get("showSymbols").decorators).to.have.deep.property("0.name", "property");
-      expect(methods.get("valueChanged").decorators).to.have.deep.property("0.name", "observe");
-      expect(methods.get("symbolsChanged").decorators).to.have.deep.property("0.name", "observe");
       expect(methods.get("keyShortcuts").decorators).to.have.deep.property("0.name", "listen");
     });
     it("should fetch list of annotations used per field", () => {
-      let { properties } = complexDTSData;
+      let { properties, methods } = complexDTSData;
 
-      expect(properties.get("value").annotations).to.have.deep.property("0.name", "test1");
+      expect(properties.get("value").annotations).to.have.deep.property("0.name", "attr");
       expect(properties.get("value").annotations).to.have.deep.property("0.params", undefined);
 
-      expect(properties.get("symbols").annotations).to.have.deep.property("0.name", "test2");
-      expect(properties.get("symbols").annotations).to.have.deep.property("0.params", "5");
+      expect(properties.get("symbols").annotations).to.have.deep.property("0.name", "notify");
+      expect(properties.get("symbols").annotations).to.have.deep.property("0.params", undefined);
+
+      expect(methods.get("valueChanged").annotations).to.have.deep.property("0.name", "observe");
+      expect(methods.get("valueChanged").annotations).to.have.deep.property("0.params", `"value"`);
+
+      expect(methods.get("symbolsChanged").annotations).to.have.deep.property("0.name", "observe");
+      expect(methods.get("symbolsChanged").annotations).to.have.deep.property("0.params", `"showSymbols"`);
     });
     it("should fetch decorators for class", () => {
       expect(complexMeta.decorators).to.have.length(1);
