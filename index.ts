@@ -23,7 +23,7 @@ if (require.main === module) {
   let build = buildConfig();
   build.config
     .then(config => buildHTMLModule(buildPolymerV1(config)))
-    .then(({ name, src }) => {
-      writeFileSync(join(dist, `${name}.html`), src);
+    .then((out: any) => {
+      writeFileSync(join(dist, `${out.name}.html`), out.src);
     });
 }

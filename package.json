@@ -7,7 +7,8 @@
     "pcc": "./index.js"
   },
   "scripts": {
-    "test": "mocha --compilers ts:ts-node/register --ui bdd tests/**/*.test.ts"
+    "test": "mocha --compilers ts:ts-node/register --ui bdd tests/**/*.test.ts",
+    "postinstall": "tsc"
   },
   "author": "",
   "license": "ISC",

@@ -141,7 +141,7 @@ export function parseJS(src: string, dtsData: DTSParsedData, options: JSParserOp
   const { start: constructorStart, end: constructorEnd } = findConstructor({ isES6, className, src, classStart });
 
   if (constructorStart !== -1) {
-    (methods.get("constructor") || {}).body = (<any> src)
+    (methods.get("constructor") || <any>{}).body = (<any> src)
       .slice(src.indexOf("(", constructorStart), constructorEnd + 1)
       .replace(...getDefaultValues({ properties }));
   }

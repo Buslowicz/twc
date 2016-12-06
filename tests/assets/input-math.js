@@ -5,9 +5,6 @@ function test1(a, b) {
 function test2(conf) {
     return test.bind(conf);
 }
-function template(str) {
-    return target => console.log(str);
-}
 let InputMath_1 = class InputMath extends polymer.Base {
     constructor() {
         super();
@@ -116,8 +113,8 @@ __decorate([
 __decorate([
     property({
         type: Array, value: () => [
-            InputMath.SYMBOLS_BASIC,
-            InputMath.SYMBOLS_GREEK
+            InputMath_1.SYMBOLS_BASIC,
+            InputMath_1.SYMBOLS_GREEK
         ]
     }),
     notify
