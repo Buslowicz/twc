@@ -7,7 +7,7 @@
     "pcc": "./index.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha --compilers ts:ts-node/register --ui bdd tests/**/*.test.ts"
   },
   "author": "",
   "license": "ISC",
