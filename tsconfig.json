@@ -12,6 +12,7 @@
     ]
   },
   "include": [
+    "index.ts",
     "src/**/*.ts",
     "types/**/*.d.ts",
     "tests/**/*.ts"

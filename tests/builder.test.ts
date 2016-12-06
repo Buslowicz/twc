@@ -180,8 +180,9 @@ describe("module builder", () => {
           return meta;
         })
         .then(meta => buildHTMLModule(buildPolymerV1(meta)))
-        .then(code => {
-          expect(code).to.equal([
+        .then(({ name, src }) => {
+          expect(name).to.equal("element-name");
+          expect(src).to.equal([
             "<dom-module id=\"element-name\">",
             "    <template>",
             "        <h1>tester: [[test]]</h1>",

@@ -34,7 +34,7 @@ export function init({
   projectConfig = require(path.join(CWD, "tsconfig.json")),
   dist = path.join(CWD, "dist"),
   src
-}) {
+}: {globalConfig: any, projectConfig: any, dist: string, src?: string}) {
   globalTSConfig = globalConfig;
   projectTSConfig = projectConfig;
   dest = dist;
@@ -43,7 +43,7 @@ export function init({
   project = ts.createProject(Object.assign({},
     globalConfig.compilerOptions,
     projectConfig.compilerOptions,
-    { noEmit: false }
+    { noEmit: false, declaration: true }
   ));
 }
 
