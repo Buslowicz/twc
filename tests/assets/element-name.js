@@ -1,7 +1,7 @@
 "use strict";
 require("link!bower_components/polymer/polymer.html");
 require("link!node_modules/easy-polymer/dist/esp.html");
-class ElementName {
+let ElementName = class ElementName {
     constructor() {
         this.test = "tester";
     }
@@ -19,7 +19,7 @@ class ElementName {
         console.log("test:", test);
         return test + "!";
     }
-}
+};
 __decorate([
     attr
 ], ElementName.prototype, "greetings", void 0);
@@ -38,5 +38,8 @@ __decorate([
 __decorate([
     computed
 ], ElementName.prototype, "computedPropAuto", null);
+ElementName = __decorate([
+    template(`<h1>tester: [[test]]</h1>`)
+], ElementName);
 exports.ElementName = ElementName;
 //# sourceMappingURL=element-name.js.map

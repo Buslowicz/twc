@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "beautify": "0.0.8",
     "commander": "^2.9.0",
     "del": "^2.2.2",
     "gulp": "^3.9.1",

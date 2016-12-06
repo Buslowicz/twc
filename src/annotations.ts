@@ -1,8 +1,7 @@
 import { capitalize } from "lodash";
 
-export function template(config) {
-  console.log("@template", config);
-  console.log("----------------\n");
+export function template({ propertiesMap, methodsMap, params }: AnnotationOptions) {
+  return params.slice(1, params.length - 1);
 }
 
 export function attr(...args);

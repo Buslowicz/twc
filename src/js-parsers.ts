@@ -200,7 +200,7 @@ export function findClassBody({ src, className }: {
   className: string;
 }): PositionInSource & { isES6: boolean; generatedName: string } {
   let matchES5 = src.match(new RegExp(`var ${className} = \\(function \\((?:_super)?\\) {`));
-  let matchES6 = src.match(new RegExp(`(?:let (${className}[\\S]*) = )?class ${className}(?: extends .+?)? {`));
+  let matchES6 = src.match(new RegExp(`(?:let ${className} = (${className}[\\S]*) = )?class ${className}(?: extends .+?)? {`));
   let isES6;
 
   let start, end;

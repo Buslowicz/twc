@@ -16,6 +16,7 @@ declare interface AnnotationOptions {
   methods?: FieldConfigMap;
   config?: FieldConfig;
   propertiesMap?: Map<string, PolymerPropertyConfig>;
+  methodsMap?: FieldConfigMap;
   observers?: Array<string>;
   method?: FieldConfig;
   prop?: PolymerPropertyConfig;

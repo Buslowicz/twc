@@ -2,6 +2,8 @@ import { kebabCase } from "lodash";
 import { nonEmpty, arrToObject } from "./misc";
 import * as definedAnnotations from "./annotations";
 
+const beautify = require('beautify');
+
 /**
  * Build a full property config
  *
@@ -56,10 +58,16 @@ export function buildProperty([name, config]: [string, PolymerPropertyConfig]): 
  * @param className Name of the component
  * @param properties Component properties list
  * @param methods Component methods list
+ * @param annotations Class level annotations
  *
  * @returns String representation of polymer component declaration
  */
-export function buildPolymerV1(className: string, properties: FieldConfigMap, methods: FieldConfigMap): string {
+export function buildPolymerV1({ className, properties, methods, annotations }: {
+  className: string;
+  properties: FieldConfigMap;
+  methods: FieldConfigMap;
+  annotations: Array<Decorator>;
+}) {
   let observers: Array<string> = [];
 
   let propertiesMap: Map<string, PolymerPropertyConfig> = new Map();
@@ -93,10 +101,39 @@ export function buildPolymerV1(className: string, properties: FieldConfigMap, me
     methodsMap.set(name, method);
   });
 
-  return `Polymer({${[
-    `is:"${kebabCase(className)}"`,
-    nonEmpty`properties:{${Array.from(propertiesMap).map(buildProperty)}}`,
-    nonEmpty`observers:[${observers}]`,
-    ...Array.from(methodsMap.values()).map(({ name, body }) => `${name}:function${body}`)
-  ]}});`;
+  let extrasMap: Map<string, any> = new Map();
+
+  annotations.forEach(({ name, params }) => {
+    extrasMap.set(name, definedAnnotations[ name ]({ propertiesMap, methodsMap, params }));
+  });
+
+  return {
+    name: kebabCase(className),
+    methodsMap,
+    propertiesMap,
+    extrasMap,
+    src: `Polymer({${[
+      `is:"${kebabCase(className)}"`,
+      nonEmpty`properties:{${Array.from(propertiesMap).map(buildProperty)}}`,
+      nonEmpty`observers:[${observers}]`,
+      ...Array.from(methodsMap.values()).map(({ name, body }) => `${name}:function${body}`)
+    ]}});`
+  };
+}
+
+export function buildHTMLModule({ name, extrasMap, src }: {
+  name: string;
+  methodsMap: FieldConfigMap;
+  propertiesMap: Map<string, PolymerPropertyConfig>;
+  extrasMap: Map<string, any>;
+  src: string;
+}) {
+  let moduleParts = [];
+  if (extrasMap.has("template")) {
+    moduleParts.push(`<template>${extrasMap.get("template")}</template>`);
+  }
+  moduleParts.push("<script>" + beautify(src, { format: "js" }) + "</script>");
+  return new Promise((resolve, reject) => {
+    resolve(beautify(`<dom-module id="${name}">${moduleParts.join("")}</dom-module>`, { format: "html" }));
+  });
 }
