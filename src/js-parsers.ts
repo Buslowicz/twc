@@ -163,7 +163,7 @@ export function getDefaultValues({ properties }: { properties: FieldConfigMap; }
     return [ /^$/, "" ];
   }
   return [
-    new RegExp(`[\\t ]*this\\.(${Array.from(properties.values()).map(itm => itm.name).join("|")}) = (.*);\\n`, "g"),
+    new RegExp(`[\\t ]*_?this\\.(${Array.from(properties.values()).map(itm => itm.name).join("|")}) = (.*);\\n`, "g"),
     (_, name, value) => {
       let config = properties.get(name);
       config.value = value;

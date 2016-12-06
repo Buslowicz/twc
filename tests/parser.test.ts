@@ -372,8 +372,8 @@ describe("static analyser", () => {
         "symbolsChanged", "keyShortcuts", "_updateValue", "_updateHistory"
       ]);
       expect(methods.get("constructor").body)
-        .to
-        .equal([
+        .to.be.oneOf([
+        [
           "() {",
           "        super();",
           "        var editor = this._editor;",
@@ -385,7 +385,23 @@ describe("static analyser", () => {
           "            }",
           "        });",
           "    }"
-        ].join("\n"));
+        ].join("\n"),
+        [
+          "() {",
+          "        var _this = _super.call(this) || this;",
+          "        var editor = _this._editor;",
+          "        editor.id = \"editor\";",
+          "        editor.classList.add(_this.is);",
+          "        _this._mathField = MathQuill.getInterface(2).MathField(editor, {",
+          "            spaceBehavesLikeTab: true,",
+          "            handlers: {",
+          "                edit: _this._updateValue.bind(_this)",
+          "            }",
+          "        });",
+          "        return _this;",
+          "    }"
+        ].join("\n")
+      ]);
       expect(methods.get("ready").body)
         .to
         .equal([

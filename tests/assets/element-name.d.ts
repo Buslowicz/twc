@@ -7,6 +7,6 @@ export declare class ElementName {
     profile: any;
     observer(val: string): void;
     observerAuto(greetings: Array<string>): void;
-    computedProp(val: string): void;
-    computedPropAuto(test: string): void;
+    computedProp(val: string): string;
+    computedPropAuto(test: string): string;
 }
