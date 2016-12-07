@@ -133,10 +133,5 @@ export function buildHTMLModule({ name, extrasMap, src }: {
     moduleParts.push(`<template>${extrasMap.get("template")}</template>`);
   }
   moduleParts.push("<script>" + beautify(src, { format: "js" }) + "</script>");
-  return new Promise((resolve, reject) => {
-    resolve({
-      name,
-      src: beautify(`<dom-module id="${name}">${moduleParts.join("")}</dom-module>`, { format: "html" })
-    });
-  });
+  return beautify(`<dom-module id="${name}">${moduleParts.join("")}</dom-module>`, { format: "html" });
 }

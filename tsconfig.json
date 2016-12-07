@@ -13,6 +13,7 @@
   },
   "include": [
     "index.ts",
+    "gulpfile.ts",
     "src/**/*.ts",
     "types/**/*.d.ts"
   ],
