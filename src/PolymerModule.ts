@@ -1,7 +1,6 @@
-import { JSParser } from "./parsers/JSParser";
+import JSParser from "./parsers/JSParser";
 import { kebabCase } from "lodash";
 import { nonEmpty } from './helpers/misc';
-import * as Vinyl from "vinyl";
 
 import * as definedAnnotations from "./annotations";
 

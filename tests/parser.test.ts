@@ -1,9 +1,8 @@
 import { expect } from "chai";
 import { readFileSync } from "fs";
-import { parseDTS, parseJS } from "../src/parser";
+import DTSParser, { getPropertyNoType, getType, parseParams, buildFieldConfig } from "../src/parsers/DTSParser";
+import JSParser from "../src/parsers/JSParser";
 import { goTo, split, findClosing, regExpClosestIndexOf } from "../src/helpers/source-crawlers";
-import { getPropertyNoType, getType, parseParams } from "../src/ts-parsers";
-import { buildField } from "../src/code-builders";
 import { arrToObject } from "../src/helpers/misc";
 
 describe("static analyser", () => {
@@ -157,19 +156,19 @@ describe("static analyser", () => {
       ]);
     });
   });
-  describe("buildField", () => {
+  describe("buildFieldConfig", () => {
     it("should always add name and modifiers", () => {
-      let field = buildField([ "modifier" ], "name");
+      let field = buildFieldConfig([ "modifier" ], "name");
       expect(field).to.have.property("modifier");
       expect(field).to.have.property("name");
     });
     it("should have params and type if they are defined", () => {
-      let field = buildField([ "modifier" ], "name", [ { name: "params" } ], "type");
+      let field = buildFieldConfig([ "modifier" ], "name", [ { name: "params" } ], "type");
       expect(field).to.have.property("type");
       expect(field).to.have.property("params");
     });
     it("should NOT add params or type if they are falsy", () => {
-      let field = buildField([ "modifier" ], "name", null, null);
+      let field = buildFieldConfig([ "modifier" ], "name", null, null);
       expect(field).to.not.have.property("type");
       expect(field).to.not.have.property("params");
     });
@@ -179,34 +178,34 @@ describe("static analyser", () => {
     let deprecatedCallbacksDTS;
 
     before(() => {
-      meta = parseDTS(readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"));
+      meta = new DTSParser(readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"));
       deprecatedCallbacksDTS = readFileSync(`${__dirname}/assets/deprecated-callbacks.d.ts`, "utf8");
     });
 
     it("should throw an error if deprecated lifecycle callback is used", () => {
-      expect(() => parseDTS(
+      expect(() => new DTSParser(
         deprecatedCallbacksDTS
       )).to.throw("`created` callback is deprecated. Please use `constructor` instead");
 
-      expect(() => parseDTS(
+      expect(() => new DTSParser(
         deprecatedCallbacksDTS
           .replace(/created/, "constructor")
       )).to.throw("`attached` callback is deprecated. Please use `connectedCallback` instead");
 
-      expect(() => parseDTS(
+      expect(() => new DTSParser(
         deprecatedCallbacksDTS
           .replace(/created/, "constructor")
           .replace(/attached/, "connectedCallback")
       )).to.throw("`detached` callback is deprecated. Please use `disconnectedCallback` instead");
 
-      expect(() => parseDTS(
+      expect(() => new DTSParser(
         deprecatedCallbacksDTS
           .replace(/created/, "constructor")
           .replace(/attached/, "connectedCallback")
           .replace(/detached/, "disconnectedCallback")
       )).to.throw("`attributeChanged` callback is deprecated. Please use `attributeChangedCallback` instead");
 
-      expect(() => parseDTS(
+      expect(() => new DTSParser(
         deprecatedCallbacksDTS
           .replace(/created/, "constructor")
           .replace(/attached/, "connectedCallback")
@@ -296,37 +295,39 @@ describe("static analyser", () => {
     });
   });
   describe("parseJS", () => {
-    let complexMeta: JSParsedData;
-    let complexDTSData: DTSParsedData;
+    let complexMeta: JSParser;
 
-    let simpleMeta: JSParsedData;
-    let simpleDTSData: DTSParsedData;
+    let simpleMeta: JSParser;
 
     before(() => {
-      complexDTSData = parseDTS(readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"));
-      complexMeta = parseJS(readFileSync(`${__dirname}/assets/input-math.js`, "utf8"), complexDTSData);
+      complexMeta = new JSParser(
+        readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"),
+        readFileSync(`${__dirname}/assets/input-math.js`, "utf8")
+      );
 
-      simpleDTSData = parseDTS(readFileSync(`${__dirname}/assets/element-name.d.ts`, "utf8"));
-      simpleMeta = parseJS(readFileSync(`${__dirname}/assets/element-name.js`, "utf8"), simpleDTSData);
+      simpleMeta = new JSParser(
+        readFileSync(`${__dirname}/assets/element-name.d.ts`, "utf8"),
+        readFileSync(`${__dirname}/assets/element-name.js`, "utf8")
+      );
     });
 
     it("should fetch additional generated class name", () => {
-      expect(complexMeta.generatedName).to.be.oneOf([ "InputMath_1", undefined ]);
+      expect(complexMeta.helperClassName).to.be.oneOf([ "InputMath_1", undefined ]);
     });
     it("should fetch constructor body if it was defined in TS file, otherwise it should be skipped", () => {
-      expect(simpleDTSData.methods.get("constructor")).to.equal(undefined);
-      expect(complexDTSData.methods.get("constructor")).to.not.equal(undefined);
-      expect(complexDTSData.methods.get("constructor").body).to.not.equal(undefined);
+      expect(simpleMeta.methods.get("constructor")).to.equal(undefined);
+      expect(complexMeta.methods.get("constructor")).to.not.equal(undefined);
+      expect(complexMeta.methods.get("constructor").body).to.not.equal(undefined);
     });
     it("should fetch default values from parsed constructor", () => {
-      expect(complexDTSData.properties.get("value").value).to.equal(`""`);
-      expect(complexDTSData.properties.get("fn").value).to.equal("function () { return typeof window; }");
-      expect(complexDTSData.properties.get("_observerLocked").value).to.equal("false");
-      expect(complexDTSData.properties.get("_freezeHistory").value).to.equal("false");
-      expect(complexDTSData.properties.get("_editor").value).to.equal("document.createElement(\"div\")");
+      expect(complexMeta.properties.get("value").value).to.equal(`""`);
+      expect(complexMeta.properties.get("fn").value).to.equal("function () { return typeof window; }");
+      expect(complexMeta.properties.get("_observerLocked").value).to.equal("false");
+      expect(complexMeta.properties.get("_freezeHistory").value).to.equal("false");
+      expect(complexMeta.properties.get("_editor").value).to.equal("document.createElement(\"div\")");
     });
     it("should fetch list of decorators used per field", () => {
-      let { methods, properties } = complexDTSData;
+      let { methods, properties } = complexMeta;
 
       expect(properties.get("value").decorators).to.have.deep.property("0.name", "property");
       expect(properties.get("symbols").decorators).to.have.deep.property("0.name", "property");
@@ -334,7 +335,7 @@ describe("static analyser", () => {
       expect(methods.get("keyShortcuts").decorators).to.have.deep.property("0.name", "listen");
     });
     it("should fetch list of annotations used per field", () => {
-      let { properties, methods } = complexDTSData;
+      let { properties, methods } = complexMeta;
 
       expect(properties.get("value").annotations).to.have.deep.property("0.name", "attr");
       expect(properties.get("value").annotations).to.have.deep.property("0.params", undefined);
@@ -366,7 +367,7 @@ describe("static analyser", () => {
       expect(classAnnotation).to.have.deep.property("0.params", `"<input>"`);
     });
     it("should fetch method bodies", () => {
-      let methods = complexDTSData.methods;
+      let methods = complexMeta.methods;
       expect(Array.from(methods.keys())).to.deep.equal([
         "constructor", "ready", "cmd", "undo", "valueChanged",
         "symbolsChanged", "keyShortcuts", "_updateValue", "_updateHistory"
@@ -490,8 +491,5 @@ describe("static analyser", () => {
           "    }"
         ].join("\n"));
     });
-    // it("should build a proper body", () => {
-    //   console.log(meta.src);
-    // });
   });
 });

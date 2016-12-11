@@ -1,9 +1,9 @@
 import { findClosing, split } from "../helpers/source-crawlers";
 
 import * as definedAnnotations from "../annotations";
-import { DTSParser } from './DTSParser';
+import DTSParser from './DTSParser';
 
-export class JSParser extends DTSParser {
+export default class JSParser extends DTSParser {
   public helperClassName: string;
   public classBodyPosition: {start: number; end: number};
   public decorators: Array<Decorator> = [];

@@ -174,7 +174,7 @@ export function buildFieldConfig(modifiers: Array<string>, name: string, params?
   return Object.assign({}, arrToObject(modifiers), config);
 }
 
-export class DTSParser {
+export default class DTSParser {
   public className: string;
   public parent: string;
   public properties: Map<string, FieldConfig> = new Map();
