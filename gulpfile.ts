@@ -1,11 +1,10 @@
 import { task, src, dest } from "gulp";
-import { parse, join } from "path";
+import { parse } from "path";
 import { createProject } from "gulp-typescript";
 import * as through2 from "through2";
 import * as merge from "merge2";
 import * as Vinyl from "vinyl";
-import { parseDTS, parseJS } from './src/parser';
-import { buildPolymerV1, buildHTMLModule } from './src/code-builders';
+import Module from "./src/PolymerModule";
 
 const tsProject = createProject({
   experimentalDecorators: true,
@@ -21,56 +20,53 @@ const tsProject = createProject({
   ]
 });
 
-const storage = new Map();
+function ts2html(input) {
+  let map = new Map();
+  let tsStream = input.pipe(tsProject());
 
-const dtsAnalyzer = through2.obj((chunk, enc, callback) => {
-  storage.set(parse(chunk.history[ 0 ]).base.replace(/\.d\.ts$/, ""), parseDTS(chunk.contents.toString()));
-  callback(null, chunk);
-});
+  return merge([ tsStream.dts, tsStream.js ])
+    .pipe(through2.obj(function (file, enc, next) {
+      let ext = "";
+      let path = file.path.replace(/\.(js)|\.d\.(ts)/, (_, js, dts) => {
+        ext = js || dts;
+        return ".html";
+      });
 
-const jsAnalyzer = through2.obj((chunk, enc, callback) => {
-  let file = parse(chunk.history[ 0 ]);
-  if (file.ext === ".js") {
-    let dts = storage.get(file.name);
-    callback(null, { file: chunk, config: Object.assign({}, dts, parseJS(chunk.contents.toString(), dts)) });
-  }
-  else {
-    callback(null, chunk);
-  }
-});
+      let pair = map.get(path);
+      if (!pair) {
+        pair = {};
+        map.set(path, pair);
+      }
 
-const generateModule = ({ polymerVersion }) => through2.obj((chunk, enc, callback) => {
+      pair[ ext ] = file;
 
-  if (chunk.config) {
-    let file = parse(chunk.file.history[ 0 ]);
-    callback(null, new Vinyl({
-      cwd: chunk.file.cwd,
-      base: chunk.file.base,
-      path: join(chunk.file.base, file.name + ".html"),
-      contents: new Buffer(buildHTMLModule(buildPolymerV1(chunk.config)))
+      if (pair.js && pair.ts) {
+        map.delete(path);
+        this.push(pair.ts);
+        this.push(new Vinyl({
+          path, cwd: file.cwd, base: parse(path).dir,
+          contents: new Module(pair.ts.contents.toString(), pair.js.contents.toString()).toBuffer()
+        }));
+      }
+      next();
     }));
-  }
-  else {
-    callback(null, chunk);
-  }
-});
-
-const buildModule = (tsResult, config) =>
-  merge(tsResult.dts.pipe(dtsAnalyzer), tsResult.js)
-    .pipe(jsAnalyzer)
-    .pipe(generateModule(config))
-    .pipe(dest("tests/assets/dist"));
+}
 
 task("test", () => {
-  let tsResult = src([
+  return ts2html(src([
     "types/annotations.d.ts",
     "tests/assets/types.d.ts",
     "tests/assets/input-math.ts",
     "tests/assets/element-name.ts"
-  ])
-    .pipe(tsProject());
+  ]))
+    .pipe(through2.obj((file, enc, next) => {
+      console.log(file);
+      next(null, file);
+    }))
+    .pipe(dest("out"));
 
-  const config = { polymerVersion: 1 };
+  //
+  // const config = { polymerVersion: 1 };
 
-  return buildModule(tsResult, config);
+  // return buildModule(tsResult, config);
 });

@@ -1,10 +1,10 @@
 import { expect } from "chai";
 import { readFileSync } from "fs";
 import { parseDTS, parseJS } from "../src/parser";
-import { goTo, split, findClosing, regExpClosestIndexOf } from "../src/source-crawlers";
+import { goTo, split, findClosing, regExpClosestIndexOf } from "../src/helpers/source-crawlers";
 import { getPropertyNoType, getType, parseParams } from "../src/ts-parsers";
 import { buildField } from "../src/code-builders";
-import { arrToObject } from "../src/misc";
+import { arrToObject } from "../src/helpers/misc";
 
 describe("static analyser", () => {
   describe("goTo", () => {
