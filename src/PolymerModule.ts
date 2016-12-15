@@ -6,6 +6,29 @@ import * as definedAnnotations from "./annotations";
 
 const beautify = require('beautify');
 
+// content => {
+//   let links = [];
+//   let scripts = [];
+//   content = content
+//     .toString()
+//     .replace(/require\(['"](link|script)!(.*?)['"]\);\n?/g, (m, type, module) => {
+//       switch (type) {
+//         case "link":
+//           links.push(module);
+//           break;
+//         case "script":
+//           scripts.push(module);
+//           break;
+//       }
+//       return "";
+//     });
+//   return Buffer.from(
+//     links.map(module => `<link rel="import" href="${module}">\n`).join("") +
+//     scripts.map(module => `<script src="${module}"></script>\n`).join("") +
+//     "<script>\n" + content + "\n</script>"
+//   );
+// }
+
 /**
  * Build a Polymer property config
  *

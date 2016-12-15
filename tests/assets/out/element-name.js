@@ -1,3 +1,4 @@
+/// <reference path="../../types/annotations.d.ts"/>
 "use strict";
 require("link!bower_components/polymer/polymer.html");
 require("link!node_modules/easy-polymer/dist/esp.html");
@@ -42,4 +43,3 @@ ElementName = __decorate([
     template(`<h1>tester: [[test]]</h1>`)
 ], ElementName);
 exports.ElementName = ElementName;
-//# sourceMappingURL=element-name.js.map

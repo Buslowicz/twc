@@ -9,6 +9,9 @@ export default class JSParser extends DTSParser {
   public decorators: Array<Decorator> = [];
   public annotations: Array<Decorator> = [];
 
+  public links: Array<string> = [];
+  public scripts: Array<string> = [];
+
   protected jsSrc: string;
   protected isES6: boolean;
 
@@ -27,20 +30,27 @@ export default class JSParser extends DTSParser {
     /********** get constructor position **********/
     const { start, end } = this.findConstructor();
 
+    let constructor;
     if (start !== -1) {
-      (this.methods.get("constructor") || <any>{}).body = (<any> this.jsSrc)
+      (constructor = this.methods.get("constructor") || <any>{}).body = (<any> this.jsSrc)
         .slice(this.jsSrc.indexOf("(", start), end + 1)
         .replace(...this.getDefaultValues());
     }
 
+    this.jsSrc = this.jsSrc.slice(0, start) + (this.isES6 ? `constructor` : `function ${this.className}`) + constructor.body + this.jsSrc.slice(end + 1);
+
     /********** get method bodies **********/
     this.jsSrc = (<any> this.jsSrc)
+      .replace(...this.getImports())
       .replace(...this.getMethodBodies())
 
       /********** get decorators and remove them if needed **********/
       .replace(...this.removeExtend())
+      .replace(...this.removeExports())
       .replace(...this.getFieldDecorators())
       .replace(...this.getClassDecorators());
+
+    console.log(this.jsSrc);
   }
 
   /**
@@ -97,6 +107,23 @@ export default class JSParser extends DTSParser {
     this.classBodyPosition = { start, end };
   }
 
+  getImports(): Replacer {
+    return [
+      /(?:require|import) ?\(?['"](link|script)!(.*?)['"]\)?;\n?/g,
+      (m, type, module) => {
+        switch (type) {
+          case "link":
+            this.links.push(module);
+            break;
+          case "script":
+            this.scripts.push(module);
+            break;
+        }
+        return "";
+      }
+    ];
+  }
+
   /**
    * Return pattern and replacer function to find default values
    *
@@ -140,9 +167,9 @@ export default class JSParser extends DTSParser {
       this.isES6
         ? new RegExp(`((${methodsList}))\\(.*?\\) {`, "g")
         : new RegExp(`(${this.className}.prototype.(${methodsList}) = function ?)\\(.*?\\) {`, "g"),
-      (_, boiler, name, index) => {
-        let end = findClosing(this.jsSrc, this.jsSrc.indexOf("{", <any> index + boiler.length), "{}");
-        this.methods.get(name).body = this.jsSrc.slice(<any> index + boiler.length, end + 1).trim();
+      (_, boiler, name, index, jsSrc) => {
+        let end = findClosing(jsSrc, jsSrc.indexOf("{", <any> index + boiler.length - 1), "{}");
+        this.methods.get(name).body = jsSrc.slice(<any> index + boiler.length, end + 1).trim();
         return _;
       }
     ];
@@ -155,9 +182,14 @@ export default class JSParser extends DTSParser {
    */
   removeExtend(): Replacer {
     return [
-      new RegExp(`__extends(${this.className}, _super);`),
-      ""
+      new RegExp(`__extends(${this.className}, _super);`), ""
     ];
+  }
+
+  removeExports(): Replacer {
+    return [
+      /exports\.[\S]+ = [\S]+?;/, ""
+    ]
   }
 
   /**

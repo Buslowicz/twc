@@ -178,7 +178,7 @@ describe("static analyser", () => {
     let deprecatedCallbacksDTS;
 
     before(() => {
-      meta = new DTSParser(readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"));
+      meta = new DTSParser(readFileSync(`${__dirname}/assets/out/input-math.d.ts`, "utf8"));
       deprecatedCallbacksDTS = readFileSync(`${__dirname}/assets/deprecated-callbacks.d.ts`, "utf8");
     });
 
@@ -301,13 +301,13 @@ describe("static analyser", () => {
 
     before(() => {
       complexMeta = new JSParser(
-        readFileSync(`${__dirname}/assets/input-math.d.ts`, "utf8"),
-        readFileSync(`${__dirname}/assets/input-math.js`, "utf8")
+        readFileSync(`${__dirname}/assets/out/input-math.d.ts`, "utf8"),
+        readFileSync(`${__dirname}/assets/out/input-math.js`, "utf8")
       );
 
       simpleMeta = new JSParser(
-        readFileSync(`${__dirname}/assets/element-name.d.ts`, "utf8"),
-        readFileSync(`${__dirname}/assets/element-name.js`, "utf8")
+        readFileSync(`${__dirname}/assets/out/element-name.d.ts`, "utf8"),
+        readFileSync(`${__dirname}/assets/out/element-name.js`, "utf8")
       );
     });
 
@@ -318,6 +318,19 @@ describe("static analyser", () => {
       expect(simpleMeta.methods.get("constructor")).to.equal(undefined);
       expect(complexMeta.methods.get("constructor")).to.not.equal(undefined);
       expect(complexMeta.methods.get("constructor").body).to.not.equal(undefined);
+    });
+    it("should fetch list of scripts and html imports and remove them", () => {
+      expect(simpleMeta.links).to.deep.equal([
+        "bower_components/polymer/polymer.html",
+        "node_modules/easy-polymer/dist/esp.html"
+      ]);
+      expect(complexMeta.scripts).to.deep.equal([
+        "bower_components/jquery/jquery.js",
+        "bower_components/mathquill/mathquill.js"
+      ]);
+
+      expect(simpleMeta.scripts).to.deep.equal([]);
+      expect(complexMeta.links).to.deep.equal([]);
     });
     it("should fetch default values from parsed constructor", () => {
       expect(complexMeta.properties.get("value").value).to.equal(`""`);
@@ -380,8 +393,9 @@ describe("static analyser", () => {
           "        var editor = this._editor;",
           "        editor.id = \"editor\";",
           "        editor.classList.add(this.is);",
-          "        this._mathField = MathQuill.getInterface(2).MathField(editor, {",
-          "            spaceBehavesLikeTab: true,", '            handlers: {',
+          "        this[\"_mathField\"] = MathQuill.getInterface(2).MathField(editor, {",
+          "            spaceBehavesLikeTab: true,",
+          "            handlers: {",
           "                edit: this._updateValue.bind(this)",
           "            }",
           "        });",
@@ -393,7 +407,7 @@ describe("static analyser", () => {
           "        var editor = _this._editor;",
           "        editor.id = \"editor\";",
           "        editor.classList.add(_this.is);",
-          "        _this._mathField = MathQuill.getInterface(2).MathField(editor, {",
+          "        _this[\"_mathField\"] = MathQuill.getInterface(2).MathField(editor, {",
           "            spaceBehavesLikeTab: true,",
           "            handlers: {",
           "                edit: _this._updateValue.bind(_this)",
