@@ -49,8 +49,6 @@ export default class JSParser extends DTSParser {
       .replace(...this.removeExports())
       .replace(...this.getFieldDecorators())
       .replace(...this.getClassDecorators());
-
-    console.log(this.jsSrc);
   }
 
   /**
@@ -186,6 +184,7 @@ export default class JSParser extends DTSParser {
     ];
   }
 
+  //noinspection JSMethodCanBeStatic
   removeExports(): Replacer {
     return [
       /exports\.[\S]+ = [\S]+?;/, ""

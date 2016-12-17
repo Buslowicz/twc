@@ -5,24 +5,31 @@ import * as through2 from "through2";
 import * as merge from "merge2";
 import * as Vinyl from "vinyl";
 import Module from "./src/PolymerModule";
+import ReadWriteStream = NodeJS.ReadWriteStream;
 
-const tsProject = createProject({
+interface FilePair {
+  js?: File & { contents: Buffer };
+  ts?: File & { contents: Buffer };
+}
+
+const defaultProjectConfig = {
   experimentalDecorators: true,
   declaration: true,
-  removeComments: true,
   noEmitHelpers: true,
-  sourceMap: true,
+  sourceMap: false,
   target: "es6",
   module: "commonjs",
   lib: [
     "dom",
     "es6"
   ]
-});
+};
 
 function ts2html(input) {
-  let map = new Map();
-  let tsStream = input.pipe(tsProject());
+  let map: Map<string, FilePair> = new Map<string, FilePair>();
+  let tsStream: ReadWriteStream & { js: ReadWriteStream; dts: ReadWriteStream } = input.pipe(createProject({
+    removeComments: true
+  })());
 
   return merge([ tsStream.dts, tsStream.js ])
     .pipe(through2.obj(function (file, enc, next) {

@@ -1,10 +1,7 @@
 {
   "compilerOptions": {
     "experimentalDecorators": true,
-    "removeComments": true,
-    "noEmitHelpers": true,
-    "sourceMap": true,
-    "target": "es6",
+    "noEmit": true,
     "module": "commonjs",
     "lib": [
       "dom",
@@ -14,10 +11,8 @@
   "include": [
     "index.ts",
     "gulpfile.ts",
+    "tests/**/*.ts",
     "src/**/*.ts",
     "types/**/*.d.ts"
-  ],
-  "exclude": [
-    "tests/*.test.ts"
   ]
 }

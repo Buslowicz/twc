@@ -177,8 +177,8 @@ export function buildFieldConfig(modifiers: Array<string>, name: string, params?
 export default class DTSParser {
   public className: string;
   public parent: string;
-  public properties: Map<string, FieldConfig> = new Map();
-  public methods: Map<string, FieldConfig> = new Map();
+  public properties: Map<string, FieldConfig> = new Map<string, FieldConfig>();
+  public methods: Map<string, FieldConfig> = new Map<string, FieldConfig>();
 
   protected dtsSrc: string;
 
