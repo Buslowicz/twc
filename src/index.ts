@@ -1,10 +1,8 @@
-import { task, src, dest } from "gulp";
-import { parse } from "path";
 import { createProject } from "gulp-typescript";
 import * as through2 from "through2";
 import * as merge from "merge2";
-import * as Vinyl from "vinyl";
-import Module from "./src/PolymerModule";
+import * as File from "vinyl";
+import Module from "./PolymerModule";
 import ReadWriteStream = NodeJS.ReadWriteStream;
 
 interface FilePair {
@@ -57,8 +55,8 @@ function ts2html(input) {
         if (pair.js && pair.ts) {
           map.delete(path);
           this.push(pair.ts);
-          this.push(new Vinyl({
-            path, cwd: file.cwd, base: parse(path).dir,
+          this.push(new File({
+            path, cwd: file.cwd, base: file.base,
             contents: new Module(pair.ts.contents.toString(), pair.js.contents.toString()).toBuffer()
           }));
         }
@@ -67,23 +65,4 @@ function ts2html(input) {
   ]);
 }
 
-task("test", () => {
-  return ts2html(src([
-    "types/annotations.d.ts",
-    "tests/assets/types.d.ts",
-    "tests/assets/input-math.ts",
-    "tests/assets/element-name.ts",
-    "tests/assets/out/element-name.js",
-    "README.MD"
-  ]))
-    .pipe(through2.obj((file, enc, next) => {
-      console.log(file);
-      next(null, file);
-    }));
-  // .pipe(dest("out"));
-
-  //
-  // const config = { polymerVersion: 1 };
-
-  // return buildModule(tsResult, config);
-});
+export = ts2html;

@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "experimentalDecorators": true,
-    "noEmit": true,
+    "target": "es6",
+    "pretty": true,
     "module": "commonjs",
     "lib": [
       "dom",
@@ -9,8 +10,6 @@
     ]
   },
   "include": [
-    "index.ts",
-    "gulpfile.ts",
     "tests/**/*.ts",
     "src/**/*.ts",
     "types/**/*.d.ts"

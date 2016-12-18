@@ -2,9 +2,9 @@
   "name": "@dracco/ts-component-compiler",
   "version": "0.0.3",
   "description": "",
-  "main": "index.js",
+  "main": "./src/index.js",
   "bin": {
-    "pcc": "./index.js"
+    "pcc": "./src/cli.js"
   },
   "scripts": {
     "test": "mocha --compilers ts:ts-node/register --ui bdd tests/**/*.test.ts",
