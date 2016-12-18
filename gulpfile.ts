@@ -25,38 +25,46 @@ const defaultProjectConfig = {
   ]
 };
 
+const filterTS = through2.obj((file, enc, next) => file.path.endsWith(".ts") ? next(null, file) : next());
+const filterNonTS = through2.obj((file, enc, next) => file.path.endsWith(".ts") ? next() : next(null, file));
+
 function ts2html(input) {
   let map: Map<string, FilePair> = new Map<string, FilePair>();
-  let tsStream: ReadWriteStream & { js: ReadWriteStream; dts: ReadWriteStream } = input.pipe(createProject({
-    removeComments: true
-  })());
+  let tsStream: ReadWriteStream & { js: ReadWriteStream; dts: ReadWriteStream } = input
+    .pipe(filterTS)
+    .pipe(createProject(Object.assign({ removeComments: true }, defaultProjectConfig))());
 
-  return merge([ tsStream.dts, tsStream.js ])
-    .pipe(through2.obj(function (file, enc, next) {
-      let ext = "";
-      let path = file.path.replace(/\.(js)|\.d\.(ts)/, (_, js, dts) => {
-        ext = js || dts;
-        return ".html";
-      });
+  let nonTsStream: ReadWriteStream = input.pipe(filterNonTS);
 
-      let pair = map.get(path);
-      if (!pair) {
-        pair = {};
-        map.set(path, pair);
-      }
+  return merge([
+    nonTsStream,
+    merge([ tsStream.dts, tsStream.js ])
+      .pipe(through2.obj(function (file, enc, next) {
+        let ext = "";
+        let path = file.path.replace(/\.(js)|\.d\.(ts)/, (_, js, dts) => {
+          ext = js || dts;
+          return ".html";
+        });
 
-      pair[ ext ] = file;
+        let pair = map.get(path);
+        if (!pair) {
+          pair = {};
+          map.set(path, pair);
+        }
 
-      if (pair.js && pair.ts) {
-        map.delete(path);
-        this.push(pair.ts);
-        this.push(new Vinyl({
-          path, cwd: file.cwd, base: parse(path).dir,
-          contents: new Module(pair.ts.contents.toString(), pair.js.contents.toString()).toBuffer()
-        }));
-      }
-      next();
-    }));
+        pair[ ext ] = file;
+
+        if (pair.js && pair.ts) {
+          map.delete(path);
+          this.push(pair.ts);
+          this.push(new Vinyl({
+            path, cwd: file.cwd, base: parse(path).dir,
+            contents: new Module(pair.ts.contents.toString(), pair.js.contents.toString()).toBuffer()
+          }));
+        }
+        next();
+      }))
+  ]);
 }
 
 task("test", () => {
@@ -64,13 +72,15 @@ task("test", () => {
     "types/annotations.d.ts",
     "tests/assets/types.d.ts",
     "tests/assets/input-math.ts",
-    "tests/assets/element-name.ts"
+    "tests/assets/element-name.ts",
+    "tests/assets/out/element-name.js",
+    "README.MD"
   ]))
     .pipe(through2.obj((file, enc, next) => {
       console.log(file);
       next(null, file);
-    }))
-    .pipe(dest("out"));
+    }));
+  // .pipe(dest("out"));
 
   //
   // const config = { polymerVersion: 1 };
