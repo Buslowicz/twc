@@ -1,6 +1,6 @@
 {
   "name": "twc",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "TypeScript Web Components compiles pure TypeScript classes to native Polymer modules.",
   "main": "./src/index.js",
   "scripts": {
