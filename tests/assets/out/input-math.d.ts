@@ -1,14 +1,16 @@
-interface ICmd {
+/// <reference path="../types.d.ts" />
+/// <reference path="../../../types/annotations.d.ts" />
+import "script!bower_components/jquery/jquery.js";
+import "script!bower_components/mathquill/mathquill.js";
+export interface ICmd {
     cmd: string;
     name: string;
     className?: string;
 }
-interface PolymerEvent extends Event {
+export interface PolymerEvent extends Event {
     model: any;
 }
-declare function test1(a: any, b: any): void;
-declare function test2(conf: any): any;
-declare class InputMath extends polymer.Base {
+export declare class InputMath extends polymer.Base {
     static HISTORY_SIZE: number;
     static SYMBOLS_BASIC: ICmd[];
     static SYMBOLS_GREEK: ICmd[];

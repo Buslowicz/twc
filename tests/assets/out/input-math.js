@@ -1,4 +1,8 @@
+/// <reference path="./types.d.ts"/>
+/// <reference path="../../types/annotations.d.ts"/>
 "use strict";
+require("script!bower_components/jquery/jquery.js");
+require("script!bower_components/mathquill/mathquill.js");
 function test1(a, b) {
     console.log(a, b, this);
 }
@@ -16,7 +20,7 @@ let InputMath_1 = class InputMath extends polymer.Base {
         var editor = this._editor;
         editor.id = "editor";
         editor.classList.add(this.is);
-        this._mathField = MathQuill.getInterface(2).MathField(editor, {
+        this["_mathField"] = MathQuill.getInterface(2).MathField(editor, {
             spaceBehavesLikeTab: true,
             handlers: {
                 edit: this._updateValue.bind(this)
@@ -135,5 +139,5 @@ InputMath = InputMath_1 = __decorate([
     component("input-math"),
     template("<input>")
 ], InputMath);
+exports.InputMath = InputMath;
 InputMath.register();
-//# sourceMappingURL=input-math.js.map

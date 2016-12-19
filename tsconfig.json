@@ -1,10 +1,8 @@
 {
   "compilerOptions": {
     "experimentalDecorators": true,
-    "removeComments": true,
-    "noEmitHelpers": true,
-    "sourceMap": true,
     "target": "es6",
+    "pretty": true,
     "module": "commonjs",
     "lib": [
       "dom",
@@ -12,11 +10,8 @@
     ]
   },
   "include": [
-    "index.ts",
+    "tests/**/*.ts",
     "src/**/*.ts",
     "types/**/*.d.ts"
-  ],
-  "exclude": [
-    "tests/*.test.ts"
   ]
 }

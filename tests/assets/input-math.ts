@@ -1,11 +1,16 @@
-"use strict";
-interface ICmd {
+/// <reference path="./types.d.ts"/>
+/// <reference path="../../types/annotations.d.ts"/>
+
+import "script!bower_components/jquery/jquery.js";
+import "script!bower_components/mathquill/mathquill.js";
+
+export interface ICmd {
   cmd: string;
   name: string;
   className?: string;
 }
 
-interface PolymerEvent extends Event {
+export interface PolymerEvent extends Event {
   model: any;
 }
 
@@ -19,7 +24,7 @@ function test2(conf) {
 
 @component("input-math")
 @template("<input>")
-class InputMath extends polymer.Base {
+export class InputMath extends polymer.Base {
   static HISTORY_SIZE: number = 20;
 
   static SYMBOLS_BASIC: ICmd[] = [
@@ -83,7 +88,7 @@ class InputMath extends polymer.Base {
     var editor: HTMLElement = this._editor;
     editor.id = "editor";
     editor.classList.add(this.is);
-    this._mathField = MathQuill.getInterface(2).MathField(editor, {
+    this["_mathField"] = MathQuill.getInterface(2).MathField(editor, {
       spaceBehavesLikeTab: true,
       handlers: {
         edit: this._updateValue.bind(this)
