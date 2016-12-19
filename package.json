@@ -3,9 +3,6 @@
   "version": "0.0.3",
   "description": "",
   "main": "./src/index.js",
-  "bin": {
-    "pcc": "./src/cli.js"
-  },
   "scripts": {
     "test": "mocha --compilers ts:ts-node/register --ui bdd tests/**/*.test.ts",
     "postinstall": "tsc"
