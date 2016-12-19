@@ -1,7 +1,7 @@
 {
-  "name": "@dracco/ts-component-compiler",
+  "name": "twc",
   "version": "0.0.3",
-  "description": "",
+  "description": "TypeScript Web Components compiles pure TypeScript classes to native Polymer modules.",
   "main": "./src/index.js",
   "scripts": {
     "test": "mocha --compilers ts:ts-node/register --ui bdd tests/**/*.test.ts",
