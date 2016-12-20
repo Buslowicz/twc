@@ -1,4 +1,4 @@
-declare namespace polymer {
+declare namespace Polymer {
   export interface BaseClass extends HTMLElement {
     new (): BaseClass;
     is: string;
@@ -6,7 +6,7 @@ declare namespace polymer {
     register(): void;
   }
 
-  export var Base: BaseClass;
+  export var Element: BaseClass;
 }
 
 declare namespace MathQuill {

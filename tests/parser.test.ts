@@ -1,184 +1,15 @@
 import { expect } from "chai";
 import { readFileSync } from "fs";
-import DTSParser, { getPropertyNoType, getType, parseParams, buildFieldConfig } from "../src/parsers/DTSParser";
+import DTSParser from "../src/parsers/DTSParser";
 import JSParser from "../src/parsers/JSParser";
-import { goTo, split, findClosing, regExpClosestIndexOf } from "../src/helpers/source-crawlers";
-import { arrToObject } from "../src/helpers/misc";
 
-describe("static analyser", () => {
-  describe("goTo", () => {
-    it("should return the index of searched term, omitting all kind of brackets", () => {
-      expect(goTo("= 20;", ";", 1)).to.equal(4);
-      expect(goTo("= { value: 20 };", ";", 1)).to.equal(15);
-      expect(goTo("= () => {let test = 10; return 2 * test;};", ";", 1)).to.equal(41);
-      expect(goTo("= () => {let test = 10; return 2 * test;};", /;/, 1)).to.equal(41);
-      expect(goTo("= () => {let test = 10; return 2 * test;},", /;|,/, 1)).to.equal(41);
-      expect(goTo(`= ";";`, /;|,/, 1)).to.equal(5);
-      expect(goTo(`= ';';`, /;|,/, 1)).to.equal(5);
-      expect(goTo("= `;`;", /;|,/, 1)).to.equal(5);
-      expect(goTo(`= "\\";";`, ";", 1)).to.equal(7);
-      expect(goTo(`= "\\";";`, /"/, 1)).to.equal(2);
-    });
-    it("should return -1 if searched term was not found", () => {
-      expect(goTo("() => test() * 2", ";")).to.equal(-1);
-      expect(goTo("() => {let test = test(); return test * 2;}", ";")).to.equal(-1);
-      expect(goTo("() => {let test = test(); return test * 2;}", /;/)).to.equal(-1);
-    });
-  });
-  describe("split", () => {
-    it("should split the string by search pattern, ignoring all kinds of parentheses", () => {
-      expect(split("a, b, c", ",")).to.deep.equal([ "a", " b", " c" ]);
-      expect(split("a, b, c", ",", true)).to.deep.equal([ "a", "b", "c" ]);
-      expect(split("a(b, c), d(e, f)", ",", true)).to.deep.equal([ "a(b, c)", "d(e, f)" ]);
-      expect(split("a(b, c), d(e, f)", ",", true)).to.deep.equal([ "a(b, c)", "d(e, f)" ]);
-      expect(split("a('b, c'), d('e, f')", ",", true)).to.deep.equal([ "a('b, c')", "d('e, f')" ]);
-      expect(split(`a("b, c"), d("e, f")`, ",", true)).to.deep.equal([ `a("b, c")`, `d("e, f")` ]);
-    });
-  });
-  describe("findClosing", () => {
-    it("should find the index of a closing bracket", () => {
-      expect(findClosing("test(...)", 4, "()")).to.equal(8);
-      expect(findClosing("(...)", 0, "()")).to.equal(4);
-      expect(findClosing("[...]", 0, "[]")).to.equal(4);
-      expect(findClosing("{...}", 0, "{}")).to.equal(4);
-      expect(findClosing("<...>", 0, "<>")).to.equal(4);
-      expect(findClosing("(.(.).)", 0, "()")).to.equal(6);
-      expect(findClosing("(.[.].)", 0, "()")).to.equal(6);
-      expect(findClosing("(.[.].)", 0, "()")).to.equal(6);
-      expect(findClosing("(.(.).)()", 0, "()")).to.equal(6);
-    });
-    it("should throw an error if no closing bracket was found", () => {
-      expect(() => findClosing("(...", 0, "()")).to.throw(`Parenthesis has no closing at line 1.`);
-      expect(() => findClosing("...", 0, "()")).to.throw(`Parenthesis has no closing at line 1.`);
-      expect(() => findClosing("", 0, "()")).to.throw(`Parenthesis has no closing at line 1.`);
-    });
-  });
-  describe("regExpClosestIndexOf", () => {
-    it("should return index of the first character that matches pattern", () => {
-      expect(regExpClosestIndexOf("abc", /a|b|c/, 0)).to.deep.equal({ index: 0, found: "a" });
-      expect(regExpClosestIndexOf("abc", /b|c/, 0)).to.deep.equal({ index: 1, found: "b" });
-      expect(regExpClosestIndexOf("abc", /c|b/, 0)).to.deep.equal({ index: 1, found: "b" });
-    });
-    it("should return -1 for index and null for value, if nothing is found", () => {
-      expect(regExpClosestIndexOf("def", /b|c/, 0)).to.deep.equal({ index: -1, found: null });
-    });
-  });
-  describe("getPropertyNoType", () => {
-    it("should recognize all modifiers and a name", () => {
-      expect(getPropertyNoType("prop;")).to.deep.equal({ name: "prop", modifiers: [] });
-      expect(getPropertyNoType("readonly prop;")).to.deep.equal({ name: "prop", modifiers: [ "readonly" ] });
-      expect(getPropertyNoType("private readonly prop;")).to.deep.equal({
-        name: "prop",
-        modifiers: [ "private", "readonly" ]
-      });
-    });
-
-    it("should not exceed char limit", () => {
-      let dts = "; readonly prop; test;";
-      expect(getPropertyNoType(dts, dts.indexOf("readonly"), dts.indexOf("prop;") + 4)).to.deep.equal({
-        name: "prop",
-        modifiers: [ "readonly" ]
-      });
-    });
-  });
-  describe("getType", () => {
-    function testType(type, expected = type, end = type.length) {
-      expect(getType(`${type};`)).to.deep.equal({ type: expected, end });
-    }
-
-    it("should recognize simple type", () => {
-      testType("number", "Number");
-      testType("string", "String");
-      testType("object", "Object");
-      testType("User");
-    });
-    it("should recognize arrays", () => {
-      testType("Array<string>", "Array");
-      testType("string[]", "Array");
-      testType("[string]", "Array");
-      testType("string[][]", "Array");
-    });
-    it("should recognize types with generics", () => {
-      testType("Promise<string>", "Promise");
-      testType("Promise<>", "Promise");
-      testType("Promise<Promise<null>>", "Promise");
-    });
-    it("should recognize inline objects", () => {
-      testType("{next: () => any}", "Object");
-      testType("{a: any; b: number;}", "Object");
-      testType(`{test: "true"|"false"}`, "Object");
-      testType("{test: {deep: boolean}}", "Object");
-    });
-    it("should recognize combined types", () => {
-      testType("string|null", "String");
-      testType("string | null", "String");
-      testType("string|number", "Object");
-      testType("string | number", "Object");
-    });
-    it("should recognize fixed string values", () => {
-      testType(`"yep"`, "String");
-      testType(`"yep"|"nope"`, "String");
-      testType(`"yep" | "nope"`, "String");
-    });
-    it("should throw a syntax error if there was an error parsing the template", () => {
-      expect(() => getType("{test: boolean;")).to.throw(`Parenthesis has no closing at line 1.`);
-    });
-  });
-  describe("arrToObject", () => {
-    it("should create an object using array values as keys", () => {
-      expect(arrToObject([])).to.deep.equal({});
-      expect(arrToObject([ "a" ])).to.deep.equal({ a: true });
-      expect(arrToObject([ "a", "b" ])).to.deep.equal({ a: true, b: true });
-    });
-    it("should use the value provided in second argument", () => {
-      expect(arrToObject([ "a", "b" ], null)).to.deep.equal({ a: null, b: null });
-      expect(arrToObject([ "a", "b" ], "yup")).to.deep.equal({ a: "yup", b: "yup" });
-    });
-  });
-  describe("parseParams", () => {
-    it("should recognize number of params", () => {
-      expect(parseParams("test1").length).to.equal(1);
-      expect(parseParams("test1, test2").length).to.equal(2);
-      expect(parseParams("test1: number, test2: any").length).to.equal(2);
-      expect(parseParams("test1: {a: number; b: any;}, test2: any").length).to.equal(2);
-      expect(parseParams("test1: {a: number, b: any;}, test2: any").length).to.equal(2);
-    });
-    it("should recognice name and type of params", () => {
-      expect(parseParams("test1")).to.deep.equal([ { name: "test1" } ]);
-      expect(parseParams("test1, test2")).to.deep.equal([ { name: "test1" }, { name: "test2" } ]);
-      expect(parseParams("test1: number, test2: any")).to.deep.equal([
-        { name: "test1", type: "Number" },
-        { name: "test2" }
-      ]);
-      expect(parseParams("test1: {a: number; b: any;}, test2: any")).to.deep.equal([
-        { name: "test1", type: "Object" },
-        { name: "test2" }
-      ]);
-    });
-  });
-  describe("buildFieldConfig", () => {
-    it("should always add name and modifiers", () => {
-      let field = buildFieldConfig([ "modifier" ], "name");
-      expect(field).to.have.property("modifier");
-      expect(field).to.have.property("name");
-    });
-    it("should have params and type if they are defined", () => {
-      let field = buildFieldConfig([ "modifier" ], "name", [ { name: "params" } ], "type");
-      expect(field).to.have.property("type");
-      expect(field).to.have.property("params");
-    });
-    it("should NOT add params or type if they are falsy", () => {
-      let field = buildFieldConfig([ "modifier" ], "name", null, null);
-      expect(field).to.not.have.property("type");
-      expect(field).to.not.have.property("params");
-    });
-  });
-  describe("parseDTS", () => {
+describe("parsers", () => {
+  describe("DTS Parser", () => {
     let meta;
     let deprecatedCallbacksDTS;
 
     before(() => {
-      meta = new DTSParser(readFileSync(`${__dirname}/assets/out/input-math.d.ts`, "utf8"));
+      meta = new DTSParser(readFileSync(`${__dirname}/assets/es6out/input-math.d.ts`, "utf8"));
       deprecatedCallbacksDTS = readFileSync(`${__dirname}/assets/deprecated-callbacks.d.ts`, "utf8");
     });
 
@@ -294,216 +125,232 @@ describe("static analyser", () => {
       ]);
     });
   });
-  describe("parseJS", () => {
-    let complexMeta: JSParser;
 
-    let simpleMeta: JSParser;
+  function parserTests(esVersion: number) {
+    return () => {
+      let complexMeta: JSParser;
+      let simpleMeta: JSParser;
 
-    before(() => {
-      complexMeta = new JSParser(
-        readFileSync(`${__dirname}/assets/out/input-math.d.ts`, "utf8"),
-        readFileSync(`${__dirname}/assets/out/input-math.js`, "utf8")
-      );
+      before(() => {
+        complexMeta = new JSParser(
+          readFileSync(`${__dirname}/assets/es${esVersion}out/input-math.d.ts`, "utf8"),
+          readFileSync(`${__dirname}/assets/es${esVersion}out/input-math.js`, "utf8")
+        );
 
-      simpleMeta = new JSParser(
-        readFileSync(`${__dirname}/assets/out/element-name.d.ts`, "utf8"),
-        readFileSync(`${__dirname}/assets/out/element-name.js`, "utf8")
-      );
-    });
+        simpleMeta = new JSParser(
+          readFileSync(`${__dirname}/assets/es${esVersion}out/element-name.d.ts`, "utf8"),
+          readFileSync(`${__dirname}/assets/es${esVersion}out/element-name.js`, "utf8")
+        );
+      });
 
-    it("should fetch additional generated class name", () => {
-      expect(complexMeta.helperClassName).to.be.oneOf([ "InputMath_1", undefined ]);
-    });
-    it("should fetch constructor body if it was defined in TS file, otherwise it should be skipped", () => {
-      expect(simpleMeta.methods.get("constructor")).to.equal(undefined);
-      expect(complexMeta.methods.get("constructor")).to.not.equal(undefined);
-      expect(complexMeta.methods.get("constructor").body).to.not.equal(undefined);
-    });
-    it("should fetch list of scripts and html imports and remove them", () => {
-      expect(simpleMeta.links).to.deep.equal([
-        "bower_components/polymer/polymer.html",
-        "node_modules/easy-polymer/dist/esp.html"
-      ]);
-      expect(complexMeta.scripts).to.deep.equal([
-        "bower_components/jquery/jquery.js",
-        "bower_components/mathquill/mathquill.js"
-      ]);
+      it("should fetch additional generated class name", () => {
+        expect(complexMeta.helperClassName).to.be.oneOf([ "InputMath_1", undefined ]);
+      });
+      it("should fetch constructor body if it was defined in TS file, otherwise it should be skipped", () => {
+        expect(simpleMeta.methods.get("constructor")).to.equal(undefined);
+        expect(complexMeta.methods.get("constructor")).to.not.equal(undefined);
+        expect(complexMeta.methods.get("constructor").body).to.not.equal(undefined);
+      });
+      it("should fetch list of scripts and html imports and remove them", () => {
+        expect(simpleMeta.links).to.deep.equal([
+          "bower_components/polymer/polymer.html",
+          "node_modules/easy-polymer/dist/esp.html"
+        ]);
+        expect(complexMeta.scripts).to.deep.equal([
+          "bower_components/jquery/jquery.js",
+          "bower_components/mathquill/mathquill.js"
+        ]);
 
-      expect(simpleMeta.scripts).to.deep.equal([]);
-      expect(complexMeta.links).to.deep.equal([]);
-    });
-    it("should fetch default values from parsed constructor", () => {
-      expect(complexMeta.properties.get("value").value).to.equal(`""`);
-      expect(complexMeta.properties.get("fn").value).to.equal("function () { return typeof window; }");
-      expect(complexMeta.properties.get("_observerLocked").value).to.equal("false");
-      expect(complexMeta.properties.get("_freezeHistory").value).to.equal("false");
-      expect(complexMeta.properties.get("_editor").value).to.equal("document.createElement(\"div\")");
-    });
-    it("should fetch list of decorators used per field", () => {
-      let { methods, properties } = complexMeta;
+        expect(simpleMeta.scripts).to.deep.equal([]);
+        expect(complexMeta.links).to.deep.equal([]);
+      });
+      it("should fetch list of properties", () => {
+        expect(Array.from(simpleMeta.properties.keys())).to.deep.equal([ "greetings", "test", "profile" ]);
+        expect(Array.from(complexMeta.properties.keys())).to.deep.equal([
+          "HISTORY_SIZE", "SYMBOLS_BASIC", "SYMBOLS_GREEK", "SYMBOLS_PHYSICS", "testValue", "value", "symbols",
+          "showSymbols", "fn", "_history", "_mathField", "_observerLocked", "_freezeHistory", "_editor"
+        ]);
+      });
+      it("should fetch default values from parsed constructor", () => {
+        expect(complexMeta.properties.get("value").value).to.equal(`""`);
+        expect(complexMeta.properties.get("symbols").value.replace(/\s/g, "")).to.equal(`[
+        InputMath_1.SYMBOLS_BASIC,
+        InputMath_1.SYMBOLS_GREEK
+      ]`.replace(/\s/g, ""));
+        expect(complexMeta.properties.get("showSymbols").value).to.equal(`""`);
+        expect(complexMeta.properties.get("fn").value).to.equal("function () { return typeof window; }");
+        expect(complexMeta.properties.get("_observerLocked").value).to.equal("false");
+        expect(complexMeta.properties.get("_freezeHistory").value).to.equal("false");
+        expect(complexMeta.properties.get("_editor").value).to.equal("document.createElement(\"div\")");
+      });
+      it("should fetch list of decorators used per field", () => {
+        let { methods } = complexMeta;
 
-      expect(properties.get("value").decorators).to.have.deep.property("0.name", "property");
-      expect(properties.get("symbols").decorators).to.have.deep.property("0.name", "property");
-      expect(properties.get("showSymbols").decorators).to.have.deep.property("0.name", "property");
-      expect(methods.get("keyShortcuts").decorators).to.have.deep.property("0.name", "listen");
-    });
-    it("should fetch list of annotations used per field", () => {
-      let { properties, methods } = complexMeta;
+        expect(methods.get("keyShortcuts").decorators).to.have.deep.property("0.name", "listen");
+      });
+      it("should fetch list of annotations used per field", () => {
+        let { properties, methods } = complexMeta;
 
-      expect(properties.get("value").annotations).to.have.deep.property("0.name", "attr");
-      expect(properties.get("value").annotations).to.have.deep.property("0.params", undefined);
+        expect(properties.get("value").annotations).to.have.deep.property("0.name", "attr");
+        expect(properties.get("value").annotations).to.have.deep.property("0.params", undefined);
 
-      expect(properties.get("symbols").annotations).to.have.deep.property("0.name", "notify");
-      expect(properties.get("symbols").annotations).to.have.deep.property("0.params", undefined);
+        expect(properties.get("symbols").annotations).to.have.deep.property("0.name", "notify");
+        expect(properties.get("symbols").annotations).to.have.deep.property("0.params", undefined);
 
-      expect(methods.get("valueChanged").annotations).to.have.deep.property("0.name", "observe");
-      expect(methods.get("valueChanged").annotations).to.have.deep.property("0.params", `"value"`);
+        expect(methods.get("valueChanged").annotations).to.have.deep.property("0.name", "observe");
+        expect(methods.get("valueChanged").annotations).to.have.deep.property("0.params", `"value"`);
 
-      expect(methods.get("symbolsChanged").annotations).to.have.deep.property("0.name", "observe");
-      expect(methods.get("symbolsChanged").annotations).to.have.deep.property("0.params", `"showSymbols"`);
-    });
-    it("should fetch decorators for class", () => {
-      expect(complexMeta.decorators).to.have.length(1);
-    });
-    it("should fetch list of class decorators", () => {
-      let classDecorators = complexMeta.decorators;
-      expect(classDecorators).to.have.deep.property("0.name", "component");
-    });
-    it("should exclude annotations from class decorators list", () => {
-      let classDecorators = complexMeta.decorators;
-      expect(classDecorators).to.not.have.deep.property("0.name", "template");
-    });
-    it("should fetch annotations for class", () => {
-      let classAnnotation = complexMeta.annotations;
+        expect(methods.get("symbolsChanged").annotations).to.have.deep.property("0.name", "observe");
+        expect(methods.get("symbolsChanged").annotations).to.have.deep.property("0.params", `"showSymbols"`);
+      });
+      it("should fetch decorators for class", () => {
+        expect(complexMeta.decorators).to.have.length(1);
+      });
+      it("should fetch list of class decorators", () => {
+        let classDecorators = complexMeta.decorators;
+        expect(classDecorators).to.have.deep.property("0.name", "component");
+      });
+      it("should exclude annotations from class decorators list", () => {
+        let classDecorators = complexMeta.decorators;
+        expect(classDecorators).to.not.have.deep.property("0.name", "template");
+      });
+      it("should fetch annotations for class", () => {
+        let classAnnotation = complexMeta.annotations;
 
-      expect(classAnnotation).to.have.deep.property("0.name", "template");
-      expect(classAnnotation).to.have.deep.property("0.params", `"<input>"`);
-    });
-    it("should fetch method bodies", () => {
-      let methods = complexMeta.methods;
-      expect(Array.from(methods.keys())).to.deep.equal([
-        "constructor", "ready", "cmd", "undo", "valueChanged",
-        "symbolsChanged", "keyShortcuts", "_updateValue", "_updateHistory"
-      ]);
-      expect(methods.get("constructor").body)
-        .to.be.oneOf([
-        [
-          "() {",
-          "        super();",
-          "        var editor = this._editor;",
-          "        editor.id = \"editor\";",
-          "        editor.classList.add(this.is);",
-          "        this[\"_mathField\"] = MathQuill.getInterface(2).MathField(editor, {",
-          "            spaceBehavesLikeTab: true,",
-          "            handlers: {",
-          "                edit: this._updateValue.bind(this)",
-          "            }",
-          "        });",
-          "    }"
-        ].join("\n"),
-        [
-          "() {",
-          "        var _this = _super.call(this) || this;",
-          "        var editor = _this._editor;",
-          "        editor.id = \"editor\";",
-          "        editor.classList.add(_this.is);",
-          "        _this[\"_mathField\"] = MathQuill.getInterface(2).MathField(editor, {",
-          "            spaceBehavesLikeTab: true,",
-          "            handlers: {",
-          "                edit: _this._updateValue.bind(_this)",
-          "            }",
-          "        });",
-          "        return _this;",
-          "    }"
-        ].join("\n")
-      ]);
-      expect(methods.get("ready").body)
-        .to
-        .equal([
-          "() {",
-          "        this.insertBefore(this._editor, this.$.controls);",
-          "    }"
-        ].join("\n"));
-      expect(methods.get("cmd").body)
-        .to
-        .equal([
-          "(ev) {",
-          "        this._mathField.cmd(ev.model.item.cmd).focus();",
-          "    }"
-        ].join("\n"));
-      expect(methods.get("undo").body)
-        .to
-        .equal([
-          "() {",
-          "        if (this._history && this._history.length > 0) {",
-          "            this._freezeHistory = true;",
-          "            this.value = this._history.pop();",
-          "            this._freezeHistory = false;",
-          "        }",
-          "    }"
-        ].join("\n"));
-      expect(methods.get("valueChanged").body)
-        .to
-        .equal([
-          "(value, prevValue) {",
-          "        this._updateHistory(prevValue);",
-          "        if (this._observerLocked) {",
-          "            return;",
-          "        }",
-          "        this._mathField.select().write(value);",
-          "        if (this._mathField.latex() === \"\") {",
-          "            this.undo();",
-          "        }",
-          "    }"
-        ].join("\n"));
-      expect(methods.get("symbolsChanged").body
-        .replace(/InputMath_1/, "InputMath")
-        .replace(/groupName => {/, "function (groupName) {"))
-        .to
-        .equal([
-          "(symbols) {",
-          "        if (symbols) {",
-          "            this.symbols = symbols.split(\",\").map(function (groupName) {",
-          "                return InputMath[\"SYMBOLS_\" + groupName.toUpperCase()] || [];",
-          "            });",
-          "        }",
-          "    }"
-        ].join("\n"));
-      expect(methods.get("keyShortcuts").body)
-        .to
-        .equal([
-          "(ev) {",
-          "        if (ev.ctrlKey && ev.keyCode === 90) {",
-          "            this.undo();",
-          "        }",
-          "    }"
-        ].join("\n"));
-      expect(methods.get("_updateValue").body)
-        .to
-        .equal([
-          "(test) {",
-          "        console.log(test);",
-          "        this._observerLocked = true;",
-          "        this.value = this._mathField.latex();",
-          "        this._observerLocked = false;",
-          "    }"
-        ].join("\n"));
-      expect(methods.get("_updateHistory").body.replace(/InputMath_1/, "InputMath"))
-        .to
-        .equal([
-          "(prevValue) {",
-          "        if (!this._history) {",
-          "            this._history = [];",
-          "        }",
-          "        if (this._freezeHistory || prevValue == null) {",
-          "            return;",
-          "        }",
-          "        this._history.push(prevValue);",
-          "        if (this._history.length > InputMath.HISTORY_SIZE) {",
-          "            this._history.shift();",
-          "        }",
-          "    }"
-        ].join("\n"));
-    });
+        expect(classAnnotation).to.have.deep.property("0.name", "template");
+        expect(classAnnotation).to.have.deep.property("0.params", `"<input>"`);
+      });
+      it("should fetch method bodies", () => {
+        let methods = complexMeta.methods;
+        expect(Array.from(methods.keys())).to.deep.equal([
+          "constructor", "ready", "cmd", "undo", "valueChanged",
+          "symbolsChanged", "keyShortcuts", "_updateValue", "_updateHistory"
+        ]);
+        expect(methods.get("constructor").body)
+          .to.be.oneOf([
+          [
+            "() {",
+            "        super();",
+            "        var editor = this._editor;",
+            "        editor.id = \"editor\";",
+            "        editor.classList.add(this.is);",
+            "        this[\"_mathField\"] = MathQuill.getInterface(2).MathField(editor, {",
+            "            spaceBehavesLikeTab: true,",
+            "            handlers: {",
+            "                edit: this._updateValue.bind(this)",
+            "            }",
+            "        });",
+            "    }"
+          ].join("\n"),
+          [
+            "() {",
+            "        var _this = _super.call(this) || this;",
+            "        var editor = _this._editor;",
+            "        editor.id = \"editor\";",
+            "        editor.classList.add(_this.is);",
+            "        _this[\"_mathField\"] = MathQuill.getInterface(2).MathField(editor, {",
+            "            spaceBehavesLikeTab: true,",
+            "            handlers: {",
+            "                edit: _this._updateValue.bind(_this)",
+            "            }",
+            "        });",
+            "        return _this;",
+            "    }"
+          ].join("\n")
+        ]);
+        expect(methods.get("ready").body)
+          .to
+          .equal([
+            "() {",
+            "        this.insertBefore(this._editor, this.$.controls);",
+            "    }"
+          ].join("\n"));
+        expect(methods.get("cmd").body)
+          .to
+          .equal([
+            "(ev) {",
+            "        this._mathField.cmd(ev.model.item.cmd).focus();",
+            "    }"
+          ].join("\n"));
+        expect(methods.get("undo").body)
+          .to
+          .equal([
+            "() {",
+            "        if (this._history && this._history.length > 0) {",
+            "            this._freezeHistory = true;",
+            "            this.value = this._history.pop();",
+            "            this._freezeHistory = false;",
+            "        }",
+            "    }"
+          ].join("\n"));
+        expect(methods.get("valueChanged").body)
+          .to
+          .equal([
+            "(value, prevValue) {",
+            "        this._updateHistory(prevValue);",
+            "        if (this._observerLocked) {",
+            "            return;",
+            "        }",
+            "        this._mathField.select().write(value);",
+            "        if (this._mathField.latex() === \"\") {",
+            "            this.undo();",
+            "        }",
+            "    }"
+          ].join("\n"));
+        expect(methods.get("symbolsChanged").body
+          .replace(/InputMath_1/, "InputMath")
+          .replace(/groupName => {/, "function (groupName) {"))
+          .to
+          .equal([
+            "(symbols) {",
+            "        if (symbols) {",
+            "            this.symbols = symbols.split(\",\").map(function (groupName) {",
+            "                return InputMath[\"SYMBOLS_\" + groupName.toUpperCase()] || [];",
+            "            });",
+            "        }",
+            "    }"
+          ].join("\n"));
+        expect(methods.get("keyShortcuts").body)
+          .to
+          .equal([
+            "(ev) {",
+            "        if (ev.ctrlKey && ev.keyCode === 90) {",
+            "            this.undo();",
+            "        }",
+            "    }"
+          ].join("\n"));
+        expect(methods.get("_updateValue").body)
+          .to
+          .equal([
+            "(test) {",
+            "        console.log(test);",
+            "        this._observerLocked = true;",
+            "        this.value = this._mathField.latex();",
+            "        this._observerLocked = false;",
+            "    }"
+          ].join("\n"));
+        expect(methods.get("_updateHistory").body.replace(/InputMath_1/, "InputMath"))
+          .to
+          .equal([
+            "(prevValue) {",
+            "        if (!this._history) {",
+            "            this._history = [];",
+            "        }",
+            "        if (this._freezeHistory || prevValue == null) {",
+            "            return;",
+            "        }",
+            "        this._history.push(prevValue);",
+            "        if (this._history.length > InputMath.HISTORY_SIZE) {",
+            "            this._history.shift();",
+            "        }",
+            "    }"
+          ].join("\n"));
+      });
+    }
+  }
+
+  describe("JS Parser", () => {
+    describe("ES5", parserTests(5));
+    describe("ES6", parserTests(6));
   });
 });

@@ -10,7 +10,7 @@ export interface ICmd {
 export interface PolymerEvent extends Event {
     model: any;
 }
-export declare class InputMath extends polymer.Base {
+export declare class InputMath extends Polymer.Element {
     static HISTORY_SIZE: number;
     static SYMBOLS_BASIC: ICmd[];
     static SYMBOLS_GREEK: ICmd[];

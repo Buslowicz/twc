@@ -14,17 +14,9 @@ export interface PolymerEvent extends Event {
   model: any;
 }
 
-function test1(a, b) {
-  console.log(a, b, this);
-}
-
-function test2(conf) {
-  return test.bind(conf);
-}
-
 @component("input-math")
 @template("<input>")
-export class InputMath extends polymer.Base {
+export class InputMath extends Polymer.Element {
   static HISTORY_SIZE: number = 20;
 
   static SYMBOLS_BASIC: ICmd[] = [
@@ -59,21 +51,14 @@ export class InputMath extends polymer.Base {
 
   testValue: "yep"|"nope";
 
-  @property({ type: String, value: "", reflectToAttribute: true })
-  @attr
-  value: string|null = "";
+  @attr value: string|null = "";
 
-  @property({
-    type: Array, value: (): ICmd[][] => [
-      InputMath.SYMBOLS_BASIC,
-      InputMath.SYMBOLS_GREEK
-    ]
-  })
-  @notify
-  symbols: ICmd[][];
+  @notify symbols: ICmd[][] = [
+    InputMath.SYMBOLS_BASIC,
+    InputMath.SYMBOLS_GREEK
+  ];
 
-  @property({ type: String, value: "" })
-  showSymbols: string;
+  showSymbols: string = "";
 
   fn: Function = function () { return typeof window; };
 
@@ -164,5 +149,3 @@ export class InputMath extends polymer.Base {
     }
   }
 }
-
-InputMath.register();

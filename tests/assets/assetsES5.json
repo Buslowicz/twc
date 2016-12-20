@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "pretty": true,
+    "module": "commonjs",
+    "lib": [
+      "dom",
+      "es6"
+    ],
+    "noEmitHelpers": true,
+    "declaration": true,
+    "target": "es5",
+    "outDir": "es5out"
+  },
+  "include": [
+    "*.ts"
+  ]
+}

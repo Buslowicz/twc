@@ -1,0 +1,19 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "pretty": true,
+    "module": "commonjs",
+    "lib": [
+      "dom",
+      "es6"
+    ],
+    "noEmitHelpers": true,
+    "declaration": true,
+    "target": "es6",
+    "outDir": "es6out"
+  },
+  "include": [
+    "*.ts"
+  ]
+}

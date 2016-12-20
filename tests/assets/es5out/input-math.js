@@ -3,44 +3,45 @@
 "use strict";
 require("script!bower_components/jquery/jquery.js");
 require("script!bower_components/mathquill/mathquill.js");
-function test1(a, b) {
-    console.log(a, b, this);
-}
-function test2(conf) {
-    return test.bind(conf);
-}
-let InputMath_1 = class InputMath extends polymer.Base {
-    constructor() {
-        super();
-        this.value = "";
-        this.fn = function () { return typeof window; };
-        this._observerLocked = false;
-        this._freezeHistory = false;
-        this._editor = document.createElement("div");
-        var editor = this._editor;
+var InputMath = InputMath_1 = (function (_super) {
+    __extends(InputMath, _super);
+    function InputMath() {
+        var _this = _super.call(this) || this;
+        _this.value = "";
+        _this.symbols = [
+            InputMath_1.SYMBOLS_BASIC,
+            InputMath_1.SYMBOLS_GREEK
+        ];
+        _this.showSymbols = "";
+        _this.fn = function () { return typeof window; };
+        _this._observerLocked = false;
+        _this._freezeHistory = false;
+        _this._editor = document.createElement("div");
+        var editor = _this._editor;
         editor.id = "editor";
-        editor.classList.add(this.is);
-        this["_mathField"] = MathQuill.getInterface(2).MathField(editor, {
+        editor.classList.add(_this.is);
+        _this["_mathField"] = MathQuill.getInterface(2).MathField(editor, {
             spaceBehavesLikeTab: true,
             handlers: {
-                edit: this._updateValue.bind(this)
+                edit: _this._updateValue.bind(_this)
             }
         });
+        return _this;
     }
-    ready() {
+    InputMath.prototype.ready = function () {
         this.insertBefore(this._editor, this.$.controls);
-    }
-    cmd(ev) {
+    };
+    InputMath.prototype.cmd = function (ev) {
         this._mathField.cmd(ev.model.item.cmd).focus();
-    }
-    undo() {
+    };
+    InputMath.prototype.undo = function () {
         if (this._history && this._history.length > 0) {
             this._freezeHistory = true;
             this.value = this._history.pop();
             this._freezeHistory = false;
         }
-    }
-    valueChanged(value, prevValue) {
+    };
+    InputMath.prototype.valueChanged = function (value, prevValue) {
         this._updateHistory(prevValue);
         if (this._observerLocked) {
             return;
@@ -49,26 +50,26 @@ let InputMath_1 = class InputMath extends polymer.Base {
         if (this._mathField.latex() === "") {
             this.undo();
         }
-    }
-    symbolsChanged(symbols) {
+    };
+    InputMath.prototype.symbolsChanged = function (symbols) {
         if (symbols) {
-            this.symbols = symbols.split(",").map(groupName => {
+            this.symbols = symbols.split(",").map(function (groupName) {
                 return InputMath_1["SYMBOLS_" + groupName.toUpperCase()] || [];
             });
         }
-    }
-    keyShortcuts(ev) {
+    };
+    InputMath.prototype.keyShortcuts = function (ev) {
         if (ev.ctrlKey && ev.keyCode === 90) {
             this.undo();
         }
-    }
-    _updateValue(test) {
+    };
+    InputMath.prototype._updateValue = function (test) {
         console.log(test);
         this._observerLocked = true;
         this.value = this._mathField.latex();
         this._observerLocked = false;
-    }
-    _updateHistory(prevValue) {
+    };
+    InputMath.prototype._updateHistory = function (prevValue) {
         if (!this._history) {
             this._history = [];
         }
@@ -79,9 +80,9 @@ let InputMath_1 = class InputMath extends polymer.Base {
         if (this._history.length > InputMath_1.HISTORY_SIZE) {
             this._history.shift();
         }
-    }
-};
-let InputMath = InputMath_1;
+    };
+    return InputMath;
+}(Polymer.Element));
 InputMath.HISTORY_SIZE = 20;
 InputMath.SYMBOLS_BASIC = [
     { cmd: "\\sqrt", name: "√" },
@@ -111,21 +112,11 @@ InputMath.SYMBOLS_PHYSICS = [
     { cmd: "\\phi", name: "ᶲ", className: "big" }
 ];
 __decorate([
-    property({ type: String, value: "", reflectToAttribute: true }),
     attr
 ], InputMath.prototype, "value", void 0);
 __decorate([
-    property({
-        type: Array, value: () => [
-            InputMath_1.SYMBOLS_BASIC,
-            InputMath_1.SYMBOLS_GREEK
-        ]
-    }),
     notify
 ], InputMath.prototype, "symbols", void 0);
-__decorate([
-    property({ type: String, value: "" })
-], InputMath.prototype, "showSymbols", void 0);
 __decorate([
     observe("value")
 ], InputMath.prototype, "valueChanged", null);
@@ -140,4 +131,4 @@ InputMath = InputMath_1 = __decorate([
     template("<input>")
 ], InputMath);
 exports.InputMath = InputMath;
-InputMath.register();
+var InputMath_1;
