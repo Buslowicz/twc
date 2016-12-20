@@ -40,6 +40,6 @@ __decorate([
     computed
 ], ElementName.prototype, "computedPropAuto", null);
 ElementName = __decorate([
-    template(`<h1>tester: [[test]]</h1>`)
+    template("<h1>tester: [[test]]</h1>")
 ], ElementName);
 exports.ElementName = ElementName;
