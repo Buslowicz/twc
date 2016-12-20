@@ -5,7 +5,7 @@ import DTSParser from './DTSParser';
 
 export default class JSParser extends DTSParser {
   public helperClassName: string;
-  public classBodyPosition: {start: number; end: number};
+  public classBodyPosition: { start: number; end: number };
   public decorators: Array<Decorator> = [];
   public annotations: Array<Decorator> = [];
 
@@ -74,7 +74,7 @@ export default class JSParser extends DTSParser {
    * @throws Error if no class was found
    */
   findClassBody(): void {
-    let matchES5 = this.jsSrc.match(new RegExp(`var ${this.className} = \\(function \\((?:_super)?\\) {`));
+    let matchES5 = this.jsSrc.match(new RegExp(`var ${this.className} = (?:${this.className}[\\S]* = )?\\(function \\((?:_super)?\\) {`));
     let matchES6 = this.jsSrc.match(new RegExp(`(?:let ${this.className} = (${this.className}[\\S]*) = )?class ${this.className}(?: extends .+?)? {`));
 
     let start, end;
@@ -128,15 +128,16 @@ export default class JSParser extends DTSParser {
    * @returns RegExp pattern and replacer function
    */
   getDefaultValues(): Replacer {
-    let testPrimitive = /(true|false|^".*"$|^'.*'$|^`.*`$|\d+)/;
-
+    let testPrimitive = /(true|false|^".*"$|^'.*'$|^`.*`$|[\d.]+)/;
     if (this.properties.size === 0) {
       return [ /^$/, "" ];
     }
+    let propsList = Array.from(this.properties.values())
+      .map(itm => itm.name)
+      .join("|");
+
     return [
-      new RegExp(`[\\t ]*_?this\\.(${Array.from(this.properties.values())
-        .map(itm => itm.name)
-        .join("|")}) = (.*);\\n`, "g"),
+      new RegExp(`[\\t ]*_?this\\.(${propsList}) = ([\\S\\s]*?);\\n`, "g"),
       (_, name, value) => {
         let config = this.properties.get(name);
         config.value = value;
@@ -209,10 +210,10 @@ export default class JSParser extends DTSParser {
         for (let decors = split(definition, ",", true), i = 0, l = decors.length; i < l; i++) {
           let decor = decors[ i ];
           let ptr = decor.indexOf("(");
-          let [name, params = undefined] = ptr !== -1 ? [
-            decor.slice(0, ptr),
-            decor.slice(ptr + 1, decor.length - 1)
-          ] : [ decor ];
+          let [ name, params = undefined ] = ptr !== -1 ? [
+              decor.slice(0, ptr),
+              decor.slice(ptr + 1, decor.length - 1)
+            ] : [ decor ];
           if (name in definedAnnotations) {
             usedAnnotations.push({ name, params, descriptor, src: decor });
           }
@@ -253,10 +254,10 @@ export default class JSParser extends DTSParser {
         for (let decors = split(definition, ",", true), i = 0, l = decors.length; i < l; i++) {
           let decor = decors[ i ];
           let ptr = decor.indexOf("(");
-          let [name, params = undefined] = ptr !== -1 ? [
-            decor.slice(0, ptr),
-            decor.slice(ptr + 1, decor.length - 1)
-          ] : [ decor ];
+          let [ name, params = undefined ] = ptr !== -1 ? [
+              decor.slice(0, ptr),
+              decor.slice(ptr + 1, decor.length - 1)
+            ] : [ decor ];
           if (name in definedAnnotations) {
             this.annotations.push({ name, params, src: decor });
           }
