@@ -58,7 +58,7 @@ export function buildProperty([ name, config ]: [ string, PolymerPropertyConfig 
 export function buildPropertiesMap(properties: FieldConfigMap, methods: FieldConfigMap): Map<string, PolymerPropertyConfig> {
   let propertiesMap: Map<string, PolymerPropertyConfig> = new Map();
   properties.forEach((config, name) => {
-    if (config.static) {
+    if (config.static || config.private) {
       return;
     }
     let prop: PolymerPropertyConfig = {

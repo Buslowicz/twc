@@ -2,6 +2,7 @@ import { expect } from "chai";
 import { getPropertyNoType, getType, parseParams, buildFieldConfig } from "../src/parsers/DTSParser";
 import { goTo, split, findClosing, regExpClosestIndexOf } from "../src/helpers/source-crawlers";
 import { arrToObject } from "../src/helpers/misc";
+import { buildProperty, buildPropertiesMap } from '../src/PolymerModule';
 
 describe("parser helpers", () => {
   describe("goTo", () => {
@@ -169,6 +170,43 @@ describe("parser helpers", () => {
       let field = buildFieldConfig([ "modifier" ], "name", null, null);
       expect(field).to.not.have.property("type");
       expect(field).to.not.have.property("params");
+    });
+  });
+  describe("buildPropertiesMap", () => {
+    const buildConfigMap = (obj?) => new Map([ [ "test", Object.assign({ name: "test", type: "String" }, obj) ] ]);
+
+    it("should convert field config objects map into a valid Polymer configs map", () => {
+      expect(Array.from(buildPropertiesMap(buildConfigMap(), null).values()))
+        .to.deep.equal([
+        {
+          type: "String"
+        }
+      ]);
+    });
+    it("should ignore static and private fields", () => {
+      expect(Array.from(buildPropertiesMap(buildConfigMap({ static: true }), null).values()))
+        .to.deep.equal([]);
+      expect(Array.from(buildPropertiesMap(buildConfigMap({ private: true }), null).values()))
+        .to.deep.equal([]);
+    });
+  });
+  describe("buildProperty", () => {
+    it("should build a valid polymer property string", () => {
+      expect(buildProperty([
+        "test", {
+          type: "String",
+          value: `"test"`,
+          reflectToAttribute: false,
+          readOnly: true
+        }
+      ])).to.equal(`test:{type:String,value:"test",readOnly:true}`);
+
+      expect(buildProperty([
+        "test", {
+          type: "Custom",
+          value: `{test: true}`
+        }
+      ])).to.equal(`test:{type:Object,value:{test: true}}`);
     });
   });
 });
