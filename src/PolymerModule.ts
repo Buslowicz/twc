@@ -105,11 +105,6 @@ export default class Module extends JSParser {
   /**
    * Generate a Polymer v1 component declaration
    *
-   * @param className Name of the component
-   * @param properties Component properties list
-   * @param methods Component methods list
-   * @param annotations Class level annotations
-   *
    * @returns String representation of polymer component declaration
    */
   buildPolymerV1() {
@@ -147,12 +142,15 @@ export default class Module extends JSParser {
     else if (polymerVersion === 2) {
       throw "not yet implemented";
     }
-    let moduleParts = [];
-    if (extrasMap.has("template")) {
-      moduleParts.push(`<template>${extrasMap.get("template")}</template>`);
-    }
-    moduleParts.push("<script>" + beautify(moduleSrc, { format: "js" }) + "</script>");
-    return beautify(`<dom-module id="${kebabCase(this.className)}">${moduleParts.join("")}</dom-module>`, { format: "html" });
+
+    return beautify([
+      ...this.links.map(module => `<link rel="import" href="${module}">`),
+      ...this.scripts.map(module => `<script src="${module}"></script>`),
+      `<dom-module id="${kebabCase(this.className)}">${[
+        ...[ extrasMap.get("template") ].filter(tpl => !!tpl).map(tpl => `<template>${tpl}</template>`),
+        `<script\>${beautify(moduleSrc, { format: "js" })}</script>`
+      ].join("\n")}</dom-module>`
+    ].join("\n"), { format: "html" });
   }
 
   toBuffer(polymerVersion = 1) {
