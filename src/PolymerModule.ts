@@ -1,8 +1,10 @@
-import JSParser from "./parsers/JSParser";
 import { kebabCase } from "lodash";
+import { join } from 'path';
 import { nonEmpty } from './helpers/misc';
+import JSParser from "./parsers/JSParser";
 
 import * as definedAnnotations from "./annotations";
+import { readFileSync } from 'fs';
 
 const beautify = require('beautify');
 
@@ -80,8 +82,11 @@ export function buildMethodsMap(methods: FieldConfigMap, properties: FieldConfig
 }
 
 export default class Module extends JSParser {
-  constructor(dts: string, js: string, options?: JSParserOptions) {
+  base: string;
+
+  constructor(base: string, dts: string, js: string, options?: JSParserOptions) {
     super(dts, js, options);
+    this.base = base;
   }
 
   /**
@@ -149,7 +154,7 @@ export default class Module extends JSParser {
           ...styles.map(({ style, type }) => {
             switch (type) {
               case "link":
-                return "";
+                return `<style>${readFileSync(join(this.base, style))}</style>`;
               case "inline":
                 return `<style>${style}</style>`;
               case "shared":

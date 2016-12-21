@@ -10,11 +10,13 @@ describe("module builder", () => {
       let elementNameMeta: Module;
       before(() => {
         inputMathMeta = new Module(
+          `${__dirname}/assets/es${esVersion}out`,
           readFileSync(`${__dirname}/assets/es${esVersion}out/input-math.d.ts`, "utf8"),
           readFileSync(`${__dirname}/assets/es${esVersion}out/input-math.js`, "utf8")
         );
 
         elementNameMeta = new Module(
+          `${__dirname}/assets/es${esVersion}out`,
           readFileSync(`${__dirname}/assets/es${esVersion}out/element-name.d.ts`, "utf8"),
           readFileSync(`${__dirname}/assets/es${esVersion}out/element-name.js`, "utf8")
         );

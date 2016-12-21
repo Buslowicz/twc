@@ -42,7 +42,7 @@ __decorate([
 ], ElementName.prototype, "computedPropAuto", null);
 ElementName = __decorate([
     template('<h1 class="testing">tester: [[test]]</h1>'),
-    style("h1 {color: red}"),
+    style("h1 {color: red;}"),
     style("style.css"),
     style("shared-style")
 ], ElementName);

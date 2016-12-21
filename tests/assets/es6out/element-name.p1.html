@@ -3,7 +3,14 @@
 <dom-module id="element-name">
   <template>
     <style>
-      h1 {color: red}
+      h1 {
+        color: red;
+      }
+    </style>
+    <style>
+      :host {
+        display: block;
+      }
     </style>
     <style include="shared-style"></style>
     <h1 class="testing">tester: [[test]]</h1>

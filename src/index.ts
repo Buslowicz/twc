@@ -57,7 +57,7 @@ function ts2html(input) {
           this.push(pair.ts);
           this.push(new File({
             path, cwd: file.cwd, base: file.base,
-            contents: new Module(pair.ts.contents.toString(), pair.js.contents.toString()).toBuffer()
+            contents: new Module(file.base, pair.ts.contents.toString(), pair.js.contents.toString()).toBuffer()
           }));
         }
         next();
