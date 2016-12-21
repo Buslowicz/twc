@@ -5,17 +5,19 @@ export function template({ propertiesMap, methodsMap, params }: AnnotationOption
   return params.slice(1, params.length - 1);
 }
 
-export function style({ params, styles}: AnnotationOptions) {
+export function style({ params, styles }: AnnotationOptions) {
   let style = params.slice(1, -1);
+  let type;
   if (style.endsWith(".css")) {
-    // styles.push(readFileSync(style).toString());
-    console.warn("TODO: implement remote style importing");
-  } else if (/[\w\d](-[\w\d])+/.test(style)) {
-    console.warn("TODO: implement shared-styles");
-  } else {
-    styles.push(style);
-    // console.log("direct style", style);
+    type = "link";
   }
+  else if (/[\w\d](-[\w\d])+/.test(style)) {
+    type = "shared";
+  }
+  else {
+    type = "inline";
+  }
+  styles.push({ style, type });
 }
 
 export function attr(...args);

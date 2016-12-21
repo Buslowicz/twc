@@ -91,7 +91,7 @@ export default class Module extends JSParser {
    */
   buildPolymerV1() {
     let observers: Array<string> = [];
-    let styles: Array<string> = [];
+    let styles: Array<{ type: "link"|"shared"|"inline", style: string }> = [];
 
     let { annotations, methods, properties } = this;
 
@@ -146,7 +146,16 @@ export default class Module extends JSParser {
       ...this.scripts.map(module => `<script src="${module}"></script>`),
       `<dom-module id="${kebabCase(this.className)}">${[
         nonEmpty`<template>${[
-          ...styles.map(style => `<style>${style}</style>`),
+          ...styles.map(({ style, type }) => {
+            switch (type) {
+              case "link":
+                return "";
+              case "inline":
+                return `<style>${style}</style>`;
+              case "shared":
+                return `<style include="${style}"></style>`;
+            }
+          }),
           extrasMap.get("template"),
         ].join("\n")}</template>`,
         `<script\>${beautify([

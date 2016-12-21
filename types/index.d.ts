@@ -1,4 +1,4 @@
-declare type Replacer = [RegExp, string | ((...args: Array<string>) => string)];
+declare type Replacer = [ RegExp, string | ((...args: Array<string>) => string) ];
 declare type FieldConfigMap = Map<string, FieldConfig>;
 
 declare interface PositionInSource {
@@ -18,7 +18,7 @@ declare interface AnnotationOptions {
   propertiesMap?: Map<string, PolymerPropertyConfig>;
   methodsMap?: FieldConfigMap;
   observers?: Array<string>;
-  styles?: Array<string>;
+  styles?: Array<{ type: "link"|"shared"|"inline", style: string }>;
   method?: FieldConfig;
   prop?: PolymerPropertyConfig;
   params?: string;
