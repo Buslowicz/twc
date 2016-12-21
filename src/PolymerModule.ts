@@ -106,8 +106,13 @@ export default class Module extends JSParser {
     let extrasMap = new Map<string, any>();
 
     annotations.forEach(({ name, params }) => {
-      extrasMap.set(name, definedAnnotations[ name ]({ propertiesMap, methodsMap, params, styles }));
+      let annotation = definedAnnotations[ name ]({ propertiesMap, methodsMap, params, styles });
+      if (annotation !== undefined) {
+        extrasMap.set(name, annotation);
+      }
     });
+
+    extrasMap.set("styles", styles);
 
     const v1ToV0Lifecycles = {
       constructor: "created",
@@ -120,7 +125,6 @@ export default class Module extends JSParser {
       methodsMap,
       propertiesMap,
       extrasMap,
-      styles,
       moduleSrc: `Polymer({${[
         `is:"${kebabCase(this.className)}"`,
         nonEmpty`properties:{${Array.from(propertiesMap).map(buildProperty)}}`,
@@ -138,13 +142,23 @@ export default class Module extends JSParser {
   }
 
   toString(polymerVersion = 1) {
-    let extrasMap, methodsMap, propertiesMap, moduleSrc, styles;
+    let extrasMap, methodsMap, propertiesMap, moduleSrc;
     if (polymerVersion === 1) {
-      ({ extrasMap, methodsMap, propertiesMap, moduleSrc, styles } = this.buildPolymerV1());
+      ({ extrasMap, methodsMap, propertiesMap, moduleSrc } = this.buildPolymerV1());
     }
     else if (polymerVersion === 2) {
       throw "not yet implemented";
     }
+
+    let styles = extrasMap.get("styles");
+    let template = (({ template, type }) => {
+      switch (type) {
+        case "link":
+          return readFileSync(join(this.base, template));
+        case "inline":
+          return template;
+      }
+    })(extrasMap.get("template"));
 
     return beautify([
       ...this.links.map(module => `<link rel="import" href="${module}">`),
@@ -161,7 +175,7 @@ export default class Module extends JSParser {
                 return `<style include="${style}"></style>`;
             }
           }),
-          extrasMap.get("template"),
+          template,
         ].join("\n")}</template>`,
         `<script\>${beautify([
           "(function () {",

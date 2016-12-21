@@ -1,8 +1,15 @@
 import { capitalize } from "lodash";
-import { resolve } from "path";
 
-export function template({ propertiesMap, methodsMap, params }: AnnotationOptions) {
-  return params.slice(1, params.length - 1);
+export function template({ params }: AnnotationOptions) {
+  let template = params.slice(1, -1);
+  let type;
+  if (template.endsWith(".html")) {
+    type = "link";
+  }
+  else {
+    type = "inline";
+  }
+  return { template, type };
 }
 
 export function style({ params, styles }: AnnotationOptions) {
