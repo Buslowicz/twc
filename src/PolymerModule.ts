@@ -37,8 +37,7 @@ const beautify = require('beautify');
  *
  * @returns String representation of property config object
  */
-export function buildProperty([name, config]: [string, PolymerPropertyConfig]): string {
-  let keyMap = { readonly: "readOnly" };
+export function buildProperty([ name, config ]: [ string, PolymerPropertyConfig ]): string {
   let valueMap = "Boolean|Date|Number|String|Array|Object";
 
   return `${name}:{${
@@ -50,10 +49,52 @@ export function buildProperty([name, config]: [string, PolymerPropertyConfig]): 
         if (key === "type" && valueMap.indexOf(config[ key ]) === -1) {
           value = "Object";
         }
-        return `${keyMap[ key ] || key}:${value}`;
+        return `${key}:${value}`;
       })
       .join(",")
     }}`;
+}
+
+export function buildPropertiesMap(properties: FieldConfigMap, methods: FieldConfigMap): Map<string, PolymerPropertyConfig> {
+  let propertiesMap: Map<string, PolymerPropertyConfig> = new Map();
+  properties.forEach((config, name) => {
+    if (config.static) {
+      return;
+    }
+    let prop: PolymerPropertyConfig = {
+      type: config.type
+    };
+
+    if (config.value) {
+      prop.value = config.value;
+    }
+    if (config.readonly) {
+      prop.readOnly = config.readonly;
+    }
+    if (config.annotations) {
+      config.annotations.forEach(({ name, params }) => {
+        definedAnnotations[ name ]({ properties, methods, config, prop, params });
+      });
+    }
+
+    propertiesMap.set(name, prop);
+  });
+  return propertiesMap;
+}
+
+export function buildMethodsMap(methods: FieldConfigMap, properties: FieldConfigMap, propertiesMap: Map<string, PolymerPropertyConfig>, observers: Array<string>) {
+  let methodsMap: FieldConfigMap = new Map();
+  methods.forEach((config, name) => {
+    let method = Object.assign({}, config);
+    if (config.annotations) {
+      config.annotations.forEach(({ name, params }) => {
+        definedAnnotations[ name ]({ properties, methods, config, method, propertiesMap, observers, params });
+      });
+    }
+
+    methodsMap.set(name, method);
+  });
+  return methodsMap;
 }
 
 export default class Module extends JSParser {
@@ -76,38 +117,10 @@ export default class Module extends JSParser {
 
     let { annotations, methods, properties } = this;
 
-    let propertiesMap: Map<string, PolymerPropertyConfig> = new Map();
-    properties.forEach((config, name) => {
-      if (config.static) {
-        return;
-      }
-      let prop: PolymerPropertyConfig = {
-        type: config.type,
-        value: config.value,
-        readOnly: config.readonly
-      };
-      if (config.annotations) {
-        config.annotations.forEach(({ name, params }) => {
-          definedAnnotations[ name ]({ properties, methods, config, prop, params });
-        });
-      }
+    let propertiesMap = buildPropertiesMap(properties, methods);
+    let methodsMap = buildMethodsMap(methods, properties, propertiesMap, observers);
 
-      propertiesMap.set(name, prop)
-    });
-
-    let methodsMap: FieldConfigMap = new Map();
-    methods.forEach((config, name) => {
-      let method = Object.assign({}, config);
-      if (config.annotations) {
-        config.annotations.forEach(({ name, params }) => {
-          definedAnnotations[ name ]({ properties, methods, config, method, propertiesMap, observers, params });
-        });
-      }
-
-      methodsMap.set(name, method);
-    });
-
-    let extrasMap: Map<string, any> = new Map();
+    let extrasMap = new Map<string, any>();
 
     annotations.forEach(({ name, params }) => {
       extrasMap.set(name, definedAnnotations[ name ]({ propertiesMap, methodsMap, params }));
