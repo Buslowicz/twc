@@ -77,9 +77,10 @@ export default class JSParser extends DTSParser {
    * @throws Error if no class was found
    */
   findClassBody(refreshWithESVersion?: number): void {
+    const generatedNamePattern = `(?:(${this.className}[\\S]*) = )?`;
     const patterns = {
-      5: new RegExp(`var ${this.className} = (?:${this.className}[\\S]* = )?\\(function \\((?:_super)?\\) {`),
-      6: new RegExp(`(?:let ${this.className} = (?:(${this.className}[\\S]*) = )?)?class ${this.className}(?: extends .+?)? {`)
+      5: new RegExp(`var ${this.className} = ${generatedNamePattern}\\(function \\((?:_super)?\\) {`),
+      6: new RegExp(`(?:let ${this.className} = ${generatedNamePattern})?class ${this.className}(?: extends .+?)? {`)
     };
 
     let start, end;

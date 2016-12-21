@@ -160,6 +160,8 @@ export default class Module extends JSParser {
       }
     })(extrasMap.get("template"));
 
+    let hasStatic = Array.from(this.properties.values()).filter(prop => prop.static).length > 0;
+
     return beautify([
       ...this.links.map(module => `<link rel="import" href="${module}">`),
       ...this.scripts.map(module => `<script src="${module}"></script>`),
@@ -180,6 +182,7 @@ export default class Module extends JSParser {
         `<script\>${beautify([
           "(function () {",
           this.jsSrc.slice(0, this.classBodyPosition.start),
+          hasStatic ? `var ${this.className} = ${this.helperClassName ? `${this.helperClassName} = ` : ""}{};` : "",
           moduleSrc,
           this.jsSrc.slice(this.classBodyPosition.end + 1),
           "}());"
