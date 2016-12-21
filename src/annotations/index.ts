@@ -1,7 +1,21 @@
 import { capitalize } from "lodash";
+import { resolve } from "path";
 
 export function template({ propertiesMap, methodsMap, params }: AnnotationOptions) {
   return params.slice(1, params.length - 1);
+}
+
+export function style({ params, styles}: AnnotationOptions) {
+  let style = params.slice(1, -1);
+  if (style.endsWith(".css")) {
+    // styles.push(readFileSync(style).toString());
+    console.warn("TODO: implement remote style importing");
+  } else if (/[\w\d](-[\w\d])+/.test(style)) {
+    console.warn("TODO: implement shared-styles");
+  } else {
+    styles.push(style);
+    // console.log("direct style", style);
+  }
 }
 
 export function attr(...args);

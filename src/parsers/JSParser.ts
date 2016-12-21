@@ -49,6 +49,9 @@ export default class JSParser extends DTSParser {
       .replace(...this.removeExports())
       .replace(...this.getFieldDecorators())
       .replace(...this.getClassDecorators());
+
+    // since last check, source has been modified, so we need to find class body position again
+    this.findClassBody(this.isES6 ? 6 : 5);
   }
 
   /**
@@ -73,20 +76,23 @@ export default class JSParser extends DTSParser {
    *
    * @throws Error if no class was found
    */
-  findClassBody(): void {
-    let matchES5 = this.jsSrc.match(new RegExp(`var ${this.className} = (?:${this.className}[\\S]* = )?\\(function \\((?:_super)?\\) {`));
-    let matchES6 = this.jsSrc.match(new RegExp(`(?:let ${this.className} = (${this.className}[\\S]*) = )?class ${this.className}(?: extends .+?)? {`));
+  findClassBody(refreshWithESVersion?: number): void {
+    const patterns = {
+      5: new RegExp(`var ${this.className} = (?:${this.className}[\\S]* = )?\\(function \\((?:_super)?\\) {`),
+      6: new RegExp(`(?:let ${this.className} = (?:(${this.className}[\\S]*) = )?)?class ${this.className}(?: extends .+?)? {`)
+    };
 
     let start, end;
     let match;
 
-    if (matchES5) {
-      this.isES6 = false;
-      match = matchES5;
+    if (refreshWithESVersion) {
+      match = this.jsSrc.match(patterns[ refreshWithESVersion ]);
     }
-    else if (matchES6) {
+    else if ((match = this.jsSrc.match(patterns[ 5 ]))) {
+      this.isES6 = false;
+    }
+    else if ((match = this.jsSrc.match(patterns[ 6 ]))) {
       this.isES6 = true;
-      match = matchES6;
     }
     else {
       throw new Error("no class found");
@@ -128,7 +134,7 @@ export default class JSParser extends DTSParser {
    * @returns RegExp pattern and replacer function
    */
   getDefaultValues(): Replacer {
-    let testPrimitive = /(true|false|^".*"$|^'.*'$|^`.*`$|[\d.]+)/;
+    let testPrimitive = /^(null|undefined|true|false|".*"|'.*'|`.*`|[\d.ex+*-/]+)$/;
     if (this.properties.size === 0) {
       return [ /^$/, "" ];
     }

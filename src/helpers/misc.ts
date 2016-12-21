@@ -22,9 +22,9 @@ export function arrToObject(arr: Array<string>, value: any = true): any {
  *
  * @returns Built template string or empty string if params list is empty
  */
-export function nonEmpty(stringsArray: TemplateStringsArray, param: Array<string>): string {
+export function nonEmpty(stringsArray: TemplateStringsArray, param: Array<string>|string): string {
   if (param.length === 0) {
-    return "";
+    return null;
   }
   return stringsArray[ 0 ] + param + stringsArray[ 1 ];
 }

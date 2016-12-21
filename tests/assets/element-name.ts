@@ -3,7 +3,10 @@
 import "link!bower_components/polymer/polymer.html";
 import "link!node_modules/easy-polymer/dist/esp.html";
 
-@template("<h1>tester: [[test]]</h1>")
+@template('<h1 class="testing">tester: [[test]]</h1>')
+@style("h1 {color: red}")
+@style("style.css")
+@style("shared-style")
 export class ElementName {
   @attr greetings: Array<string>;
   readonly test: string = "tester";

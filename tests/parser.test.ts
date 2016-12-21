@@ -249,7 +249,9 @@ describe("parsers", () => {
       });
       it("should fetch annotations for class", () => {
         expect(elementNameMeta.annotations).to.have.deep.property("0.name", "template");
-        expect(elementNameMeta.annotations).to.have.deep.property("0.params", `"<h1>tester: [[test]]</h1>"`);
+        expect(elementNameMeta.annotations).to.have.deep.property("0.params", `'<h1 class="testing">tester: [[test]]</h1>'`);
+        expect(elementNameMeta.annotations).to.have.deep.property("1.name", "style");
+        expect(elementNameMeta.annotations).to.have.deep.property("1.params", `"h1 {color: red}"`);
 
         expect(inputMathMeta.annotations).to.have.deep.property("0.name", "template");
         expect(inputMathMeta.annotations).to.have.deep.property("0.params", `"<input>"`);

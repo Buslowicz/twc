@@ -1,0 +1,59 @@
+<link rel="import" href="bower_components/polymer/polymer.html">
+<link rel="import" href="node_modules/easy-polymer/dist/esp.html">
+<dom-module id="element-name">
+  <template>
+    <style>
+      h1 {color: red}
+    </style>
+    <h1 class="testing">tester: [[test]]</h1>
+  </template>
+  <script>
+    (function () {
+      /// <reference path="../../types/annotations.d.ts"/>
+      "use strict";
+
+      Polymer({
+        is: "element-name",
+        properties: {
+          greetings: {
+            type: Array,
+            reflectToAttribute: true,
+            observer: "observerAuto"
+          },
+          test: {
+            type: String,
+            value: "tester",
+            readOnly: true
+          },
+          profile: {
+            type: Object,
+            notify: true
+          },
+          computedProp: {
+            type: String,
+            computed: "_computeComputedprop(test)"
+          },
+          computedPropAuto: {
+            type: String,
+            computed: "_computeComputedpropauto(test)"
+          }
+        },
+        observers: [ "observer(profile.prop)" ],
+        observer: function (val) {
+          console.log("val:", val);
+        },
+        observerAuto: function (greetings) {
+          console.log("greetings:", greetings);
+        },
+        _computeComputedprop: function (val) {
+          console.log(val);
+          return val + "!";
+        },
+        _computeComputedpropauto: function (test) {
+          console.log("test:", test);
+          return test + "!";
+        }
+      });
+    }());
+  </script>
+</dom-module>

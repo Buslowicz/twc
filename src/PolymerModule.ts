@@ -6,29 +6,6 @@ import * as definedAnnotations from "./annotations";
 
 const beautify = require('beautify');
 
-// content => {
-//   let links = [];
-//   let scripts = [];
-//   content = content
-//     .toString()
-//     .replace(/require\(['"](link|script)!(.*?)['"]\);\n?/g, (m, type, module) => {
-//       switch (type) {
-//         case "link":
-//           links.push(module);
-//           break;
-//         case "script":
-//           scripts.push(module);
-//           break;
-//       }
-//       return "";
-//     });
-//   return Buffer.from(
-//     links.map(module => `<link rel="import" href="${module}">\n`).join("") +
-//     scripts.map(module => `<script src="${module}"></script>\n`).join("") +
-//     "<script>\n" + content + "\n</script>"
-//   );
-// }
-
 /**
  * Build a Polymer property config
  *
@@ -55,7 +32,7 @@ export function buildProperty([ name, config ]: [ string, PolymerPropertyConfig 
     }}`;
 }
 
-export function buildPropertiesMap(properties: FieldConfigMap, methods: FieldConfigMap): Map<string, PolymerPropertyConfig> {
+export function buildPropertiesMap(properties: FieldConfigMap, methods: FieldConfigMap, isES6: boolean = false): Map<string, PolymerPropertyConfig> {
   let propertiesMap: Map<string, PolymerPropertyConfig> = new Map();
   properties.forEach((config, name) => {
     if (config.static || config.private) {
@@ -66,7 +43,12 @@ export function buildPropertiesMap(properties: FieldConfigMap, methods: FieldCon
     };
 
     if (config.value) {
-      prop.value = config.value;
+      if (config.isPrimitive) {
+        prop.value = config.value;
+      }
+      else {
+        prop.value = isES6 ? `() => ${config.value}` : `function() { return ${config.value}; }`;
+      }
     }
     if (config.readonly) {
       prop.readOnly = config.readonly;
@@ -109,35 +91,51 @@ export default class Module extends JSParser {
    */
   buildPolymerV1() {
     let observers: Array<string> = [];
+    let styles: Array<string> = [];
 
     let { annotations, methods, properties } = this;
 
-    let propertiesMap = buildPropertiesMap(properties, methods);
+    let propertiesMap = buildPropertiesMap(properties, methods, this.isES6);
     let methodsMap = buildMethodsMap(methods, properties, propertiesMap, observers);
 
     let extrasMap = new Map<string, any>();
 
     annotations.forEach(({ name, params }) => {
-      extrasMap.set(name, definedAnnotations[ name ]({ propertiesMap, methodsMap, params }));
+      extrasMap.set(name, definedAnnotations[ name ]({ propertiesMap, methodsMap, params, styles }));
     });
+
+    const v1ToV0Lifecycles = {
+      constructor: "created",
+      connectedCallback: "attached",
+      disconnectedCallback: "detached",
+      attributeChangedCallback: "attributeChanged"
+    };
 
     return {
       methodsMap,
       propertiesMap,
       extrasMap,
+      styles,
       moduleSrc: `Polymer({${[
         `is:"${kebabCase(this.className)}"`,
         nonEmpty`properties:{${Array.from(propertiesMap).map(buildProperty)}}`,
         nonEmpty`observers:[${observers}]`,
-        ...Array.from(methodsMap.values()).map(({ name, body }) => `${name}:function${body}`)
-      ]}});`
+        ...Array.from(methodsMap.values()).map(({ name, body }) => {
+          if (name === "constructor") {
+            body = body
+              .replace(/(?:\n[\s]*)?super\(.*?\);/, "")
+              .replace(/var _this = _super\.call\(this(?:.*?)\) \|\| this;/, "var _this = this;");
+          }
+          return `${v1ToV0Lifecycles[ name ] || name}:function${body}`;
+        })
+      ].filter(chunk => !!chunk)}});`
     };
   }
 
   toString(polymerVersion = 1) {
-    let extrasMap, methodsMap, propertiesMap, moduleSrc;
+    let extrasMap, methodsMap, propertiesMap, moduleSrc, styles;
     if (polymerVersion === 1) {
-      ({ extrasMap, methodsMap, propertiesMap, moduleSrc } = this.buildPolymerV1());
+      ({ extrasMap, methodsMap, propertiesMap, moduleSrc, styles } = this.buildPolymerV1());
     }
     else if (polymerVersion === 2) {
       throw "not yet implemented";
@@ -147,8 +145,17 @@ export default class Module extends JSParser {
       ...this.links.map(module => `<link rel="import" href="${module}">`),
       ...this.scripts.map(module => `<script src="${module}"></script>`),
       `<dom-module id="${kebabCase(this.className)}">${[
-        ...[ extrasMap.get("template") ].filter(tpl => !!tpl).map(tpl => `<template>${tpl}</template>`),
-        `<script\>${beautify(moduleSrc, { format: "js" })}</script>`
+        nonEmpty`<template>${[
+          ...styles.map(style => `<style>${style}</style>`),
+          extrasMap.get("template"),
+        ].join("\n")}</template>`,
+        `<script\>${beautify([
+          "(function () {",
+          this.jsSrc.slice(0, this.classBodyPosition.start),
+          moduleSrc,
+          this.jsSrc.slice(this.classBodyPosition.end + 1),
+          "}());"
+        ].join("\n"), { format: "js" })}</script>`
       ].join("\n")}</dom-module>`
     ].join("\n"), { format: "html" });
   }
