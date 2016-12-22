@@ -6,6 +6,9 @@ var ElementName = (function () {
     function ElementName() {
         this.test = "tester";
     }
+    ElementName.staticTest = function () {
+        console.log("static");
+    };
     ElementName.prototype.observer = function (val) {
         console.log("val:", val);
     };

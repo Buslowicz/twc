@@ -1,4 +1,5 @@
-import { expect } from "chai";
+import { use, expect } from "chai";
+use(require("chai-string"));
 import { readFileSync } from "fs";
 import DTSParser from "../src/parsers/DTSParser";
 import JSParser from "../src/parsers/JSParser";
@@ -174,7 +175,7 @@ describe("parsers", () => {
       });
       it("should fetch list of methods", () => {
         expect(Array.from(elementNameMeta.methods.keys())).to.deep.equal([
-          "observer", "observerAuto", "computedProp", "computedPropAuto"
+          "staticTest", "observer", "observerAuto", "computedProp", "computedPropAuto"
         ]);
         expect(Array.from(inputMathMeta.methods.keys())).to.deep.equal([
           "constructor", "ready", "cmd", "undo", "valueChanged",
@@ -258,139 +259,139 @@ describe("parsers", () => {
       });
       it("should fetch method bodies", () => {
         expect(elementNameMeta.methods.get("constructor")).to.equal(undefined);
-        expect(elementNameMeta.methods.get("observer").body).to.equal([
-          "(val) {",
-          "        console.log(\"val:\", val);",
-          "    }"
-        ].join("\n"));
-        expect(elementNameMeta.methods.get("observerAuto").body).to.equal([
-          "(greetings) {",
-          "        console.log(\"greetings:\", greetings);",
-          "    }"
-        ].join("\n"));
-        expect(elementNameMeta.methods.get("computedProp").body).to.equal([
-          "(val) {",
-          "        console.log(val);",
-          "        return val + \"!\";",
-          "    }"
-        ].join("\n"));
-        expect(elementNameMeta.methods.get("computedPropAuto").body).to.equal([
-          "(test) {",
-          "        console.log(\"test:\", test);",
-          "        return test + \"!\";",
-          "    }"
-        ].join("\n"));
+        expect(elementNameMeta.methods.get("staticTest").body).to.be.equalIgnoreSpaces(`
+          () {
+            console.log("static");
+          }
+        `);
+        expect(elementNameMeta.methods.get("observer").body).to.be.equalIgnoreSpaces(`
+          (val) {
+            console.log("val:", val);
+          }
+        `);
+        expect(elementNameMeta.methods.get("observerAuto").body).to.be.equalIgnoreSpaces(`
+          (greetings) {
+            console.log("greetings:", greetings);
+          }
+        `);
+        expect(elementNameMeta.methods.get("computedProp").body).to.be.equalIgnoreSpaces(`
+          (val) {
+            console.log(val);
+            return val + "!";
+          }
+        `);
+        expect(elementNameMeta.methods.get("computedPropAuto").body).to.be.equalIgnoreSpaces(`
+          (test) {
+            console.log("test:", test);
+            return test + "!";
+          }
+        `);
 
-        expect(inputMathMeta.methods.get("constructor").body).to.be.oneOf([
-          [
-            "() {",
-            "        super();",
-            "        var editor = this._editor;",
-            "        editor.id = \"editor\";",
-            "        editor.classList.add(this.is);",
-            "        this[\"_mathField\"] = MathQuill.getInterface(2).MathField(editor, {",
-            "            spaceBehavesLikeTab: true,",
-            "            handlers: {",
-            "                edit: this._updateValue.bind(this)",
-            "            }",
-            "        });",
-            "    }"
-          ].join("\n"),
-          [
-            "() {",
-            "        var _this = _super.call(this) || this;",
-            "        var editor = _this._editor;",
-            "        editor.id = \"editor\";",
-            "        editor.classList.add(_this.is);",
-            "        _this[\"_mathField\"] = MathQuill.getInterface(2).MathField(editor, {",
-            "            spaceBehavesLikeTab: true,",
-            "            handlers: {",
-            "                edit: _this._updateValue.bind(_this)",
-            "            }",
-            "        });",
-            "        return _this;",
-            "    }"
-          ].join("\n")
-        ]);
+        expect(inputMathMeta.methods.get("constructor").body).to.be.equalIgnoreSpaces(
+          esVersion === 5 ? `() {
+            var _this = _super.call(this) || this;
+            var editor = _this._editor;
+            editor.id = \"editor\";
+            editor.classList.add(_this.is);
+            _this[\"_mathField\"] = MathQuill.getInterface(2).MathField(editor, {
+              spaceBehavesLikeTab: true,
+              handlers: {
+                edit: _this._updateValue.bind(_this)
+              }
+            });
+            return _this;
+          }` : `() {
+            super();
+            var editor = this._editor;
+            editor.id = \"editor\";
+            editor.classList.add(this.is);
+            this[\"_mathField\"] = MathQuill.getInterface(2).MathField(editor, {
+              spaceBehavesLikeTab: true,
+              handlers: {
+                edit: this._updateValue.bind(this)
+              }
+            });
+          }`
+        );
         expect(inputMathMeta.methods.get("ready").body)
-          .to.equal([
-          "() {",
-          "        this.insertBefore(this._editor, this.$.controls);",
-          "    }"
-        ].join("\n"));
+          .to.be.equalIgnoreSpaces(
+          `() {
+            this.insertBefore(this._editor, this.$.controls);
+          }`
+        );
         expect(inputMathMeta.methods.get("cmd").body)
-          .to.equal([
-          "(ev) {",
-          "        this._mathField.cmd(ev.model.item.cmd).focus();",
-          "    }"
-        ].join("\n"));
+          .to.be.equalIgnoreSpaces(
+          `(ev) {
+            this._mathField.cmd(ev.model.item.cmd).focus();
+          }`
+        );
         expect(inputMathMeta.methods.get("undo").body)
-          .to.equal([
-          "() {",
-          "        if (this._history && this._history.length > 0) {",
-          "            this._freezeHistory = true;",
-          "            this.value = this._history.pop();",
-          "            this._freezeHistory = false;",
-          "        }",
-          "    }"
-        ].join("\n"));
+          .to.be.equalIgnoreSpaces(
+          `() {
+            if (this._history && this._history.length > 0) {
+              this._freezeHistory = true;
+              this.value = this._history.pop();
+              this._freezeHistory = false;
+            }
+          }`
+        );
         expect(inputMathMeta.methods.get("valueChanged").body)
-          .to.equal([
-          "(value, prevValue) {",
-          "        this._updateHistory(prevValue);",
-          "        if (this._observerLocked) {",
-          "            return;",
-          "        }",
-          "        this._mathField.select().write(value);",
-          "        if (this._mathField.latex() === \"\") {",
-          "            this.undo();",
-          "        }",
-          "    }"
-        ].join("\n"));
+          .to.be.equalIgnoreSpaces(
+          `(value, prevValue) {
+            this._updateHistory(prevValue);
+            if (this._observerLocked) {
+              return;
+            }
+            this._mathField.select().write(value);
+            if (this._mathField.latex() === \"\") {
+              this.undo();
+            }
+          }`
+        );
         expect(inputMathMeta.methods.get("symbolsChanged").body
           .replace(/InputMath_1/, "InputMath")
           .replace(/groupName => {/, "function (groupName) {"))
-          .to.equal([
-          "(symbols) {",
-          "        if (symbols) {",
-          "            this.symbols = symbols.split(\",\").map(function (groupName) {",
-          "                return InputMath[\"SYMBOLS_\" + groupName.toUpperCase()] || [];",
-          "            });",
-          "        }",
-          "    }"
-        ].join("\n"));
+          .to.be.equalIgnoreSpaces(
+          `(symbols) {
+            if (symbols) {
+              this.symbols = symbols.split(\",\").map(function (groupName) {
+                return InputMath[\"SYMBOLS_\" + groupName.toUpperCase()] || [];
+              });
+            }
+          }`
+        );
         expect(inputMathMeta.methods.get("keyShortcuts").body)
-          .to.equal([
-          "(ev) {",
-          "        if (ev.ctrlKey && ev.keyCode === 90) {",
-          "            this.undo();",
-          "        }",
-          "    }"
-        ].join("\n"));
+          .to.be.equalIgnoreSpaces(
+          `(ev) {
+            if (ev.ctrlKey && ev.keyCode === 90) {
+              this.undo();
+            }
+          }`
+        );
         expect(inputMathMeta.methods.get("_updateValue").body)
-          .to.equal([
-          "(test) {",
-          "        console.log(test);",
-          "        this._observerLocked = true;",
-          "        this.value = this._mathField.latex();",
-          "        this._observerLocked = false;",
-          "    }"
-        ].join("\n"));
+          .to.be.equalIgnoreSpaces(
+          `(test) {
+            console.log(test);
+            this._observerLocked = true;
+            this.value = this._mathField.latex();
+            this._observerLocked = false;
+          }`
+        );
         expect(inputMathMeta.methods.get("_updateHistory").body.replace(/InputMath_1/, "InputMath"))
-          .to.equal([
-          "(prevValue) {",
-          "        if (!this._history) {",
-          "            this._history = [];",
-          "        }",
-          "        if (this._freezeHistory || prevValue == null) {",
-          "            return;",
-          "        }",
-          "        this._history.push(prevValue);",
-          "        if (this._history.length > InputMath.HISTORY_SIZE) {",
-          "            this._history.shift();",
-          "        }",
-          "    }"
-        ].join("\n"));
+          .to.be.equalIgnoreSpaces(
+          `(prevValue) {
+            if (!this._history) {
+              this._history = [];
+            }
+            if (this._freezeHistory || prevValue == null) {
+              return;
+            }
+            this._history.push(prevValue);
+            if (this._history.length > InputMath.HISTORY_SIZE) {
+              this._history.shift();
+            }
+          }`
+        );
       });
     }
   }

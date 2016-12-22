@@ -6,6 +6,9 @@ let ElementName = class ElementName {
     constructor() {
         this.test = "tester";
     }
+    static staticTest() {
+        console.log("static");
+    }
     observer(val) {
         console.log("val:", val);
     }

@@ -40,6 +40,7 @@ export function buildPropertiesMap(properties: FieldConfigMap, methods: FieldCon
     if (config.static || config.private) {
       return;
     }
+
     let prop: PolymerPropertyConfig = {
       type: config.type
     };
@@ -66,7 +67,7 @@ export function buildPropertiesMap(properties: FieldConfigMap, methods: FieldCon
   return propertiesMap;
 }
 
-export function buildMethodsMap(methods: FieldConfigMap, properties: FieldConfigMap, propertiesMap: Map<string, PolymerPropertyConfig>, observers: Array<string>) {
+export function buildMethodsMap(methods: FieldConfigMap, properties: FieldConfigMap, propertiesMap: Map<string, PolymerPropertyConfig>, observers: Array<string>): FieldConfigMap {
   let methodsMap: FieldConfigMap = new Map();
   methods.forEach((config, name) => {
     let method = Object.assign({}, config);
@@ -94,7 +95,12 @@ export default class Module extends JSParser {
    *
    * @returns String representation of polymer component declaration
    */
-  buildPolymerV1() {
+  buildPolymerV1(): {
+    methodsMap: FieldConfigMap;
+    propertiesMap: Map<string, PolymerPropertyConfig>;
+    extrasMap: Map<string, any>;
+    moduleSrc: string;
+  } {
     let observers: Array<string> = [];
     let styles: Array<{ type: "link"|"shared"|"inline", style: string }> = [];
 
@@ -121,28 +127,43 @@ export default class Module extends JSParser {
       attributeChangedCallback: "attributeChanged"
     };
 
+    let helperName = this.helperClassName ? ` = ${this.helperClassName}` : "";
+
+    const filterEmpty = chunk => !!chunk;
+
     return {
       methodsMap,
       propertiesMap,
       extrasMap,
-      moduleSrc: `Polymer({${[
-        `is:"${kebabCase(this.className)}"`,
-        nonEmpty`properties:{${Array.from(propertiesMap).map(buildProperty)}}`,
-        nonEmpty`observers:[${observers}]`,
-        ...Array.from(methodsMap.values()).map(({ name, body }) => {
-          if (name === "constructor") {
-            body = body
-              .replace(/(?:\n[\s]*)?super\(.*?\);/, "")
-              .replace(/var _this = _super\.call\(this(?:.*?)\) \|\| this;/, "var _this = this;");
-          }
-          return `${v1ToV0Lifecycles[ name ] || name}:function${body}`;
+      moduleSrc: [
+        `${this.isES6 ? "const" : "var"} ${this.className}${helperName} = Polymer({`,
+        [
+          `is:"${kebabCase(this.className)}"`,
+          nonEmpty`properties:{${Array.from(propertiesMap).map(buildProperty)}}`,
+          nonEmpty`observers:[${observers}]`,
+          ...Array.from(methodsMap.values()).filter(config => !config.static).map(({ name, body }) => {
+            if (name === "constructor") {
+              body = body
+                .replace(/(?:\n[\s]*)?super\(.*?\);/, "")
+                .replace(/var _this = _super\.call\(this(?:.*?)\) \|\| this;/, "var _this = this;");
+            }
+            return `${v1ToV0Lifecycles[ name ] || name}:function${body}`;
+          }),
+        ].filter(filterEmpty).join(","),
+        `});`,
+        ...Array.from(methodsMap.values()).filter(config => config.static).map(({ name, body }) => {
+          return `${this.className}.${v1ToV0Lifecycles[ name ] || name} = function${body};`;
         })
-      ].filter(chunk => !!chunk)}});`
+      ].filter(filterEmpty).join("\n")
     };
   }
 
   toString(polymerVersion = 1) {
-    let extrasMap, methodsMap, propertiesMap, moduleSrc;
+    let methodsMap: FieldConfigMap;
+    let propertiesMap: Map<string, PolymerPropertyConfig>;
+    let extrasMap: Map<string, any>;
+    let moduleSrc: string;
+
     if (polymerVersion === 1) {
       ({ extrasMap, methodsMap, propertiesMap, moduleSrc } = this.buildPolymerV1());
     }
@@ -159,8 +180,6 @@ export default class Module extends JSParser {
           return template;
       }
     })(extrasMap.get("template"));
-
-    let hasStatic = Array.from(this.properties.values()).filter(prop => prop.static).length > 0;
 
     return beautify([
       ...this.links.map(module => `<link rel="import" href="${module}">`),
@@ -182,7 +201,6 @@ export default class Module extends JSParser {
         `<script\>${beautify([
           "(function () {",
           this.jsSrc.slice(0, this.classBodyPosition.start),
-          hasStatic ? `var ${this.className} = ${this.helperClassName ? `${this.helperClassName} = ` : ""}{};` : "",
           moduleSrc,
           this.jsSrc.slice(this.classBodyPosition.end + 1),
           "}());"

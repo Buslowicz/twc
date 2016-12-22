@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "experimentalDecorators": true,
+    "sourceMap": true,
     "target": "es6",
     "pretty": true,
     "module": "commonjs",

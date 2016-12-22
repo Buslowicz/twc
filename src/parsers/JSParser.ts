@@ -172,7 +172,7 @@ export default class JSParser extends DTSParser {
     return [
       this.isES6
         ? new RegExp(`((${methodsList}))\\(.*?\\) {`, "g")
-        : new RegExp(`(${this.className}.prototype.(${methodsList}) = function ?)\\(.*?\\) {`, "g"),
+        : new RegExp(`(${this.className}(?:.prototype)?.(${methodsList}) = function ?)\\(.*?\\) {`, "g"),
       (_, boiler, name, index, jsSrc) => {
         let end = findClosing(jsSrc, jsSrc.indexOf("{", <any> index + boiler.length - 1), "{}");
         this.methods.get(name).body = jsSrc.slice(<any> index + boiler.length, end + 1).trim();

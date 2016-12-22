@@ -12,6 +12,10 @@ export class ElementName {
   readonly test: string = "tester";
   @notify profile: any;
 
+  static staticTest() {
+    console.log("static");
+  }
+
   @observe("profile.prop") observer(val: string) {
     console.log("val:", val);
   }

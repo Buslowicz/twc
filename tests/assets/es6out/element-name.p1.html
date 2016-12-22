@@ -20,7 +20,7 @@
       /// <reference path="../../types/annotations.d.ts"/>
       "use strict";
 
-      Polymer({
+      const ElementName = Polymer({
         is: "element-name",
         properties: {
           greetings: {
@@ -62,6 +62,10 @@
           return test + "!";
         }
       });
+
+      ElementName.staticTest = function() {
+        console.log("static");
+      };
     }());
   </script>
 </dom-module>
