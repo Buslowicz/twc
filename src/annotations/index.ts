@@ -27,6 +27,10 @@ export function style({ params, styles }: AnnotationOptions) {
   styles.push({ style, type });
 }
 
+export function behavior({ params, behaviors }: AnnotationOptions) {
+  behaviors.push(params);
+}
+
 export function attr(...args);
 export function attr({ prop }: AnnotationOptions) {
   prop.reflectToAttribute = true;

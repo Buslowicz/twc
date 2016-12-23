@@ -18,6 +18,7 @@ declare interface AnnotationOptions {
   propertiesMap?: Map<string, PolymerPropertyConfig>;
   methodsMap?: FieldConfigMap;
   observers?: Array<string>;
+  behaviors?: Array<string>;
   styles?: Array<{ type: "link"|"shared"|"inline", style: string }>;
   method?: FieldConfig;
   prop?: PolymerPropertyConfig;

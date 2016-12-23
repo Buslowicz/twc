@@ -2,6 +2,11 @@
 "use strict";
 require("link!bower_components/polymer/polymer.html");
 require("link!node_modules/easy-polymer/dist/esp.html");
+const MyBehavior = {
+    test() {
+        console.log("behavior test");
+    }
+};
 let ElementName = class ElementName {
     constructor() {
         this.test = "tester";
@@ -46,6 +51,7 @@ ElementName = __decorate([
     template("template.element-name.html"),
     style("h1 {color: red;}"),
     style("style.css"),
-    style("shared-style")
+    style("shared-style"),
+    behavior(MyBehavior)
 ], ElementName);
 exports.ElementName = ElementName;
