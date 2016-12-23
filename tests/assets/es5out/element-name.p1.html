@@ -20,6 +20,12 @@
       /// <reference path="../../types/annotations.d.ts"/>
       "use strict";
 
+      var MyBehavior = {
+        test: function () {
+          console.log("behavior test");
+        }
+      };
+
       var ElementName = Polymer({
         is: "element-name",
         properties: {
@@ -47,6 +53,7 @@
           }
         },
         observers: [ "observer(profile.prop)" ],
+        behaviors: [ MyBehavior ],
         observer: function (val) {
           console.log("val:", val);
         },
@@ -63,7 +70,7 @@
         }
       });
 
-      ElementName.staticTest = function() {
+      ElementName.staticTest = function () {
         console.log("static");
       };
     }());

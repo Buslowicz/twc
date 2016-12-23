@@ -102,6 +102,7 @@ export default class Module extends JSParser {
     moduleSrc: string;
   } {
     let observers: Array<string> = [];
+    let behaviors: Array<string> = [];
     let styles: Array<{ type: "link"|"shared"|"inline", style: string }> = [];
 
     let { annotations, methods, properties } = this;
@@ -112,7 +113,7 @@ export default class Module extends JSParser {
     let extrasMap = new Map<string, any>();
 
     annotations.forEach(({ name, params }) => {
-      let annotation = definedAnnotations[ name ]({ propertiesMap, methodsMap, params, styles });
+      let annotation = definedAnnotations[ name ]({ propertiesMap, methodsMap, params, styles, behaviors });
       if (annotation !== undefined) {
         extrasMap.set(name, annotation);
       }
@@ -141,6 +142,7 @@ export default class Module extends JSParser {
           `is:"${kebabCase(this.className)}"`,
           nonEmpty`properties:{${Array.from(propertiesMap).map(buildProperty)}}`,
           nonEmpty`observers:[${observers}]`,
+          nonEmpty`behaviors:[${behaviors}]`,
           ...Array.from(methodsMap.values()).filter(config => !config.static).map(({ name, body }) => {
             if (name === "constructor") {
               body = body
