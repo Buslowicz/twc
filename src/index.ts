@@ -23,16 +23,14 @@ const defaultProjectConfig = {
   ]
 };
 
-const filterTS = through2.obj((file, enc, next) => file.path.endsWith(".ts") ? next(null, file) : next());
-const filterNonTS = through2.obj((file, enc, next) => file.path.endsWith(".ts") ? next() : next(null, file));
-
 function ts2html(input) {
   let map: Map<string, FilePair> = new Map<string, FilePair>();
   let tsStream: ReadWriteStream & { js: ReadWriteStream; dts: ReadWriteStream } = input
-    .pipe(filterTS)
+    .pipe(through2.obj((file, enc, next) => file.path.endsWith(".ts") ? next(null, file) : next()))
     .pipe(createProject(Object.assign({ removeComments: true }, defaultProjectConfig))());
 
-  let nonTsStream: ReadWriteStream = input.pipe(filterNonTS);
+  let nonTsStream: ReadWriteStream = input
+    .pipe(through2.obj((file, enc, next) => file.path.endsWith(".ts") ? next() : next(null, file)));
 
   return merge([
     nonTsStream,
