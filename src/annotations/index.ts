@@ -13,12 +13,12 @@ export function template({ params }: AnnotationOptions) {
 }
 
 export function style({ params, styles }: AnnotationOptions) {
-  let style = params.slice(1, -1);
+  let style = params.slice(1, -1).trim();
   let type;
   if (style.endsWith(".css")) {
     type = "link";
   }
-  else if (/[\w\d](-[\w\d])+/.test(style)) {
+  else if (/^[\w\d]+(-[\w\d]+)+$/.test(style)) {
     type = "shared";
   }
   else {
