@@ -73,6 +73,6 @@ declare interface JSParserOptions {
   allowDecorators?: boolean;
 }
 declare interface FilePair {
-  js?: File & { contents: Buffer };
-  ts?: File & { contents: Buffer };
+  js?: File & { contents: Buffer; path: string; };
+  ts?: File & { contents: Buffer; path: string; };
 }
