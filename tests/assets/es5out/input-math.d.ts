@@ -1,5 +1,4 @@
 /// <reference path="../types.d.ts" />
-/// <reference path="../../../types/annotations.d.ts" />
 import "script!bower_components/jquery/jquery.js";
 import "script!bower_components/mathquill/mathquill.js";
 export interface ICmd {

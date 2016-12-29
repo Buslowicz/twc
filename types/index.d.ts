@@ -68,20 +68,11 @@ declare interface PolymerPropertyConfig {
   computed?: string;
   observer?: string;
 }
-declare interface DTSParsedData {
-  className: string;
-  parent: string;
-  properties: FieldConfigMap;
-  methods: FieldConfigMap;
-}
-declare interface JSParsedData {
-  generatedName: string;
-  decorators: Array<Decorator>;
-  annotations: Array<Decorator>;
-  src: string;
-  classBody: Array<number>;
-}
 declare interface JSParserOptions {
   polymerVersion?: number;
   allowDecorators?: boolean;
+}
+declare interface FilePair {
+  js?: File & { contents: Buffer };
+  ts?: File & { contents: Buffer };
 }

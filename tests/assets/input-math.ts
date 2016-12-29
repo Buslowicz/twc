@@ -1,5 +1,5 @@
 /// <reference path="./types.d.ts"/>
-/// <reference path="../../types/annotations.d.ts"/>
+import { template, attr, notify, observe } from "../../annotations/polymer";
 
 import "script!bower_components/jquery/jquery.js";
 import "script!bower_components/mathquill/mathquill.js";

@@ -114,15 +114,13 @@ export default class JSParser extends DTSParser {
 
   getImports(): Replacer {
     return [
-      /(?:require|import) ?\(?['"](link|script)!(.*?)['"]\)?;\n?/g,
-      (m, type, module) => {
-        switch (type) {
-          case "link":
-            this.links.push(module);
-            break;
-          case "script":
-            this.scripts.push(module);
-            break;
+      /(?:(var|const) \S+ = )?(?:require|import) ?\(?['"](.*?)['"]\)?;\n?/g,
+      (m, v, module) => {
+        if (module.startsWith("link!")) {
+          this.links.push(module.substr(5));
+        }
+        else if (module.startsWith("script!")) {
+          this.scripts.push(module.substr(7));
         }
         return "";
       }
@@ -218,9 +216,10 @@ export default class JSParser extends DTSParser {
           let decor = decors[ i ];
           let ptr = decor.indexOf("(");
           let [ name, params = undefined ] = ptr !== -1 ? [
-              decor.slice(0, ptr),
+              decor.slice(0, ptr).split(".").slice(-1)[ 0 ],
               decor.slice(ptr + 1, decor.length - 1)
-            ] : [ decor ];
+            ] : [ decor.split(".").slice(-1)[ 0 ] ];
+
           if (name in definedAnnotations) {
             usedAnnotations.push({ name, params, descriptor, src: decor });
           }
@@ -262,9 +261,10 @@ export default class JSParser extends DTSParser {
           let decor = decors[ i ];
           let ptr = decor.indexOf("(");
           let [ name, params = undefined ] = ptr !== -1 ? [
-              decor.slice(0, ptr),
+              decor.slice(0, ptr).split(".").slice(-1)[ 0 ],
               decor.slice(ptr + 1, decor.length - 1)
-            ] : [ decor ];
+            ] : [ decor.split(".").slice(-1)[ 0 ] ];
+
           if (name in definedAnnotations) {
             this.annotations.push({ name, params, src: decor });
           }
