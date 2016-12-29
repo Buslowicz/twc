@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "declaration": true,
+    "noEmitHelpers": true,
+    "sourceMap": false,
+    "target": "es5",
+    "module": "commonjs",
+    "lib": [
+      "dom",
+      "es6"
+    ]
+  }
+}

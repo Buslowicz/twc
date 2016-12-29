@@ -1,5 +1,5 @@
-/// <reference path="../../types/annotations.d.ts"/>
 "use strict";
+const polymer_1 = require("../../annotations/polymer");
 require("link!bower_components/polymer/polymer.html");
 require("link!node_modules/easy-polymer/dist/esp.html");
 const MyBehavior = {
@@ -30,28 +30,28 @@ let ElementName = class ElementName {
     }
 };
 __decorate([
-    attr
+    polymer_1.attr
 ], ElementName.prototype, "greetings", void 0);
 __decorate([
-    notify
+    polymer_1.notify
 ], ElementName.prototype, "profile", void 0);
 __decorate([
-    observe("profile.prop")
+    polymer_1.observe("profile.prop")
 ], ElementName.prototype, "observer", null);
 __decorate([
-    observe
+    polymer_1.observe
 ], ElementName.prototype, "observerAuto", null);
 __decorate([
-    computed("test")
+    polymer_1.computed("test")
 ], ElementName.prototype, "computedProp", null);
 __decorate([
-    computed
+    polymer_1.computed
 ], ElementName.prototype, "computedPropAuto", null);
 ElementName = __decorate([
-    template("template.element-name.html"),
-    style("h1 {color: red;}"),
-    style("style.css"),
-    style("shared-style"),
-    behavior(MyBehavior)
+    polymer_1.template("template.element-name.html"),
+    polymer_1.style("h1 {color: red;}"),
+    polymer_1.style("style.css"),
+    polymer_1.style("shared-style"),
+    polymer_1.behavior(MyBehavior)
 ], ElementName);
 exports.ElementName = ElementName;

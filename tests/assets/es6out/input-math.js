@@ -1,6 +1,6 @@
-/// <reference path="./types.d.ts"/>
-/// <reference path="../../types/annotations.d.ts"/>
 "use strict";
+/// <reference path="./types.d.ts"/>
+const polymer_1 = require("../../annotations/polymer");
 require("script!bower_components/jquery/jquery.js");
 require("script!bower_components/mathquill/mathquill.js");
 let InputMath = InputMath_1 = class InputMath extends Polymer.Element {
@@ -109,23 +109,23 @@ InputMath.SYMBOLS_PHYSICS = [
     { cmd: "\\phi", name: "ᶲ", className: "big" }
 ];
 __decorate([
-    attr
+    polymer_1.attr
 ], InputMath.prototype, "value", void 0);
 __decorate([
-    notify
+    polymer_1.notify
 ], InputMath.prototype, "symbols", void 0);
 __decorate([
-    observe("value")
+    polymer_1.observe("value")
 ], InputMath.prototype, "valueChanged", null);
 __decorate([
-    observe("showSymbols")
+    polymer_1.observe("showSymbols")
 ], InputMath.prototype, "symbolsChanged", null);
 __decorate([
     listen("keydown")
 ], InputMath.prototype, "keyShortcuts", null);
 InputMath = InputMath_1 = __decorate([
     component("input-math"),
-    template("<input>")
+    polymer_1.template("<input>")
 ], InputMath);
 exports.InputMath = InputMath;
 var InputMath_1;

@@ -1,3 +1,6 @@
+import "typescript/lib/typescriptServices";
+import { join, parse } from "path";
+import { existsSync } from "fs";
 import { createProject } from "gulp-typescript";
 import * as through2 from "through2";
 import * as merge from "merge2";
@@ -5,29 +8,37 @@ import * as File from "vinyl";
 import Module from "./PolymerModule";
 import ReadWriteStream = NodeJS.ReadWriteStream;
 
-interface FilePair {
-  js?: File & { contents: Buffer };
-  ts?: File & { contents: Buffer };
+function getFullConfig(path: string, override?: ts.CompilerOptions): ts.CompilerOptions {
+  let config = require(path);
+  let co = config.compilerOptions;
+  if (config.extends) {
+    co = getFullConfig(join(parse(path).dir, config.extends), co);
+  }
+  return Object.assign(co, override);
 }
 
-const defaultProjectConfig = {
-  experimentalDecorators: true,
-  declaration: true,
-  noEmitHelpers: true,
-  sourceMap: false,
-  target: "es6",
-  module: "commonjs",
-  lib: [
-    "dom",
-    "es6"
-  ]
-};
+const { 1: polymerVersion = 1 } = require(join(process.cwd(), "bower.json"))
+  .dependencies
+  .polymer
+  .match(/#[\D]*(\d)(?:\.\d)+/) || {};
+
+const projectTSConfigPath = join(process.cwd(), "tsconfig.json");
+
+const tsConfig = Object.assign(
+  getFullConfig(existsSync(projectTSConfigPath) ? projectTSConfigPath : join(__dirname, "config.json")),
+  {
+    typescript: require("typescript"),
+    noEmit: false,
+    declaration: true
+  },
+  Number(polymerVersion) === 2 ? { target: "es6" } : null
+);
 
 function ts2html(input) {
   let map: Map<string, FilePair> = new Map<string, FilePair>();
   let tsStream: ReadWriteStream & { js: ReadWriteStream; dts: ReadWriteStream } = input
     .pipe(through2.obj((file, enc, next) => file.path.endsWith(".ts") ? next(null, file) : next()))
-    .pipe(createProject(Object.assign({ removeComments: true }, defaultProjectConfig))());
+    .pipe(createProject(tsConfig)());
 
   let nonTsStream: ReadWriteStream = input
     .pipe(through2.obj((file, enc, next) => file.path.endsWith(".ts") ? next() : next(null, file)));
@@ -55,7 +66,8 @@ function ts2html(input) {
           this.push(pair.ts);
           this.push(new File({
             path, cwd: file.cwd, base: file.base,
-            contents: new Module(file.base, pair.ts.contents.toString(), pair.js.contents.toString()).toBuffer()
+            contents: new Module(file.base, pair.ts.contents.toString(), pair.js.contents.toString())
+              .toBuffer(Number(polymerVersion))
           }));
         }
         next();

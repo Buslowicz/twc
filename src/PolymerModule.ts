@@ -170,14 +170,14 @@ export default class Module extends JSParser {
       ({ extrasMap, methodsMap, propertiesMap, moduleSrc } = this.buildPolymerV1());
     }
     else if (polymerVersion === 2) {
-      throw "not yet implemented";
+      throw "Polymer 2 output is not yet implemented. For more info see https://github.com/Draccoz/twc/issues/16";
     }
 
     let styles = extrasMap.get("styles");
     let template = (({ template, type }) => {
       switch (type) {
         case "link":
-          return readFileSync(join(this.base, template));
+          return readFileSync(join(this.base, template)).toString();
         case "inline":
           return template;
       }
@@ -193,12 +193,15 @@ export default class Module extends JSParser {
               case "link":
                 return `<style>${readFileSync(join(this.base, style))}</style>`;
               case "inline":
+                if (!this.isES6) {
+                  style = style.replace(/\\n/g, "\n").replace(/\\"/g, '"');
+                }
                 return `<style>${style}</style>`;
               case "shared":
                 return `<style include="${style}"></style>`;
             }
           }),
-          template,
+          this.isES6 ? template : template.replace(/\\n/g, "\n").replace(/\\"/g, '"'),
         ].join("\n")}</template>`,
         `<script\>${beautify([
           "(function () {",
