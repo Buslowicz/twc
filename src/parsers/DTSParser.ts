@@ -1,5 +1,5 @@
 import { goTo, regExpClosestIndexOf, findClosing } from "../helpers/source-crawlers";
-import { arrToObject } from '../helpers/misc';
+import { arrToObject } from "../helpers/misc";
 
 const deprecationNotice = (legacy, native) => `\`${legacy}\` callback is deprecated. Please use \`${native}\` instead`;
 const TYPES = {
@@ -23,7 +23,7 @@ const TYPES = {
  * @returns name and array of property/method modifiers
  */
 export function getPropertyNoType(src: string, from: number = 0, to: number = src.indexOf(";")): PropertyConfig {
-  let [...modifiers] = src.slice(from, to).split(" ");
+  let [ ...modifiers ] = src.slice(from, to).split(" ");
   let name = modifiers.pop();
   return { name, modifiers };
 }
@@ -99,17 +99,17 @@ export function getType(src: string, offset: number = 0): FoundType {
     }
   }
 
-  type = types.reduce((type, result) => {
-    if (result === TYPES.OBJECT || !type) {
+  type = types.reduce((current, result) => {
+    if (result === TYPES.OBJECT || !current) {
       return result;
     }
     if (TYPES.IS_IGNORED(result)) {
-      return type;
+      return current;
     }
-    if (result !== type) {
+    if (result !== current) {
       return TYPES.OBJECT;
     }
-    return type;
+    return current;
   }, null);
   if (TYPES.IS_PRIMITIVE(type)) {
     type = `${type.charAt(0).toUpperCase()}${type.substr(1)}`;
@@ -163,7 +163,10 @@ export function parseParams(src: string, from: number = 0, to: number = src.leng
  *
  * @returns Field configuration object
  */
-export function buildFieldConfig(modifiers: Array<string>, name: string, params?: Array<ParamConfig>, type?: string): FieldConfig {
+export function buildFieldConfig(modifiers: Array<string>,
+                                 name: string,
+                                 params?: Array<ParamConfig>,
+                                 type?: string): FieldConfig {
   let config: FieldConfig = { name };
   if (params) {
     config.params = params;
@@ -201,7 +204,7 @@ export default class DTSParser {
     let start = match.index + match[ 0 ].length;
 
     for (let ptr = start, end = src.length, char = src.charAt(ptr); ptr < end; char = src.charAt(++ptr)) {
-      let params, match;
+      let params, found;
       // skip whitespace
       let from = ptr = goTo(src, /\S/, ptr);
 
@@ -211,13 +214,13 @@ export default class DTSParser {
       }
 
       // find next stop (semicolon for the end of line, colon for end of prop name, parenthesis for end of method name
-      ({ index: ptr, found: match } = regExpClosestIndexOf(src, /;|:|\(/, ptr));
+      ({ index: ptr, found } = regExpClosestIndexOf(src, /;|:|\(/, ptr));
 
       // get name and modifiers
       let { name, modifiers } = getPropertyNoType(src, from, ptr);
 
       // method
-      if (match === "(") {
+      if (found === "(") {
         // find end of parameters declaration
         let end = findClosing(src, ptr, "()");
 
@@ -234,7 +237,7 @@ export default class DTSParser {
         }
       }
       // no type property
-      else if (match === ";") {
+      else if (found === ";") {
         this.properties.set(name, buildFieldConfig(modifiers, name));
         continue;
       }
@@ -250,7 +253,7 @@ export default class DTSParser {
       }
     }
 
-    /********** check for lifecycle methods validity **********/
+    /* ********* check for lifecycle methods validity ********* */
     if (this.methods.has("created")) {
       throw new Error(deprecationNotice("created", "constructor"));
     }

@@ -1,7 +1,7 @@
 import { findClosing, split } from "../helpers/source-crawlers";
 
 import * as definedAnnotations from "../annotations";
-import DTSParser from './DTSParser';
+import DTSParser from "./DTSParser";
 
 export default class JSParser extends DTSParser {
   public helperClassName: string;
@@ -24,10 +24,10 @@ export default class JSParser extends DTSParser {
     this.jsSrc = js;
     Object.assign(this.options, options);
 
-    /********** get class body position **********/
+    /* ********* get class body position ********* */
     this.findClassBody();
 
-    /********** get constructor position **********/
+    /* ********* get constructor position ********* */
     const { start, end } = this.findConstructor();
 
     let constructor;
@@ -37,14 +37,19 @@ export default class JSParser extends DTSParser {
         .replace(...this.getDefaultValues());
     }
 
-    this.jsSrc = this.jsSrc.slice(0, start) + (this.isES6 ? `constructor` : `function ${this.className}`) + constructor.body + this.jsSrc.slice(end + 1);
+    this.jsSrc = [
+      this.jsSrc.slice(0, start),
+      (this.isES6 ? `constructor` : `function ${this.className}`),
+      constructor.body,
+      this.jsSrc.slice(end + 1)
+    ].join("");
 
-    /********** get method bodies **********/
+    /* ********* get method bodies ********* */
     this.jsSrc = (<any> this.jsSrc)
       .replace(...this.getImports())
       .replace(...this.getMethodBodies())
 
-      /********** get decorators and remove them if needed **********/
+      /* ********* get decorators and remove them if needed ********* */
       .replace(...this.removeExtend())
       .replace(...this.removeExports())
       .replace(...this.getFieldDecorators())
@@ -147,7 +152,7 @@ export default class JSParser extends DTSParser {
         let config = this.properties.get(name);
         config.value = value;
         config.isPrimitive = testPrimitive.test(value);
-        return ""
+        return "";
       }
     ];
   }
@@ -190,11 +195,11 @@ export default class JSParser extends DTSParser {
     ];
   }
 
-  //noinspection JSMethodCanBeStatic
+  // noinspection JSMethodCanBeStatic
   removeExports(): Replacer {
     return [
       /exports\.[\S]+ = [\S]+?;/, ""
-    ]
+    ];
   }
 
   /**
@@ -205,7 +210,7 @@ export default class JSParser extends DTSParser {
   getFieldDecorators(): Replacer {
     return [
       new RegExp(`[\\s]*__decorate\\(\\[([\\W\\w]*?)], (${this.className}\\.prototype), "(.*?)", (.*?)\\);`, "g"),
-      (_, definition, proto, name, descriptor) => {
+      (_, definition, proto, propName, descriptor) => {
         let usedDecorators: Array<Decorator> = [];
         let usedAnnotations: Array<Decorator> = [];
 
@@ -228,7 +233,7 @@ export default class JSParser extends DTSParser {
           }
         }
 
-        let config = this.methods.get(name) || this.properties.get(name);
+        let config = this.methods.get(propName) || this.properties.get(propName);
         if (usedDecorators.length > 0) {
           config.decorators = usedDecorators;
         }
@@ -239,7 +244,7 @@ export default class JSParser extends DTSParser {
         if (!this.options.allowDecorators || usedDecorators.length === 0) {
           return "";
         }
-        return `\n__decorate([${usedDecorators.map(n => n.src).toString()}], ${proto}, "${name}", ${descriptor});`
+        return `\n__decorate([${usedDecorators.map(n => n.src).toString()}], ${proto}, "${propName}", ${descriptor});`;
       }
     ];
   }
@@ -283,7 +288,7 @@ export default class JSParser extends DTSParser {
           this.helperClassName = "";
         }
         return `\n${this.className} = ${this.helperClassName}__decorate([${this.decorators.map(n => n.src)
-          .toString()}], ${this.className});`
+          .toString()}], ${this.className});`;
       }
     ];
   }

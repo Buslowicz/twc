@@ -57,7 +57,6 @@ describe("parsers", () => {
         { name: "value", type: "String" },
         { name: "symbols", type: "Array" },
         { name: "showSymbols", type: "String" },
-        { name: "fn", type: "Function" },
         { name: "_history", "private": true },
         { name: "_mathField", "private": true },
         { name: "_observerLocked", "private": true },
@@ -170,7 +169,7 @@ describe("parsers", () => {
         expect(Array.from(elementNameMeta.properties.keys())).to.deep.equal([ "greetings", "test", "profile" ]);
         expect(Array.from(inputMathMeta.properties.keys())).to.deep.equal([
           "HISTORY_SIZE", "SYMBOLS_BASIC", "SYMBOLS_GREEK", "SYMBOLS_PHYSICS", "testValue", "value", "symbols",
-          "showSymbols", "fn", "_history", "_mathField", "_observerLocked", "_freezeHistory", "_editor"
+          "showSymbols", "_history", "_mathField", "_observerLocked", "_freezeHistory", "_editor"
         ]);
       });
       it("should fetch list of methods", () => {
@@ -191,7 +190,6 @@ describe("parsers", () => {
         InputMath_1.SYMBOLS_GREEK
       ]`.replace(/\s/g, ""));
         expect(inputMathMeta.properties.get("showSymbols").value).to.equal(`""`);
-        expect(inputMathMeta.properties.get("fn").value).to.equal("function () { return typeof window; }");
         expect(inputMathMeta.properties.get("_observerLocked").value).to.equal("false");
         expect(inputMathMeta.properties.get("_freezeHistory").value).to.equal("false");
         expect(inputMathMeta.properties.get("_editor").value).to.equal("document.createElement(\"div\")");
@@ -393,7 +391,7 @@ describe("parsers", () => {
           }`
         );
       });
-    }
+    };
   }
 
   describe("JS Parser", () => {

@@ -13,15 +13,15 @@ export function goTo(src: string, term: string|RegExp, offset: number = 0): numb
   let checkRegExp = typeof term !== "string";
   let stringOpen = false;
 
-  function openString(char, prevChar) {
-    if (prevChar === "\\") {
+  function openString(chr, prev) {
+    if (prev === "\\") {
       return;
     }
-    if (stringOpen === char) {
+    if (stringOpen === chr) {
       stringOpen = false;
     }
     else if (stringOpen === false) {
-      stringOpen = char;
+      stringOpen = chr;
     }
   }
 

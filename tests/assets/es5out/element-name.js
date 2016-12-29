@@ -2,7 +2,7 @@
 var polymer_1 = require("../../annotations/polymer");
 require("link!bower_components/polymer/polymer.html");
 require("link!node_modules/easy-polymer/dist/esp.html");
-var MyBehavior = {
+var myBehavior = {
     test: function () {
         console.log("behavior test");
     }
@@ -53,6 +53,6 @@ ElementName = __decorate([
     polymer_1.style("h1 {color: red;}"),
     polymer_1.style("style.css"),
     polymer_1.style("shared-style"),
-    polymer_1.behavior(MyBehavior)
+    polymer_1.behavior(myBehavior)
 ], ElementName);
 exports.ElementName = ElementName;

@@ -1,4 +1,4 @@
-/// <reference path="./types.d.ts"/>
+import "./types";
 import { template, attr, notify, observe } from "../../annotations/polymer";
 
 import "script!bower_components/jquery/jquery.js";
@@ -59,8 +59,6 @@ export class InputMath extends Polymer.Element {
   ];
 
   showSymbols: string = "";
-
-  fn: Function = function () { return typeof window; };
 
   private _history: string[];
   private _mathField: MathQuill.EditableField;

@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { getPropertyNoType, getType, parseParams, buildFieldConfig } from "../src/parsers/DTSParser";
 import { goTo, split, findClosing, regExpClosestIndexOf } from "../src/helpers/source-crawlers";
 import { arrToObject } from "../src/helpers/misc";
-import { buildProperty, buildPropertiesMap } from '../src/PolymerModule';
+import { buildProperty, buildPropertiesMap } from "../src/PolymerModule";
 
 describe("parser helpers", () => {
   describe("goTo", () => {
@@ -142,7 +142,7 @@ describe("parser helpers", () => {
       expect(parseParams("test1: {a: number; b: any;}, test2: any").length).to.equal(2);
       expect(parseParams("test1: {a: number, b: any;}, test2: any").length).to.equal(2);
     });
-    it("should recognice name and type of params", () => {
+    it("should recognise name and type of params", () => {
       expect(parseParams("test1")).to.deep.equal([ { name: "test1" } ]);
       expect(parseParams("test1, test2")).to.deep.equal([ { name: "test1" }, { name: "test2" } ]);
       expect(parseParams("test1: number, test2: any")).to.deep.equal([
@@ -184,8 +184,10 @@ describe("parser helpers", () => {
       ]);
     });
     it("should ignore static and private fields", () => {
+      // noinspection ReservedWordAsName
       expect(Array.from(buildPropertiesMap(buildConfigMap({ static: true }), null).values()))
         .to.deep.equal([]);
+      // noinspection ReservedWordAsName
       expect(Array.from(buildPropertiesMap(buildConfigMap({ private: true }), null).values()))
         .to.deep.equal([]);
     });

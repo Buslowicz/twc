@@ -34,7 +34,7 @@ declare interface FoundType {
 }
 declare interface ParamConfig {
   name: string;
-  type?: string
+  type?: string;
 }
 declare interface PropertyConfig {
   name: string;
@@ -47,17 +47,17 @@ declare interface FieldConfig {
   isPrimitive?: boolean;
   body?: string;
   params?: Array<ParamConfig>;
-  //noinspection ReservedWordAsName
+  // noinspection ReservedWordAsName
   static?: boolean;
-  //noinspection ReservedWordAsName
+  // noinspection ReservedWordAsName
   private?: boolean;
-  //noinspection ReservedWordAsName
+  // noinspection ReservedWordAsName
   protected?: boolean;
-  //noinspection ReservedWordAsName
+  // noinspection ReservedWordAsName
   public?: boolean;
   readonly?: boolean;
-  decorators?: Array<Decorator>
-  annotations?: Array<Decorator>
+  decorators?: Array<Decorator>;
+  annotations?: Array<Decorator>;
 }
 declare interface PolymerPropertyConfig {
   type: string;

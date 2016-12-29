@@ -1,4 +1,4 @@
-/// <reference path="../types.d.ts" />
+import "./types";
 import "script!bower_components/jquery/jquery.js";
 import "script!bower_components/mathquill/mathquill.js";
 export interface ICmd {
@@ -18,7 +18,6 @@ export declare class InputMath extends Polymer.Element {
     value: string | null;
     symbols: ICmd[][];
     showSymbols: string;
-    fn: Function;
     private _history;
     private _mathField;
     private _observerLocked;

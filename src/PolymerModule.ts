@@ -1,12 +1,12 @@
 import { kebabCase } from "lodash";
-import { join } from 'path';
-import { nonEmpty } from './helpers/misc';
+import { join } from "path";
+import { nonEmpty } from "./helpers/misc";
 import JSParser from "./parsers/JSParser";
 
 import * as definedAnnotations from "./annotations";
-import { readFileSync } from 'fs';
+import { readFileSync } from "fs";
 
-const beautify = require('beautify');
+const beautify = require("beautify");
 
 /**
  * Build a Polymer property config
@@ -34,9 +34,11 @@ export function buildProperty([ name, config ]: [ string, PolymerPropertyConfig 
     }}`;
 }
 
-export function buildPropertiesMap(properties: FieldConfigMap, methods: FieldConfigMap, isES6: boolean = false): Map<string, PolymerPropertyConfig> {
+export function buildPropertiesMap(properties: FieldConfigMap,
+                                   methods: FieldConfigMap,
+                                   isES6: boolean = false): Map<string, PolymerPropertyConfig> {
   let propertiesMap: Map<string, PolymerPropertyConfig> = new Map();
-  properties.forEach((config, name) => {
+  properties.forEach((config, propName) => {
     if (config.static || config.private) {
       return;
     }
@@ -62,14 +64,17 @@ export function buildPropertiesMap(properties: FieldConfigMap, methods: FieldCon
       });
     }
 
-    propertiesMap.set(name, prop);
+    propertiesMap.set(propName, prop);
   });
   return propertiesMap;
 }
 
-export function buildMethodsMap(methods: FieldConfigMap, properties: FieldConfigMap, propertiesMap: Map<string, PolymerPropertyConfig>, observers: Array<string>): FieldConfigMap {
+export function buildMethodsMap(methods: FieldConfigMap,
+                                properties: FieldConfigMap,
+                                propertiesMap: Map<string, PolymerPropertyConfig>,
+                                observers: Array<string>): FieldConfigMap {
   let methodsMap: FieldConfigMap = new Map();
-  methods.forEach((config, name) => {
+  methods.forEach((config, methodName) => {
     let method = Object.assign({}, config);
     if (config.annotations) {
       config.annotations.forEach(({ name, params }) => {
@@ -77,7 +82,7 @@ export function buildMethodsMap(methods: FieldConfigMap, properties: FieldConfig
       });
     }
 
-    methodsMap.set(name, method);
+    methodsMap.set(methodName, method);
   });
   return methodsMap;
 }
@@ -150,7 +155,7 @@ export default class Module extends JSParser {
                 .replace(/var _this = _super\.call\(this(?:.*?)\) \|\| this;/, "var _this = this;");
             }
             return `${v1ToV0Lifecycles[ name ] || name}:function${body}`;
-          }),
+          })
         ].filter(filterEmpty).join(","),
         `});`,
         ...Array.from(methodsMap.values()).filter(config => config.static).map(({ name, body }) => {
@@ -167,6 +172,7 @@ export default class Module extends JSParser {
     let moduleSrc: string;
 
     if (polymerVersion === 1) {
+      // noinspection JSUnusedAssignment
       ({ extrasMap, methodsMap, propertiesMap, moduleSrc } = this.buildPolymerV1());
     }
     else if (polymerVersion === 2) {
@@ -174,7 +180,7 @@ export default class Module extends JSParser {
     }
 
     let styles = extrasMap.get("styles");
-    let template = (({ template, type }) => {
+    let tpl = (({ template, type }) => {
       switch (type) {
         case "link":
           return readFileSync(join(this.base, template)).toString();
@@ -191,17 +197,17 @@ export default class Module extends JSParser {
           ...styles.map(({ style, type }) => {
             switch (type) {
               case "link":
-                return `<style>${readFileSync(join(this.base, style))}</style>`;
+                return `<style\>${readFileSync(join(this.base, style))}</style>`;
               case "inline":
                 if (!this.isES6) {
                   style = style.replace(/\\n/g, "\n").replace(/\\"/g, '"');
                 }
-                return `<style>${style}</style>`;
+                return `<style\>${style}</style>`;
               case "shared":
                 return `<style include="${style}"></style>`;
             }
           }),
-          this.isES6 ? template : template.replace(/\\n/g, "\n").replace(/\\"/g, '"'),
+          this.isES6 ? tpl : tpl.replace(/\\n/g, "\n").replace(/\\"/g, '"')
         ].join("\n")}</template>`,
         `<script\>${beautify([
           "(function () {",

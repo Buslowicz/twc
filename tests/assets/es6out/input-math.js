@@ -1,5 +1,5 @@
 "use strict";
-/// <reference path="./types.d.ts"/>
+require("./types");
 const polymer_1 = require("../../annotations/polymer");
 require("script!bower_components/jquery/jquery.js");
 require("script!bower_components/mathquill/mathquill.js");
@@ -12,7 +12,6 @@ let InputMath = InputMath_1 = class InputMath extends Polymer.Element {
             InputMath_1.SYMBOLS_GREEK
         ];
         this.showSymbols = "";
-        this.fn = function () { return typeof window; };
         this._observerLocked = false;
         this._freezeHistory = false;
         this._editor = document.createElement("div");

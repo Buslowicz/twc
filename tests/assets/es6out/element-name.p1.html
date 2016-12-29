@@ -19,7 +19,7 @@
     (function () {
       "use strict";
 
-      const MyBehavior = {
+      const myBehavior = {
         test() {
           console.log("behavior test");
         }
@@ -52,7 +52,7 @@
           }
         },
         observers: [ "observer(profile.prop)" ],
-        behaviors: [ MyBehavior ],
+        behaviors: [ myBehavior ],
         observer: function (val) {
           console.log("val:", val);
         },

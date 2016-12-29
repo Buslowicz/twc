@@ -6,7 +6,8 @@ declare namespace Polymer {
     register(): void;
   }
 
-  export var Element: BaseClass;
+  // tslint:disable-next-line
+  export let Element: BaseClass;
 }
 
 declare namespace MathQuill {
@@ -19,6 +20,5 @@ declare namespace MathQuill {
   export function getInterface(version: number): any;
 }
 
-declare var component: (name: string) => any;
-declare var property: (name: any) => any;
-declare var listen: (name: any) => any;
+declare const component: (name: string) => any;
+declare const listen: (name: any) => any;

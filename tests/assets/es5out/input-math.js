@@ -1,5 +1,5 @@
 "use strict";
-/// <reference path="./types.d.ts"/>
+require("./types");
 var polymer_1 = require("../../annotations/polymer");
 require("script!bower_components/jquery/jquery.js");
 require("script!bower_components/mathquill/mathquill.js");
@@ -13,7 +13,6 @@ var InputMath = InputMath_1 = (function (_super) {
             InputMath_1.SYMBOLS_GREEK
         ];
         _this.showSymbols = "";
-        _this.fn = function () { return typeof window; };
         _this._observerLocked = false;
         _this._freezeHistory = false;
         _this._editor = document.createElement("div");

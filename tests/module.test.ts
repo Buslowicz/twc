@@ -30,7 +30,7 @@ describe("module builder", () => {
           readFileSync(`${__dirname}/assets/es${esVersion}out/element-name.p1.html`, "utf8")
         );
       });
-    }
+    };
   }
 
   describe("ES5", moduleTests(5));
