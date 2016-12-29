@@ -4,7 +4,6 @@ import { existsSync } from "fs";
 import { createProject } from "gulp-typescript";
 import * as through2 from "through2";
 import * as merge from "merge2";
-import * as File from "vinyl";
 import Module from "./PolymerModule";
 import ReadWriteStream = NodeJS.ReadWriteStream;
 
@@ -17,12 +16,13 @@ function getFullConfig(path: string, override?: ts.CompilerOptions): ts.Compiler
   return Object.assign(co, override);
 }
 
-const { 1: polymerVersion = 1 } = require(join(process.cwd(), "bower.json"))
-  .dependencies
-  .polymer
-  .match(/#[\D]*(\d)(?:\.\d)+/) || {};
-
+const bowerJsonPath = join(process.cwd(), "bower.json");
 const projectTSConfigPath = join(process.cwd(), "tsconfig.json");
+
+const { 1: polymerVersion = 1 } = existsSync(bowerJsonPath) ? require(bowerJsonPath)
+    .dependencies
+    .polymer
+    .match(/#[\D]*(\d)(?:\.\d)+/) || {} : {};
 
 const tsConfig = Object.assign(
   getFullConfig(existsSync(projectTSConfigPath) ? projectTSConfigPath : join(__dirname, "config.json")),
@@ -48,7 +48,7 @@ function ts2html(input) {
     merge([ tsStream.dts, tsStream.js ])
       .pipe(through2.obj(function (file, enc, next) {
         let ext = "";
-        let path = file.path.replace(/\.(js)|\.d\.(ts)/, (_, js, dts) => {
+        let path = file.path.replace(/\.(js)$|\.d\.(ts)$/, (_, js, dts) => {
           ext = js || dts;
           return ".html";
         });
@@ -63,12 +63,12 @@ function ts2html(input) {
 
         if (pair.js && pair.ts) {
           map.delete(path);
+          pair.js.path = path;
+          pair.js.contents = new Module(file.base, pair.ts.contents.toString(), pair.js.contents.toString())
+            .toBuffer(Number(polymerVersion));
+
           this.push(pair.ts);
-          this.push(new File({
-            path, cwd: file.cwd, base: file.base,
-            contents: new Module(file.base, pair.ts.contents.toString(), pair.js.contents.toString())
-              .toBuffer(Number(polymerVersion))
-          }));
+          this.push(pair.js);
         }
         next();
       }))
