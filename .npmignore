@@ -1,0 +1,13 @@
+.idea
+logs
+*.log
+npm-debug.log*
+build/Release
+node_modules
+.npm
+/tests
+.gitignore
+.npmignore
+.travis.yml
+tslint.json
+tsconfig.json
