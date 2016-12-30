@@ -6,7 +6,7 @@ import * as through2 from "through2";
 import * as merge from "merge2";
 import Module from "./PolymerModule";
 import ReadWriteStream = NodeJS.ReadWriteStream;
-import findUp = require("find-up");
+import find = require("find-up");
 
 function getFullConfig(path: string, override?: ts.CompilerOptions): ts.CompilerOptions {
   let config = require(path);
@@ -17,25 +17,22 @@ function getFullConfig(path: string, override?: ts.CompilerOptions): ts.Compiler
   return Object.assign(co, override);
 }
 
-const bowerJsonPath = findUp.sync("bower.json");
-const projectTSConfigPath = findUp.sync("tsconfig.json");
+function ts2html(input, { tsConfigPath = find.sync("tsconfig.json"), bowerConfigPath = find.sync("bower.json") } = {}) {
+  const { 1: polymerVersion = 1 } = existsSync(bowerConfigPath) ? require(bowerConfigPath)
+      .dependencies
+      .polymer
+      .match(/#[\D]*(\d)(?:\.\d)+/) || {} : {};
 
-const { 1: polymerVersion = 1 } = existsSync(bowerJsonPath) ? require(bowerJsonPath)
-    .dependencies
-    .polymer
-    .match(/#[\D]*(\d)(?:\.\d)+/) || {} : {};
+  const tsConfig = Object.assign(
+    getFullConfig(existsSync(tsConfigPath) ? tsConfigPath : join(__dirname, "config.json")),
+    {
+      typescript: require("typescript"),
+      noEmit: false,
+      declaration: true
+    },
+    Number(polymerVersion) === 2 ? { target: "es6" } : null
+  );
 
-const tsConfig = Object.assign(
-  getFullConfig(existsSync(projectTSConfigPath) ? projectTSConfigPath : join(__dirname, "config.json")),
-  {
-    typescript: require("typescript"),
-    noEmit: false,
-    declaration: true
-  },
-  Number(polymerVersion) === 2 ? { target: "es6" } : null
-);
-
-function ts2html(input) {
   let map: Map<string, FilePair> = new Map<string, FilePair>();
   let tsStream: ReadWriteStream & { js: ReadWriteStream; dts: ReadWriteStream } = input
     .pipe(through2.obj((file, enc, next) => file.path.endsWith(".ts") ? next(null, file) : next()))
