@@ -37,12 +37,14 @@ export default class JSParser extends DTSParser {
         .replace(...this.getDefaultValues());
     }
 
-    this.jsSrc = [
-      this.jsSrc.slice(0, start),
-      (this.isES6 ? `constructor` : `function ${this.className}`),
-      constructor.body,
-      this.jsSrc.slice(end + 1)
-    ].join("");
+    if (constructor) {
+      this.jsSrc = [
+        this.jsSrc.slice(0, start),
+        (this.isES6 ? `constructor` : `function ${this.className}`),
+        constructor.body,
+        this.jsSrc.slice(end + 1)
+      ].join("");
+    }
 
     /* ********* get method bodies ********* */
     this.jsSrc = (<any> this.jsSrc)
@@ -84,8 +86,8 @@ export default class JSParser extends DTSParser {
   findClassBody(refreshWithESVersion?: number): void {
     const generatedNamePattern = `(?:(${this.className}[\\S]*) = )?`;
     const patterns = {
-      5: new RegExp(`var ${this.className} = ${generatedNamePattern}\\(function \\((?:_super)?\\) {`),
-      6: new RegExp(`(?:let ${this.className} = ${generatedNamePattern})?class ${this.className}(?: extends .+?)? {`)
+      5: new RegExp(`(var ${this.className} = ${generatedNamePattern})?\\(function \\((?:_super)?\\) {`),
+      6: new RegExp(`(let ${this.className} = ${generatedNamePattern})?class ${this.className}(?: extends .+?)? {`)
     };
 
     let start, end;
@@ -104,14 +106,16 @@ export default class JSParser extends DTSParser {
       throw new Error("no class found");
     }
 
-    let { 0: line, 1: generatedName, index } = match;
+    let { 0: line, 1: hasVar, 2: generatedName, index } = match;
     start = index;
 
     end = findClosing(this.jsSrc, start + line.length, "{}");
     if (!this.isES6) {
       end = findClosing(this.jsSrc, this.jsSrc.indexOf("(", end), "()");
     }
-    end = this.jsSrc.indexOf(";", end);
+    if (!this.isES6 || hasVar) {
+      end = this.jsSrc.indexOf(";", end);
+    }
 
     this.helperClassName = generatedName;
     this.classBodyPosition = { start, end };

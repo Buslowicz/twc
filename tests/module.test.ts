@@ -8,6 +8,7 @@ describe("module builder", () => {
     return () => {
       let inputMathMeta: Module;
       let elementNameMeta: Module;
+      let noTemplateMeta: Module;
       before(() => {
         inputMathMeta = new Module(
           `${__dirname}/assets/es${esVersion}out`,
@@ -20,9 +21,18 @@ describe("module builder", () => {
           readFileSync(`${__dirname}/assets/es${esVersion}out/element-name.d.ts`, "utf8"),
           readFileSync(`${__dirname}/assets/es${esVersion}out/element-name.js`, "utf8")
         );
+
+        noTemplateMeta = new Module(
+          `${__dirname}/assets/es${esVersion}out`,
+          readFileSync(`${__dirname}/assets/es${esVersion}out/no-template.d.ts`, "utf8"),
+          readFileSync(`${__dirname}/assets/es${esVersion}out/no-template.js`, "utf8")
+        );
       });
 
       it("should generate a valid Polymer v1 module", () => {
+        expect(noTemplateMeta.toString(1)).to.be.equalIgnoreSpaces(
+          readFileSync(`${__dirname}/assets/es${esVersion}out/no-template.p1.html`, "utf8")
+        );
         expect(inputMathMeta.toString(1)).to.be.equalIgnoreSpaces(
           readFileSync(`${__dirname}/assets/es${esVersion}out/input-math.p1.html`, "utf8")
         );

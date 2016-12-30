@@ -130,6 +130,7 @@ describe("parsers", () => {
     return () => {
       let inputMathMeta: JSParser;
       let elementNameMeta: JSParser;
+      let noTemplateMeta: JSParser;
 
       before(() => {
         inputMathMeta = new JSParser(
@@ -140,6 +141,11 @@ describe("parsers", () => {
         elementNameMeta = new JSParser(
           readFileSync(`${__dirname}/assets/es${esVersion}out/element-name.d.ts`, "utf8"),
           readFileSync(`${__dirname}/assets/es${esVersion}out/element-name.js`, "utf8")
+        );
+
+        noTemplateMeta = new JSParser(
+          readFileSync(`${__dirname}/assets/es${esVersion}out/no-template.d.ts`, "utf8"),
+          readFileSync(`${__dirname}/assets/es${esVersion}out/no-template.js`, "utf8")
         );
       });
 
@@ -166,6 +172,7 @@ describe("parsers", () => {
         ]);
       });
       it("should fetch list of properties", () => {
+        expect(Array.from(noTemplateMeta.properties.keys())).to.deep.equal([ "name" ]);
         expect(Array.from(elementNameMeta.properties.keys())).to.deep.equal([ "greetings", "test", "profile" ]);
         expect(Array.from(inputMathMeta.properties.keys())).to.deep.equal([
           "HISTORY_SIZE", "SYMBOLS_BASIC", "SYMBOLS_GREEK", "SYMBOLS_PHYSICS", "testValue", "value", "symbols",
@@ -173,6 +180,7 @@ describe("parsers", () => {
         ]);
       });
       it("should fetch list of methods", () => {
+        expect(Array.from(noTemplateMeta.methods.keys())).to.deep.equal([]);
         expect(Array.from(elementNameMeta.methods.keys())).to.deep.equal([
           "staticTest", "observer", "observerAuto", "computedProp", "computedPropAuto"
         ]);
@@ -254,6 +262,8 @@ describe("parsers", () => {
 
         expect(inputMathMeta.annotations).to.have.deep.property("0.name", "template");
         expect(inputMathMeta.annotations).to.have.deep.property("0.params", `"<input>"`);
+
+        expect(noTemplateMeta.annotations).to.deep.equal([]);
       });
       it("should fetch method bodies", () => {
         expect(elementNameMeta.methods.get("constructor")).to.equal(undefined);

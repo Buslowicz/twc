@@ -180,12 +180,14 @@ export default class Module extends JSParser {
     }
 
     let styles = extrasMap.get("styles");
-    let tpl = (({ template, type }) => {
+    let tpl = (({ template, type } = {}) => {
       switch (type) {
         case "link":
           return readFileSync(join(this.base, template)).toString();
         case "inline":
           return template;
+        default:
+          return "";
       }
     })(extrasMap.get("template"));
 
