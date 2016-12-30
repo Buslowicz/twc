@@ -20,6 +20,7 @@
   "dependencies": {
     "beautify": "0.0.8",
     "commander": "^2.9.0",
+    "find-up": "^2.1.0",
     "gulp": "^3.9.1",
     "gulp-typescript": "^3.1.2",
     "lodash": "^4.17.2",
