@@ -31,17 +31,34 @@ export function behavior({ params, behaviors }: AnnotationOptions) {
   behaviors.push(params);
 }
 
-export function attr(...args);
-export function attr({ prop }: AnnotationOptions) {
-  prop.reflectToAttribute = true;
+export function attr({ prop, config, propertiesMap }: AnnotationOptions) {
+  if (prop) {
+    prop.reflectToAttribute = true;
+  }
+  else {
+    let field = propertiesMap.get(config.name);
+    if (!field) {
+      field = <any> {};
+      propertiesMap.set(config.name, field);
+    }
+    field.reflectToAttribute = true;
+  }
 }
 
-export function notify(...args);
-export function notify({ prop }: AnnotationOptions) {
-  prop.notify = true;
+export function notify({ prop, config, propertiesMap }: AnnotationOptions) {
+  if (prop) {
+    prop.notify = true;
+  }
+  else {
+    let field = propertiesMap.get(config.name);
+    if (!field) {
+      field = <any> {};
+      propertiesMap.set(config.name, field);
+    }
+    field.notify = true;
+  }
 }
 
-export function observe(...args);
 export function observe({ config, propertiesMap, observers, params }: AnnotationOptions) {
   let observedProps;
 
@@ -60,7 +77,6 @@ export function observe({ config, propertiesMap, observers, params }: Annotation
   }
 }
 
-export function computed(...args);
 export function computed({ config, propertiesMap, method, params }: AnnotationOptions) {
   let observedProps;
   if (params) {
@@ -71,5 +87,11 @@ export function computed({ config, propertiesMap, method, params }: AnnotationOp
   }
   let name = config.name;
   method.name = `_compute${capitalize(name)}`;
-  propertiesMap.set(name, { type: config.type, computed: `"${method.name}(${observedProps.join(", ")})"` });
+  let field = propertiesMap.get(name);
+  let computed = { type: config.type, computed: `"${method.name}(${observedProps.join(", ")})"` };
+  if (field) {
+    Object.assign(field, computed);
+  } else {
+    propertiesMap.set(name, computed);
+  }
 }
