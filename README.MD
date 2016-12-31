@@ -117,6 +117,34 @@ and
 ```
 respectively.
 
+### Default values for properties
+Any value set directly to property declaration will be used as the default value. Any not primitive value (Array, Object, etc) will be converted to a value function
+``` TypeScript
+export class MyElement {
+    title: string = '';
+    categories: Array = [];
+}
+```
+
+will translate to 
+
+``` js
+Polymer({
+    properties: {
+        title: {
+            type: string,
+            value: ''
+        },
+        categories: {
+            type: Array,
+            value: function() {
+                return [];
+            }
+        }
+    }
+});
+```
+
 ### Private properties
 Not everything should be added to `properties` config. To skip that process,
 property has to be defined as private:
