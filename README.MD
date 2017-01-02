@@ -65,8 +65,10 @@ is more info on `tsconfig`). There is one restriction: Polymer 2.x will
 You can also change other TypeScript CompilerOptions. The only flags that
 cannot be changed are:
 ```
-noEmit: false,
-declaration: true
+declaration: true,
+experimentalDecorators: true,
+module: "commonjs",
+noEmit: false
 ```
 
 Default config can be found [here](src/config.json).
