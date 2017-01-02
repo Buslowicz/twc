@@ -14,7 +14,7 @@ function getFullConfig(path: string, override?: ts.CompilerOptions): ts.Compiler
   if (config.extends) {
     co = getFullConfig(join(parse(path).dir, config.extends), co);
   }
-  return Object.assign(co, override);
+  return Object.assign(co || {}, override);
 }
 
 function ts2html(input, { tsConfigPath = find.sync("tsconfig.json"), bowerConfigPath = find.sync("bower.json") } = {}) {
@@ -27,12 +27,13 @@ function ts2html(input, { tsConfigPath = find.sync("tsconfig.json"), bowerConfig
     getFullConfig(existsSync(tsConfigPath) ? tsConfigPath : join(__dirname, "config.json")),
     {
       typescript: require("typescript"),
-      noEmit: false,
-      declaration: true
-    },
-    Number(polymerVersion) === 2 ? { target: "es6" } : null
+      declaration: true,
+      experimentalDecorators: true,
+      module: "commonjs",
+      noEmit: false
+    }
   );
-
+  tsConfig.target = <ts.ScriptTarget> (Number(polymerVersion) === 2 ? "es6" : tsConfig.target || "es5");
   let map: Map<string, FilePair> = new Map<string, FilePair>();
   let tsStream: ReadWriteStream & { js: ReadWriteStream; dts: ReadWriteStream } = input
     .pipe(through2.obj((file, enc, next) => file.path.endsWith(".ts") ? next(null, file) : next()))
