@@ -140,6 +140,13 @@ export class MyElement {
 As mentioned before, not everything can be done with keywords. This is why
 TWC comes with a set of design-time annotations.
 
+To use them, install twc locally and import in elements' source files as
+required:
+
+```TypeScript
+import { attr, behavior,  computed, notify, observe, style, template } from 'twc/annotations/polymer';
+```
+
 #### @template
 To give your component a body, you need to provide it with a template.
 This is done using `@template` annotation, which accepts either HTML template
