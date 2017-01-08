@@ -151,7 +151,7 @@ export default class JSParser extends DTSParser {
       .join("|");
 
     return [
-      new RegExp(`[\\t ]*_?this\\.(${propsList}) = ([\\S\\s]*?);\\n`, "g"),
+      new RegExp(`[\\t ]*_?this\\.(${propsList}) = ([\\S\\s]*?);`, "g"),
       (_, name, value) => {
         let config = this.properties.get(name);
         config.value = value;
