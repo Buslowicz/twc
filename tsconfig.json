@@ -14,7 +14,6 @@
   "include": [
     "tests/**/*.ts",
     "src/**/*.ts",
-    "types/**/*.d.ts",
-    "node_modules/@types/**/*.d.ts"
+    "types/**/*.d.ts"
   ]
 }
