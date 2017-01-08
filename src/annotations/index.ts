@@ -69,7 +69,9 @@ export function observe({ config, propertiesMap, observers, params }: Annotation
     observedProps = config.params.map(param => param.name);
   }
 
-  if (observedProps.length === 1 && observedProps[ 0 ].includes(".") === false) {
+  const isPropertyDeclared = propertiesMap.has(observedProps[ 0 ]);
+
+  if (isPropertyDeclared && observedProps.length === 1 && observedProps[ 0 ].includes(".") === false) {
     propertiesMap.get(observedProps[ 0 ]).observer = `"${config.name}"`;
   }
   else {
