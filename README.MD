@@ -265,3 +265,17 @@ export class MyElement {
 Typed Web Components is in an early phase and needs your feedback. Please
 try it out and if you find an issue post it in issues tab. Also, do not
 hesitate to also post ideas!
+
+## Running tests on Windows
+
+To run tests on Windows (`npm run test`) it is currently necessary to
+modify the `include` section of `tsconfig.json` file do that it contains
+the pattern below:
+
+``` json
+{
+  "include": [
+    "node_modules/@types/**/*.d.ts"
+  ]
+}
+```
