@@ -9,6 +9,8 @@ export default class JSParser extends DTSParser {
   public decorators: Array<Decorator> = [];
   public annotations: Array<Decorator> = [];
 
+  public jsdoc: string;
+
   public links: Array<string> = [];
   public scripts: Array<string> = [];
 
@@ -49,6 +51,7 @@ export default class JSParser extends DTSParser {
     /* ********* get method bodies ********* */
     this.jsSrc = (<any> this.jsSrc)
       .replace(...this.getImports())
+      .replace(...this.getClassJsDoc())
       .replace(...this.getMethodBodies())
 
       /* ********* get decorators and remove them if needed ********* */
@@ -132,6 +135,16 @@ export default class JSParser extends DTSParser {
           this.scripts.push(module.substr(7));
         }
         return "";
+      }
+    ];
+  }
+
+  getClassJsDoc(): Replacer {
+    return [
+      new RegExp(`(\\/\\*\\*(?:(?!\\/\\*\\*)[\\s\\S])+\\*\\/)([\\s]*(?:let|var|class) ${this.className})`),
+      (m, c, d) => {
+        this.jsdoc = c.split(/\r?\n/).slice(1, -1).map(doc => doc.replace(/^\s*\*\s*/, "")).join("\n");
+        return d;
       }
     ];
   }

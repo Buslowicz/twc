@@ -2,18 +2,32 @@
 var polymer_1 = require("../../annotations/polymer");
 require("link!bower_components/polymer/polymer.html");
 require("link!node_modules/easy-polymer/dist/esp.html");
+/**
+ * A behavior
+ */
 var myBehavior = {
     test: function () {
         console.log("behavior test");
     }
 };
+/**
+ * A test class
+ *
+ * @demo test.html
+ */
 var ElementName = (function () {
     function ElementName() {
         this.test = "tester";
     }
+    /**
+     * Some static method
+     */
     ElementName.staticTest = function () {
         console.log("static");
     };
+    /**
+     * Observer method
+     */
     ElementName.prototype.observer = function (val) {
         console.log("val:", val);
     };

@@ -58,6 +58,7 @@ declare interface FieldConfig {
   readonly?: boolean;
   decorators?: Array<Decorator>;
   annotations?: Array<Decorator>;
+  jsdoc?: string;
 }
 declare interface PolymerPropertyConfig {
   type: string;

@@ -171,6 +171,9 @@ describe("parsers", () => {
           "bower_components/mathquill/mathquill.js"
         ]);
       });
+      it("should fetch jsDoc style comment for the class", () => {
+        expect(elementNameMeta.jsdoc).to.equalIgnoreSpaces(`A test class @demo test.html`);
+      });
       it("should fetch list of properties", () => {
         expect(Array.from(noTemplateMeta.properties.keys())).to.deep.equal([ "name" ]);
         expect(Array.from(elementNameMeta.properties.keys())).to.deep.equal([ "greetings", "test", "profile" ]);

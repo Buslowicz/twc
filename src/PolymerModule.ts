@@ -194,6 +194,7 @@ export default class Module extends JSParser {
     return beautify([
       ...this.links.map(module => `<link rel="import" href="${module}">`),
       ...this.scripts.map(module => `<script src="${module}"></script>`),
+      nonEmpty`<!--\n${this.jsdoc}\n-->`,
       `<dom-module id="${kebabCase(this.className)}">${[
         nonEmpty`<template>${[
           ...styles.map(({ style, type }) => {

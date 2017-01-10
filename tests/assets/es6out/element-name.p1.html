@@ -1,5 +1,10 @@
 <link rel="import" href="bower_components/polymer/polymer.html">
 <link rel="import" href="node_modules/easy-polymer/dist/esp.html">
+<!--
+A test class
+
+@demo test.html
+-->
 <dom-module id="element-name">
   <template>
     <style>
@@ -19,6 +24,9 @@
     (function () {
       "use strict";
 
+      /**
+       * A behavior
+       */
       const myBehavior = {
         test() {
           console.log("behavior test");
