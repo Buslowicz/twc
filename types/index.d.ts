@@ -24,6 +24,13 @@ declare interface AnnotationOptions {
   prop?: PolymerPropertyConfig;
   params?: string;
 }
+declare interface ConfigBuilderOptions {
+  modifiers: Array<string>;
+  name: string;
+  params?: Array<ParamConfig>;
+  type?: string;
+  jsDoc?: string;
+}
 declare interface FoundMatch {
   index: number;
   found: any;
@@ -39,6 +46,7 @@ declare interface ParamConfig {
 declare interface PropertyConfig {
   name: string;
   modifiers: Array<string>;
+  jsDoc: string;
 }
 declare interface FieldConfig {
   name: string;
@@ -58,7 +66,7 @@ declare interface FieldConfig {
   readonly?: boolean;
   decorators?: Array<Decorator>;
   annotations?: Array<Decorator>;
-  jsdoc?: string;
+  jsDoc?: string;
 }
 declare interface PolymerPropertyConfig {
   type: string;

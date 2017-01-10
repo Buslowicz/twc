@@ -6,6 +6,9 @@ import "link!node_modules/easy-polymer/dist/esp.html";
  * @demo test.html
  */
 export declare class ElementName {
+    /**
+     * A greetings list
+     */
     greetings: Array<string>;
     readonly test: string;
     profile: any;

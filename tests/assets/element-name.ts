@@ -22,6 +22,9 @@ const myBehavior = {
 @style("shared-style")
 @behavior(myBehavior)
 export class ElementName {
+  /**
+   * A greetings list
+   */
   @attr greetings: Array<string>;
   readonly test: string = "tester";
   @notify profile: any;
