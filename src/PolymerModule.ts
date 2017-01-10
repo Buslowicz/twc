@@ -8,6 +8,10 @@ import { readFileSync } from "fs";
 
 const beautify = require("beautify");
 
+export function formatJsDoc(doc: string | null | undefined): string {
+  return doc ? "/**\n" + doc.split("\n").map(line => ` * ${line}`).join("\n") + "\n */\n" : "";
+}
+
 /**
  * Build a Polymer property config
  *
@@ -19,10 +23,10 @@ const beautify = require("beautify");
 export function buildProperty([ name, config ]: [ string, PolymerPropertyConfig ]): string {
   let valueMap = "Boolean|Date|Number|String|Array|Object";
 
-  return `${name}:{${
+  return `${formatJsDoc(config.jsDoc)}${name}:{${
     Object
       .keys(config)
-      .filter(key => !!config[ key ])
+      .filter(key => !!config[ key ] && key !== "jsDoc")
       .map(key => {
         let value = config[ key ];
         if (key === "type" && valueMap.indexOf(config[ key ]) === -1) {
@@ -57,6 +61,9 @@ export function buildPropertiesMap(properties: FieldConfigMap,
     }
     if (config.readonly) {
       prop.readOnly = config.readonly;
+    }
+    if (config.jsDoc) {
+      prop.jsDoc = config.jsDoc;
     }
     if (config.annotations) {
       config.annotations.forEach(({ name, params }) => {
@@ -101,10 +108,8 @@ export default class Module extends JSParser {
    * @returns String representation of polymer component declaration
    */
   buildPolymerV1(): {
-    methodsMap: FieldConfigMap;
-    propertiesMap: Map<string, PolymerPropertyConfig>;
-    extrasMap: Map<string, any>;
-    moduleSrc: string;
+    meta: Map<string, any>;
+    src: string;
   } {
     let observers: Array<string> = [];
     let behaviors: Array<string> = [];
@@ -115,18 +120,20 @@ export default class Module extends JSParser {
     let propertiesMap = buildPropertiesMap(properties, methods, this.isES6);
     let methodsMap = buildMethodsMap(methods, properties, propertiesMap, observers);
 
-    let extrasMap = new Map<string, any>();
+    let meta = new Map<string, any>([
+      [ "styles", styles ],
+      [ "properties", propertiesMap ],
+      [ "methods", methodsMap ]
+    ]);
 
     annotations.forEach(({ name, params }) => {
       let annotation = definedAnnotations[ name ]({ propertiesMap, methodsMap, params, styles, behaviors });
       if (annotation !== undefined) {
-        extrasMap.set(name, annotation);
+        meta.set(name, annotation);
       }
     });
 
-    extrasMap.set("styles", styles);
-
-    const v1ToV0Lifecycles = {
+    const v1ToV0LifeCycles = {
       constructor: "created",
       connectedCallback: "attached",
       disconnectedCallback: "detached",
@@ -138,48 +145,42 @@ export default class Module extends JSParser {
     const filterEmpty = chunk => !!chunk;
 
     return {
-      methodsMap,
-      propertiesMap,
-      extrasMap,
-      moduleSrc: [
+      meta, src: [
         `${this.isES6 ? "const" : "var"} ${this.className}${helperName} = Polymer({`,
         [
           `is:"${kebabCase(this.className)}"`,
           nonEmpty`properties:{${Array.from(propertiesMap).map(buildProperty)}}`,
           nonEmpty`observers:[${observers}]`,
           nonEmpty`behaviors:[${behaviors}]`,
-          ...Array.from(methodsMap.values()).filter(config => !config.static).map(({ name, body }) => {
+          ...Array.from(methodsMap.values()).filter(config => !config.static).map(({ name, body, jsDoc }) => {
             if (name === "constructor") {
               body = body
                 .replace(/(?:\n[\s]*)?super\(.*?\);/, "")
                 .replace(/var _this = _super\.call\(this(?:.*?)\) \|\| this;/, "var _this = this;");
             }
-            return `${v1ToV0Lifecycles[ name ] || name}:function${body}`;
+            return `${formatJsDoc(jsDoc)}${v1ToV0LifeCycles[ name ] || name}:function${body}`;
           })
         ].filter(filterEmpty).join(","),
         `});`,
-        ...Array.from(methodsMap.values()).filter(config => config.static).map(({ name, body }) => {
-          return `${this.className}.${v1ToV0Lifecycles[ name ] || name} = function${body};`;
+        ...Array.from(methodsMap.values()).filter(config => config.static).map(({ name, body, jsDoc }) => {
+          return `${formatJsDoc(jsDoc)}${this.className}.${v1ToV0LifeCycles[ name ] || name} = function${body};`;
         })
       ].filter(filterEmpty).join("\n")
     };
   }
 
   toString(polymerVersion = 1) {
-    let methodsMap: FieldConfigMap;
-    let propertiesMap: Map<string, PolymerPropertyConfig>;
-    let extrasMap: Map<string, any>;
-    let moduleSrc: string;
+    let meta: Map<string, any>;
+    let src: string;
 
     if (polymerVersion === 1) {
-      // noinspection JSUnusedAssignment
-      ({ extrasMap, methodsMap, propertiesMap, moduleSrc } = this.buildPolymerV1());
+      ({ meta, src } = this.buildPolymerV1());
     }
     else if (polymerVersion === 2) {
       throw "Polymer 2 output is not yet implemented. For more info see https://github.com/Draccoz/twc/issues/16";
     }
 
-    let styles = extrasMap.get("styles");
+    let styles = meta.get("styles");
     let tpl = (({ template, type } = {}) => {
       switch (type) {
         case "link":
@@ -189,7 +190,7 @@ export default class Module extends JSParser {
         default:
           return "";
       }
-    })(extrasMap.get("template"));
+    })(meta.get("template"));
 
     return beautify([
       ...this.links.map(module => `<link rel="import" href="${module}">`),
@@ -215,7 +216,7 @@ export default class Module extends JSParser {
         `<script\>${beautify([
           "(function () {",
           this.jsSrc.slice(0, this.classBodyPosition.start),
-          moduleSrc,
+          src,
           this.jsSrc.slice(this.classBodyPosition.end + 1),
           "}());"
         ].join("\n"), { format: "js" })}</script>`

@@ -76,6 +76,8 @@ declare interface PolymerPropertyConfig {
   notify?: boolean;
   computed?: string;
   observer?: string;
+
+  jsDoc?: string;
 }
 declare interface JSParserOptions {
   polymerVersion?: number;
