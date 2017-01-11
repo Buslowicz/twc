@@ -23,9 +23,21 @@ const TYPES = {
  * @returns name and array of property/method modifiers
  */
 export function getPropertyNoType(src: string, from: number = 0, to: number = src.indexOf(";")): PropertyConfig {
-  let [ ...modifiers ] = src.slice(from, to).split(" ");
+  let jsDoc;
+  if (src.substr(from, 3) === "/**") {
+    let jsDocEndsAt = src.indexOf("*/", from) + 2;
+    jsDoc = src.slice(from, jsDocEndsAt)
+      .trim()
+      .split(/\r?\n/)
+      .slice(1, -1)
+      .map(doc => doc.replace(/^\s*\*\s*/, ""))
+      .join("\n");
+    from = jsDocEndsAt;
+  }
+
+  let [ ...modifiers ] = src.slice(from, to).trim().split(" ");
   let name = modifiers.pop();
-  return { name, modifiers };
+  return { name, modifiers, jsDoc };
 }
 
 /**
@@ -160,19 +172,20 @@ export function parseParams(src: string, from: number = 0, to: number = src.leng
  * @param name Property/method name
  * @param params List of parameters (names and types)
  * @param type Type of field
+ * @param jsDoc Documentation of the field
  *
  * @returns Field configuration object
  */
-export function buildFieldConfig(modifiers: Array<string>,
-                                 name: string,
-                                 params?: Array<ParamConfig>,
-                                 type?: string): FieldConfig {
+export function buildFieldConfig({ modifiers, name, params, type, jsDoc }: ConfigBuilderOptions): FieldConfig {
   let config: FieldConfig = { name };
   if (params) {
     config.params = params;
   }
   if (type) {
     config.type = type;
+  }
+  if (jsDoc) {
+    config.jsDoc = jsDoc;
   }
   return Object.assign({}, arrToObject(modifiers), config);
 }
@@ -217,7 +230,7 @@ export default class DTSParser {
       ({ index: ptr, found } = regExpClosestIndexOf(src, /;|:|\(/, ptr));
 
       // get name and modifiers
-      let { name, modifiers } = getPropertyNoType(src, from, ptr);
+      let { name, modifiers, jsDoc } = getPropertyNoType(src, from, ptr);
 
       // method
       if (found === "(") {
@@ -232,13 +245,13 @@ export default class DTSParser {
         ptr = closing.index + 1;
 
         if (closing.found === ";") {
-          this.methods.set(name, buildFieldConfig(modifiers, name, params));
+          this.methods.set(name, buildFieldConfig({ modifiers, name, params, jsDoc }));
           continue;
         }
       }
       // no type property
       else if (found === ";") {
-        this.properties.set(name, buildFieldConfig(modifiers, name));
+        this.properties.set(name, buildFieldConfig({ modifiers, name, jsDoc }));
         continue;
       }
 
@@ -246,10 +259,10 @@ export default class DTSParser {
       ptr = src.indexOf(";", typeEnd);
 
       if (params) {
-        this.methods.set(name, buildFieldConfig(modifiers, name, params, type));
+        this.methods.set(name, buildFieldConfig({ modifiers, name, params, type, jsDoc }));
       }
       else {
-        this.properties.set(name, buildFieldConfig(modifiers, name, null, type));
+        this.properties.set(name, buildFieldConfig({ modifiers, name, type, jsDoc }));
       }
     }
 

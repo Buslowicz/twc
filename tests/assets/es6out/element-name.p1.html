@@ -1,5 +1,10 @@
 <link rel="import" href="bower_components/polymer/polymer.html">
 <link rel="import" href="node_modules/easy-polymer/dist/esp.html">
+<!--
+A test class
+
+@demo test.html
+-->
 <dom-module id="element-name">
   <template>
     <style>
@@ -19,6 +24,9 @@
     (function () {
       "use strict";
 
+      /**
+       * A behavior
+       */
       const myBehavior = {
         test() {
           console.log("behavior test");
@@ -28,6 +36,9 @@
       const ElementName = Polymer({
         is: "element-name",
         properties: {
+          /**
+           * A greetings list
+           */
           greetings: {
             type: Array,
             reflectToAttribute: true,
@@ -44,31 +55,38 @@
           },
           computedProp: {
             type: String,
-            computed: "_computeComputedprop(test)"
+            computed: "_computeComputedProp(test)"
           },
           computedPropAuto: {
             type: String,
-            computed: "_computeComputedpropauto(test)"
+            computed: "_computeComputedPropAuto(test)"
           }
         },
         observers: [ "observer(profile.prop)" ],
         behaviors: [ myBehavior ],
+
+        /**
+         * Observer method
+         */
         observer: function (val) {
           console.log("val:", val);
         },
         observerAuto: function (greetings) {
           console.log("greetings:", greetings);
         },
-        _computeComputedprop: function (val) {
+        _computeComputedProp: function (val) {
           console.log(val);
           return val + "!";
         },
-        _computeComputedpropauto: function (test) {
+        _computeComputedPropAuto: function (test) {
           console.log("test:", test);
           return test + "!";
         }
       });
 
+      /**
+       * Some static method
+       */
       ElementName.staticTest = function () {
         console.log("static");
       };

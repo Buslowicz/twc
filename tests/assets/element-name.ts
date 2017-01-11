@@ -2,26 +2,43 @@ import { template, style, behavior, attr, notify, observe, computed } from "../.
 import "link!bower_components/polymer/polymer.html";
 import "link!node_modules/easy-polymer/dist/esp.html";
 
+/**
+ * A behavior
+ */
 const myBehavior = {
   test() {
     console.log("behavior test");
   }
 };
 
+/**
+ * A test class
+ *
+ * @demo test.html
+ */
 @template("template.element-name.html")
 @style("h1 {color: red;}")
 @style("style.css")
 @style("shared-style")
 @behavior(myBehavior)
 export class ElementName {
+  /**
+   * A greetings list
+   */
   @attr greetings: Array<string>;
   readonly test: string = "tester";
   @notify profile: any;
 
+  /**
+   * Some static method
+   */
   static staticTest() {
     console.log("static");
   }
 
+  /**
+   * Observer method
+   */
   @observe("profile.prop") observer(val: string) {
     console.log("val:", val);
   }

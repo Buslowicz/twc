@@ -64,11 +64,16 @@ describe("parser helpers", () => {
   });
   describe("getPropertyNoType", () => {
     it("should recognize all modifiers and a name", () => {
-      expect(getPropertyNoType("prop;")).to.deep.equal({ name: "prop", modifiers: [] });
-      expect(getPropertyNoType("readonly prop;")).to.deep.equal({ name: "prop", modifiers: [ "readonly" ] });
+      expect(getPropertyNoType("prop;")).to.deep.equal({ name: "prop", modifiers: [], jsDoc: undefined });
+      expect(getPropertyNoType("readonly prop;")).to.deep.equal({
+        name: "prop",
+        modifiers: [ "readonly" ],
+        jsDoc: undefined
+      });
       expect(getPropertyNoType("private readonly prop;")).to.deep.equal({
         name: "prop",
-        modifiers: [ "private", "readonly" ]
+        modifiers: [ "private", "readonly" ],
+        jsDoc: undefined
       });
     });
 
@@ -76,7 +81,8 @@ describe("parser helpers", () => {
       let dts = "; readonly prop; test;";
       expect(getPropertyNoType(dts, dts.indexOf("readonly"), dts.indexOf("prop;") + 4)).to.deep.equal({
         name: "prop",
-        modifiers: [ "readonly" ]
+        modifiers: [ "readonly" ],
+        jsDoc: undefined
       });
     });
   });
@@ -157,17 +163,22 @@ describe("parser helpers", () => {
   });
   describe("buildFieldConfig", () => {
     it("should always add name and modifiers", () => {
-      let field = buildFieldConfig([ "modifier" ], "name");
+      let field = buildFieldConfig({ modifiers: [ "modifier" ], name: "name" });
       expect(field).to.have.property("modifier");
       expect(field).to.have.property("name");
     });
     it("should have params and type if they are defined", () => {
-      let field = buildFieldConfig([ "modifier" ], "name", [ { name: "params" } ], "type");
+      let field = buildFieldConfig({
+        modifiers: [ "modifier" ],
+        name: "name",
+        params: [ { name: "params" } ],
+        type: "type"
+      });
       expect(field).to.have.property("type");
       expect(field).to.have.property("params");
     });
-    it("should NOT add params or type if they are falsy", () => {
-      let field = buildFieldConfig([ "modifier" ], "name", null, null);
+    it("should NOT add params or type if they are not provided", () => {
+      let field = buildFieldConfig({ modifiers: [ "modifier" ], name: "name" });
       expect(field).to.not.have.property("type");
       expect(field).to.not.have.property("params");
     });

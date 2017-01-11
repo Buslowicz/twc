@@ -171,6 +171,16 @@ describe("parsers", () => {
           "bower_components/mathquill/mathquill.js"
         ]);
       });
+      it("should fetch jsDoc style comment for the class", () => {
+        expect(elementNameMeta.jsdoc).to.equalIgnoreSpaces("A test class @demo test.html");
+      });
+      it("should fetch jsDoc for methods", () => {
+        expect(elementNameMeta.methods.get("observer").jsDoc).to.equal("Observer method");
+        expect(elementNameMeta.methods.get("staticTest").jsDoc).to.equal("Some static method");
+      });
+      it("should fetch jsDoc for properties", () => {
+        expect(elementNameMeta.properties.get("greetings").jsDoc).to.equal("A greetings list");
+      });
       it("should fetch list of properties", () => {
         expect(Array.from(noTemplateMeta.properties.keys())).to.deep.equal([ "name" ]);
         expect(Array.from(elementNameMeta.properties.keys())).to.deep.equal([ "greetings", "test", "profile" ]);

@@ -9,6 +9,8 @@ export default class JSParser extends DTSParser {
   public decorators: Array<Decorator> = [];
   public annotations: Array<Decorator> = [];
 
+  public jsdoc: string;
+
   public links: Array<string> = [];
   public scripts: Array<string> = [];
 
@@ -49,6 +51,7 @@ export default class JSParser extends DTSParser {
     /* ********* get method bodies ********* */
     this.jsSrc = (<any> this.jsSrc)
       .replace(...this.getImports())
+      .replace(...this.getClassJsDoc())
       .replace(...this.getMethodBodies())
 
       /* ********* get decorators and remove them if needed ********* */
@@ -136,6 +139,16 @@ export default class JSParser extends DTSParser {
     ];
   }
 
+  getClassJsDoc(): Replacer {
+    return [
+      new RegExp(`(\\/\\*\\*(?:(?!\\/\\*\\*)[\\s\\S])+\\*\\/)([\\s]*(?:let|var|class) ${this.className})`),
+      (m, c, d) => {
+        this.jsdoc = c.split(/\r?\n/).slice(1, -1).map(doc => doc.replace(/^\s*\*\s*/, "")).join("\n");
+        return d;
+      }
+    ];
+  }
+
   /**
    * Return pattern and replacer function to find default values
    *
@@ -181,8 +194,9 @@ export default class JSParser extends DTSParser {
         ? new RegExp(`((${methodsList}))\\(.*?\\) {`, "g")
         : new RegExp(`(${this.className}(?:.prototype)?.(${methodsList}) = function ?)\\(.*?\\) {`, "g"),
       (_, boiler, name, index, jsSrc) => {
-        let end = findClosing(jsSrc, jsSrc.indexOf("{", <any> index + boiler.length - 1), "{}");
-        this.methods.get(name).body = jsSrc.slice(<any> index + boiler.length, end + 1).trim();
+        let offset = <any> index + boiler.length;
+        let end = findClosing(jsSrc, jsSrc.indexOf("{", offset - 1), "{}");
+        this.methods.get(name).body = jsSrc.slice(offset, end + 1).trim();
         return _;
       }
     ];
