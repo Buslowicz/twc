@@ -2,11 +2,10 @@ import { kebabCase } from "lodash";
 import { join } from "path";
 import { nonEmpty } from "./helpers/misc";
 import JSParser from "./parsers/JSParser";
+import { html_beautify as beautify } from "js-beautify";
 
 import * as definedAnnotations from "./annotations";
 import { readFileSync } from "fs";
-
-const beautify = require("beautify");
 
 export function formatJsDoc(doc: string | null | undefined): string {
   return doc ? "/**\n" + doc.split("\n").map(line => ` * ${line}`).join("\n") + "\n */\n" : "";
@@ -147,6 +146,21 @@ export default class Module extends JSParser {
     return {
       meta, src: [
         `${this.isES6 ? "const" : "var"} ${this.className}${helperName} = Polymer({`,
+        ...Array.from(this.events.values()).map(event => {
+          return [
+            "/**",
+            ...(event.description ? [
+                ` * ${event.description}`,
+                ` *`
+              ] : []),
+            ` * @event ${kebabCase(event.name)}`,
+            ...event.params.map(({type, name, description}) => {
+              let parsedType = type.replace(/\s+/g, " ").replace(/(.+?:.+?);/g, "$1,");
+              return ` * @param {${parsedType}} ${name}${description ? ` ${description}` : ""}`;
+            }),
+            " */"
+          ].join("\n");
+        }),
         [
           `is:"${kebabCase(this.className)}"`,
           nonEmpty`properties:{${Array.from(propertiesMap).map(buildProperty)}}`,
@@ -195,9 +209,10 @@ export default class Module extends JSParser {
     return beautify([
       ...this.links.map(module => `<link rel="import" href="${module}">`),
       ...this.scripts.map(module => `<script src="${module}"></script>`),
-      nonEmpty`<!--\n${this.jsdoc}\n-->`,
+
+      nonEmpty`<!--\n${this.jsDoc}\n-->`,
       `<dom-module id="${kebabCase(this.className)}">${[
-        nonEmpty`<template>${[
+        nonEmpty`\n<template>${[
           ...styles.map(({ style, type }) => {
             switch (type) {
               case "link":
@@ -213,15 +228,15 @@ export default class Module extends JSParser {
           }),
           this.isES6 ? tpl : tpl.replace(/\\n/g, "\n").replace(/\\"/g, '"')
         ].join("\n")}</template>`,
-        `<script\>${beautify([
+        `<script\>${([
           "(function () {",
           this.jsSrc.slice(0, this.classBodyPosition.start),
           src,
           this.jsSrc.slice(this.classBodyPosition.end + 1),
           "}());"
-        ].join("\n"), { format: "js" })}</script>`
+        ].join("\n"))}</script>`
       ].join("\n")}</dom-module>`
-    ].join("\n"), { format: "html" });
+    ].join("\n"), { max_preserve_newlines: 2, end_with_newline: true });
   }
 
   toBuffer(polymerVersion = 1) {

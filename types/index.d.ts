@@ -48,6 +48,11 @@ declare interface PropertyConfig {
   modifiers: Array<string>;
   jsDoc: string;
 }
+declare interface EventInfo {
+  name: string;
+  description: string;
+  params: Array<{ name: string; description: string; type: string; }>;
+}
 declare interface FieldConfig {
   name: string;
   type?: string;

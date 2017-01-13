@@ -1,5 +1,21 @@
 import "link!bower_components/polymer/polymer.html";
 import "link!node_modules/easy-polymer/dist/esp.html";
+export interface ProfileChangeEvent extends CustomEvent {
+    detail: {
+        /** New profile. */
+        newProfile: any;
+    };
+}
+/** Fires whenever ** .. yo! */
+export interface SomeEvent extends CustomEvent {
+    detail: {
+        deep: {
+            property: boolean;
+        };
+        /** New name */
+        name: string;
+    };
+}
 /**
  * A test class
  *

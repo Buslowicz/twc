@@ -1,4 +1,4 @@
-import { goTo, regExpClosestIndexOf, findClosing } from "../helpers/source-crawlers";
+import { goTo, regExpClosestIndexOf, findClosing, split } from "../helpers/source-crawlers";
 import { arrToObject } from "../helpers/misc";
 
 const deprecationNotice = (legacy, native) => `\`${legacy}\` callback is deprecated. Please use \`${native}\` instead`;
@@ -26,10 +26,9 @@ export function getPropertyNoType(src: string, from: number = 0, to: number = sr
   let jsDoc;
   if (src.substr(from, 3) === "/**") {
     let jsDocEndsAt = src.indexOf("*/", from) + 2;
-    jsDoc = src.slice(from, jsDocEndsAt)
+    jsDoc = src.slice(from + 3, jsDocEndsAt - 2)
       .trim()
       .split(/\r?\n/)
-      .slice(1, -1)
       .map(doc => doc.replace(/^\s*\*\s*/, ""))
       .join("\n");
     from = jsDocEndsAt;
@@ -193,8 +192,9 @@ export function buildFieldConfig({ modifiers, name, params, type, jsDoc }: Confi
 export default class DTSParser {
   public className: string;
   public parent: string;
-  public properties: Map<string, FieldConfig> = new Map<string, FieldConfig>();
-  public methods: Map<string, FieldConfig> = new Map<string, FieldConfig>();
+  public properties: Map<string, FieldConfig> = new Map();
+  public methods: Map<string, FieldConfig> = new Map();
+  public events: Map<string, EventInfo> = new Map();
 
   protected dtsSrc: string;
 
@@ -205,6 +205,8 @@ export default class DTSParser {
   constructor(src: string, options?: JSParserOptions) {
     this.dtsSrc = src;
     Object.assign(this.options, options);
+
+    (<any> src).replace(...this.getEvents());
 
     let match = src.match(/[\s\n]class ([\w$_]+)(?:[\s]+extends ([^{]+))?[\s]*\{/);
     if (!match) {
@@ -282,5 +284,35 @@ export default class DTSParser {
     if (this.methods.has("attributeChanged")) {
       throw new Error(deprecationNotice("attributeChanged", "attributeChangedCallback"));
     }
+  }
+
+  getEvents(): Replacer {
+    return [
+      /(\*\/\s+)?(?:export )?interface ([\w\d_]+) extends (?:Custom)?Event {\s+detail:/g,
+      (match, hasComment, name, index, str) => {
+        let idx: number = <any> index;
+        let description = "";
+        if (hasComment) {
+          let c = idx;
+          while (c >= 2) {
+            if (str.substr(c - 3, 3) === "/**") {
+              description = str.slice(c, idx).trim();
+              break;
+            }
+            c--;
+          }
+        }
+        let details = str.slice(idx + match.length, findClosing(str, idx + match.length, "{}")).trim().slice(1, -2);
+        let params = split(details, /;|,/, true)
+          .filter(prop => !!prop)
+          .map(param => {
+            let [ , pDescription, pName, pType ] = param.match(/(?:\/\*\*\s*([\S\s]+?)\s*\*\/\s*)?(.+?):\s*([\S\s]*)$/);
+            return { name: pName, description: pDescription || "", type: pType };
+          });
+
+        this.events.set(name, { name, description, params });
+        return match;
+      }
+    ];
   }
 }

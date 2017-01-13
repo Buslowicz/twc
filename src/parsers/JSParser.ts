@@ -9,7 +9,7 @@ export default class JSParser extends DTSParser {
   public decorators: Array<Decorator> = [];
   public annotations: Array<Decorator> = [];
 
-  public jsdoc: string;
+  public jsDoc: string;
 
   public links: Array<string> = [];
   public scripts: Array<string> = [];
@@ -143,7 +143,7 @@ export default class JSParser extends DTSParser {
     return [
       new RegExp(`(\\/\\*\\*(?:(?!\\/\\*\\*)[\\s\\S])+\\*\\/)([\\s]*(?:let|var|class) ${this.className})`),
       (m, c, d) => {
-        this.jsdoc = c.split(/\r?\n/).slice(1, -1).map(doc => doc.replace(/^\s*\*\s*/, "")).join("\n");
+        this.jsDoc = c.split(/\r?\n/).slice(1, -1).map(doc => doc.replace(/^\s*\*\s*/, "")).join("\n");
         return d;
       }
     ];
