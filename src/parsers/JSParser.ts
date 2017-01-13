@@ -1,4 +1,6 @@
+import { join } from "path";
 import { findClosing, split } from "../helpers/source-crawlers";
+import { existsSync } from "fs";
 
 import * as definedAnnotations from "../annotations";
 import DTSParser from "./DTSParser";
@@ -21,8 +23,8 @@ export default class JSParser extends DTSParser {
     allowDecorators: false
   };
 
-  constructor(dts: string, js: string, options?: JSParserOptions) {
-    super(dts, options);
+  constructor(base: string, dts: string, js: string, options?: JSParserOptions) {
+    super(base, dts, options);
     this.jsSrc = js;
     Object.assign(this.options, options);
 
@@ -129,10 +131,20 @@ export default class JSParser extends DTSParser {
       /(?:(var|const) \S+ = )?(?:require|import) ?\(?['"](.*?)['"]\)?;\n?/g,
       (m, v, module) => {
         if (module.startsWith("link!")) {
-          this.links.push(module.substr(5));
+          let link = module.substr(5);
+          if (existsSync(join(this.base, "bower_components", "twc", link)) || existsSync(join(this.base, link))) {
+            this.links.push(link);
+          } else {
+            console.log("\x1b[33m", `TWC (link import error):`, "\x1b[0m", `\`${link}\` does not exist`);
+          }
         }
         else if (module.startsWith("script!")) {
-          this.scripts.push(module.substr(7));
+          let script = module.substr(7);
+          if (existsSync(join(this.base, "bower_components", "twc", script)) || existsSync(join(this.base, script))) {
+            this.scripts.push(script);
+          } else {
+            console.log("\x1b[33m", `TWC (script import error):`, "\x1b[0m", `\`${script}\` does not exist`);
+          }
         }
         return "";
       }

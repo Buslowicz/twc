@@ -10,35 +10,39 @@ describe("parsers", () => {
     let deprecatedCallbacksDTS;
 
     before(() => {
-      meta = new DTSParser(readFileSync(`${__dirname}/assets/es6out/input-math.d.ts`, "utf8"));
+      meta = new DTSParser(
+        `${__dirname}/assets/es6out`,
+        readFileSync(`${__dirname}/assets/es6out/input-math.d.ts`, "utf8")
+      );
       deprecatedCallbacksDTS = readFileSync(`${__dirname}/assets/deprecated-callbacks.d.ts`, "utf8");
     });
 
     it("should throw an error if deprecated lifecycle callback is used", () => {
+      let assetsDir = `${__dirname}/assets/`;
       expect(() => new DTSParser(
-        deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksDTS
       )).to.throw("`created` callback is deprecated. Please use `constructor` instead");
 
       expect(() => new DTSParser(
-        deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksDTS
           .replace(/created/, "constructor")
       )).to.throw("`attached` callback is deprecated. Please use `connectedCallback` instead");
 
       expect(() => new DTSParser(
-        deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksDTS
           .replace(/created/, "constructor")
           .replace(/attached/, "connectedCallback")
       )).to.throw("`detached` callback is deprecated. Please use `disconnectedCallback` instead");
 
       expect(() => new DTSParser(
-        deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksDTS
           .replace(/created/, "constructor")
           .replace(/attached/, "connectedCallback")
           .replace(/detached/, "disconnectedCallback")
       )).to.throw("`attributeChanged` callback is deprecated. Please use `attributeChangedCallback` instead");
 
       expect(() => new DTSParser(
-        deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksDTS
           .replace(/created/, "constructor")
           .replace(/attached/, "connectedCallback")
           .replace(/detached/, "disconnectedCallback")
@@ -133,19 +137,23 @@ describe("parsers", () => {
       let noTemplateMeta: JSParser;
 
       before(() => {
+        let baseDir = `${__dirname}/assets/es${esVersion}out`;
         inputMathMeta = new JSParser(
-          readFileSync(`${__dirname}/assets/es${esVersion}out/input-math.d.ts`, "utf8"),
-          readFileSync(`${__dirname}/assets/es${esVersion}out/input-math.js`, "utf8")
+          baseDir,
+          readFileSync(`${baseDir}/input-math.d.ts`, "utf8"),
+          readFileSync(`${baseDir}/input-math.js`, "utf8")
         );
 
         elementNameMeta = new JSParser(
-          readFileSync(`${__dirname}/assets/es${esVersion}out/element-name.d.ts`, "utf8"),
-          readFileSync(`${__dirname}/assets/es${esVersion}out/element-name.js`, "utf8")
+          baseDir,
+          readFileSync(`${baseDir}/element-name.d.ts`, "utf8"),
+          readFileSync(`${baseDir}/element-name.js`, "utf8")
         );
 
         noTemplateMeta = new JSParser(
-          readFileSync(`${__dirname}/assets/es${esVersion}out/no-template.d.ts`, "utf8"),
-          readFileSync(`${__dirname}/assets/es${esVersion}out/no-template.js`, "utf8")
+          baseDir,
+          readFileSync(`${baseDir}/no-template.d.ts`, "utf8"),
+          readFileSync(`${baseDir}/no-template.js`, "utf8")
         );
       });
 
