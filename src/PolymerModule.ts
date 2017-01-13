@@ -94,11 +94,8 @@ export function buildMethodsMap(methods: FieldConfigMap,
 }
 
 export default class Module extends JSParser {
-  base: string;
-
   constructor(base: string, dts: string, js: string, options?: JSParserOptions) {
-    super(dts, js, options);
-    this.base = base;
+    super(base, dts, js, options);
   }
 
   /**

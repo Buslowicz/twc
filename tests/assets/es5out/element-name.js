@@ -1,7 +1,7 @@
 "use strict";
 var polymer_1 = require("../../annotations/polymer");
-require("link!bower_components/polymer/polymer.html");
-require("link!node_modules/easy-polymer/dist/esp.html");
+require("link!../imports/polymer.html");
+require("link!../imports/esp.html");
 /**
  * A behavior
  */

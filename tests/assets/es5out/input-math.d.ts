@@ -1,6 +1,6 @@
 import "./types";
-import "script!bower_components/jquery/jquery.js";
-import "script!bower_components/mathquill/mathquill.js";
+import "script!../imports/jquery.js";
+import "script!../imports/mathquill.js";
 export interface ICmd {
     cmd: string;
     name: string;

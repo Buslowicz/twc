@@ -14,3 +14,4 @@ node_modules
 /tests/**/*.js.map
 !/tests/assets/es5out/*
 !/tests/assets/es6out/*
+!/tests/assets/imports/*

@@ -202,7 +202,10 @@ export default class DTSParser {
     allowDecorators: false
   };
 
-  constructor(src: string, options?: JSParserOptions) {
+  base: string;
+
+  constructor(base: string, src: string, options?: JSParserOptions) {
+    this.base = base;
     this.dtsSrc = src;
     Object.assign(this.options, options);
 
