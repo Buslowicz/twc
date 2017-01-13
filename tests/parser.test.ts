@@ -171,8 +171,37 @@ describe("parsers", () => {
           "bower_components/mathquill/mathquill.js"
         ]);
       });
+      it("should fetch declared events data", () => {
+        expect(elementNameMeta.events.get("ProfileChangeEvent")).to.deep.equal({
+          name: "ProfileChangeEvent",
+          description: "",
+          params: [
+            {
+              name: "newProfile",
+              description: "New profile.",
+              type: "any"
+            }
+          ]
+        });
+        expect(elementNameMeta.events.get("SomeEvent")).to.deep.equal({
+          name: "SomeEvent",
+          description: "Fires whenever ** .. yo!",
+          params: [
+            {
+              name: "deep",
+              description: "",
+              type: "{\n            property: boolean;\n        }"
+            },
+            {
+              name: "name",
+              description: "New name",
+              type: "string"
+            }
+          ]
+        });
+      });
       it("should fetch jsDoc style comment for the class", () => {
-        expect(elementNameMeta.jsdoc).to.equalIgnoreSpaces("A test class @demo test.html");
+        expect(elementNameMeta.jsDoc).to.equalIgnoreSpaces("A test class @demo test.html");
       });
       it("should fetch jsDoc for methods", () => {
         expect(elementNameMeta.methods.get("observer").jsDoc).to.equal("Observer method");
