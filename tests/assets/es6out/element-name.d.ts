@@ -1,5 +1,5 @@
-import "link!bower_components/polymer/polymer.html";
-import "link!node_modules/easy-polymer/dist/esp.html";
+import "link!../imports/polymer.html";
+import "link!../imports/esp.html";
 export interface ProfileChangeEvent extends CustomEvent {
     detail: {
         /** New profile. */

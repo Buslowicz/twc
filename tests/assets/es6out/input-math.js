@@ -1,8 +1,8 @@
 "use strict";
 require("./types");
 const polymer_1 = require("../../annotations/polymer");
-require("script!bower_components/jquery/jquery.js");
-require("script!bower_components/mathquill/mathquill.js");
+require("script!../imports/jquery.js");
+require("script!../imports/mathquill.js");
 let InputMath = InputMath_1 = class InputMath extends Polymer.Element {
     constructor() {
         super();

@@ -1,8 +1,8 @@
 "use strict";
 require("./types");
 var polymer_1 = require("../../annotations/polymer");
-require("script!bower_components/jquery/jquery.js");
-require("script!bower_components/mathquill/mathquill.js");
+require("script!../imports/jquery.js");
+require("script!../imports/mathquill.js");
 var InputMath = InputMath_1 = (function (_super) {
     __extends(InputMath, _super);
     function InputMath() {

@@ -135,7 +135,7 @@ export default class JSParser extends DTSParser {
           if (existsSync(join(this.base, "bower_components", "twc", link)) || existsSync(join(this.base, link))) {
             this.links.push(link);
           } else {
-            console.log("\x1b[33m", `TWC (link import error):`, "\x1b[0m", `\`${link}\` does not exist`);
+            console.log("\x1b[33m", `TWC (import error):`, "\x1b[0m", `\`${`${this.base}/${link}`}\` does not exist`);
           }
         }
         else if (module.startsWith("script!")) {
@@ -143,7 +143,7 @@ export default class JSParser extends DTSParser {
           if (existsSync(join(this.base, "bower_components", "twc", script)) || existsSync(join(this.base, script))) {
             this.scripts.push(script);
           } else {
-            console.log("\x1b[33m", `TWC (script import error):`, "\x1b[0m", `\`${script}\` does not exist`);
+            console.log("\x1b[33m", `TWC (import error):`, "\x1b[0m", `\`${`${this.base}/${script}`}\` does not exist`);
           }
         }
         return "";
