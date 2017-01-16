@@ -1,6 +1,6 @@
 import { template, style, behavior, attr, notify, observe, computed } from "../../annotations/polymer";
-import "link!../imports/polymer.html";
-import "link!../imports/esp.html";
+import "link!imports/polymer.html";
+import "link!imports/esp.html";
 
 export interface ProfileChangeEvent extends CustomEvent {
   detail: {

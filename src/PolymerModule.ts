@@ -6,6 +6,7 @@ import { html_beautify as beautify } from "js-beautify";
 
 import * as definedAnnotations from "./annotations";
 import { readFileSync } from "fs";
+import { parse } from "path";
 
 export function formatJsDoc(doc: string | null | undefined): string {
   return doc ? "/**\n" + doc.split("\n").map(line => ` * ${line}`).join("\n") + "\n */\n" : "";
@@ -94,8 +95,8 @@ export function buildMethodsMap(methods: FieldConfigMap,
 }
 
 export default class Module extends JSParser {
-  constructor(base: string, dts: string, js: string, options?: JSParserOptions) {
-    super(base, dts, js, options);
+  constructor(path: string, dts: string, js: string, options?: JSParserOptions) {
+    super(path, dts, js, options);
   }
 
   /**
@@ -151,7 +152,7 @@ export default class Module extends JSParser {
                 ` *`
               ] : []),
             ` * @event ${kebabCase(event.name)}`,
-            ...event.params.map(({type, name, description}) => {
+            ...event.params.map(({ type, name, description }) => {
               let parsedType = type.replace(/\s+/g, " ").replace(/(.+?:.+?);/g, "$1,");
               return ` * @param {${parsedType}} ${name}${description ? ` ${description}` : ""}`;
             }),
@@ -191,11 +192,12 @@ export default class Module extends JSParser {
       throw "Polymer 2 output is not yet implemented. For more info see https://github.com/Draccoz/twc/issues/16";
     }
 
+    let { dir } = parse(this.path);
     let styles = meta.get("styles");
     let tpl = (({ template, type } = {}) => {
       switch (type) {
         case "link":
-          return readFileSync(join(this.base, template)).toString();
+          return readFileSync(join(dir, template)).toString();
         case "inline":
           return template;
         default:
@@ -213,7 +215,7 @@ export default class Module extends JSParser {
           ...styles.map(({ style, type }) => {
             switch (type) {
               case "link":
-                return `<style\>${readFileSync(join(this.base, style))}</style>`;
+                return `<style\>${readFileSync(join(dir, style))}</style>`;
               case "inline":
                 if (!this.isES6) {
                   style = style.replace(/\\n/g, "\n").replace(/\\"/g, '"');

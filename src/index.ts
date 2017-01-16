@@ -61,9 +61,10 @@ function ts2html(input, { tsConfigPath = find.sync("tsconfig.json"), bowerConfig
         pair[ ext ] = file;
 
         if (pair.js && pair.ts) {
+          let tsPath = pair.ts.path.replace(/d\.ts$/, "ts");
           map.delete(path);
           pair.js.path = path;
-          pair.js.contents = new Module(file.base, pair.ts.contents.toString(), pair.js.contents.toString())
+          pair.js.contents = new Module(tsPath, pair.ts.contents.toString(), pair.js.contents.toString())
             .toBuffer(Number(polymerVersion));
 
           this.push(pair.ts);

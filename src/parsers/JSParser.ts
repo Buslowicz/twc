@@ -1,9 +1,12 @@
-import { join } from "path";
+import { join, relative } from "path";
 import { findClosing, split } from "../helpers/source-crawlers";
 import { existsSync } from "fs";
 
 import * as definedAnnotations from "../annotations";
 import DTSParser from "./DTSParser";
+import { parse } from "path";
+
+const cwd = process.cwd();
 
 export default class JSParser extends DTSParser {
   public helperClassName: string;
@@ -23,8 +26,8 @@ export default class JSParser extends DTSParser {
     allowDecorators: false
   };
 
-  constructor(base: string, dts: string, js: string, options?: JSParserOptions) {
-    super(base, dts, options);
+  constructor(path: string, dts: string, js: string, options?: JSParserOptions) {
+    super(path, dts, options);
     this.jsSrc = js;
     Object.assign(this.options, options);
 
@@ -127,23 +130,26 @@ export default class JSParser extends DTSParser {
   }
 
   getImports(): Replacer {
+    let { dir } = parse(this.path);
     return [
       /(?:(var|const) \S+ = )?(?:require|import) ?\(?['"](.*?)['"]\)?;\n?/g,
       (m, v, module) => {
         if (module.startsWith("link!")) {
           let link = module.substr(5);
-          if (existsSync(join(this.base, "bower_components", "twc", link)) || existsSync(join(this.base, link))) {
+          if (existsSync(join(dir, "bower_components", "twc", link)) || existsSync(join(dir, link))) {
             this.links.push(link);
-          } else {
-            console.log("\x1b[33m", `TWC (import error):`, "\x1b[0m", `\`${`${this.base}/${link}`}\` does not exist`);
+          }
+          else {
+            console.log("\x1b[33m", `TWC (${relative(cwd, this.path)}):`, "\x1b[0m", `\`${link}\` does not exist`);
           }
         }
         else if (module.startsWith("script!")) {
           let script = module.substr(7);
-          if (existsSync(join(this.base, "bower_components", "twc", script)) || existsSync(join(this.base, script))) {
+          if (existsSync(join(dir, "bower_components", "twc", script)) || existsSync(join(dir, script))) {
             this.scripts.push(script);
-          } else {
-            console.log("\x1b[33m", `TWC (import error):`, "\x1b[0m", `\`${`${this.base}/${script}`}\` does not exist`);
+          }
+          else {
+            console.log("\x1b[33m", `TWC (${relative(cwd, this.path)}):`, "\x1b[0m", `\`${script}\` does not exist`);
           }
         }
         return "";
