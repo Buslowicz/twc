@@ -13,25 +13,25 @@ describe("module builder", () => {
 
       before(() => {
         inputMathMeta = new Module(
-          `${__dirname}/assets/es${esVersion}out`,
+          `${__dirname}/assets/input-math.ts`,
           readFileSync(`${__dirname}/assets/es${esVersion}out/input-math.d.ts`, "utf8"),
           readFileSync(`${__dirname}/assets/es${esVersion}out/input-math.js`, "utf8")
         );
 
         elementNameMeta = new Module(
-          `${__dirname}/assets/es${esVersion}out`,
+          `${__dirname}/assets/element-name.ts`,
           readFileSync(`${__dirname}/assets/es${esVersion}out/element-name.d.ts`, "utf8"),
           readFileSync(`${__dirname}/assets/es${esVersion}out/element-name.js`, "utf8")
         );
 
         noTemplateMeta = new Module(
-          `${__dirname}/assets/es${esVersion}out`,
+          `${__dirname}/assets/no-template.ts`,
           readFileSync(`${__dirname}/assets/es${esVersion}out/no-template.d.ts`, "utf8"),
           readFileSync(`${__dirname}/assets/es${esVersion}out/no-template.js`, "utf8")
         );
 
         notifyComputedMeta = new Module(
-          `${__dirname}/assets/es${esVersion}out`,
+          `${__dirname}/assets/notify-computed.ts`,
           readFileSync(`${__dirname}/assets/es${esVersion}out/notify-computed.d.ts`, "utf8"),
           readFileSync(`${__dirname}/assets/es${esVersion}out/notify-computed.js`, "utf8")
         );

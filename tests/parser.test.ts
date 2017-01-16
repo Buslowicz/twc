@@ -169,14 +169,14 @@ describe("parsers", () => {
       it("should fetch list of scripts and html imports and remove them", () => {
         expect(elementNameMeta.scripts).to.deep.equal([]);
         expect(elementNameMeta.links).to.deep.equal([
-          "../imports/polymer.html",
-          "../imports/esp.html"
+          "imports/polymer.html",
+          "imports/esp.html"
         ]);
 
         expect(inputMathMeta.links).to.deep.equal([]);
         expect(inputMathMeta.scripts).to.deep.equal([
-          "../imports/jquery.js",
-          "../imports/mathquill.js"
+          "imports/jquery.js",
+          "imports/mathquill.js"
         ]);
       });
       it("should fetch declared events data", () => {

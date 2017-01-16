@@ -12,7 +12,7 @@ if (require.main === module) {
     .option("-b, --bowerConfig <path>", "bower.json file location")
     .option("-o, --outDir <path>", "Redirect output structure to the directory.")
     .option("-r, --rootDir <path>",
-      "Specify the root directory of input files. Use to control the output directory structure with --out-dir.")
+      "Specify the root directory of input files. Use to control the output directory structure with --outDir.")
     .arguments("<sources...>")
     .action(sources => files = sources)
     .parse(process.argv);

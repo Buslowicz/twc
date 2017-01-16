@@ -1,8 +1,8 @@
 import "./types";
 import { template, attr, notify, observe } from "../../annotations/polymer";
 
-import "script!../imports/jquery.js";
-import "script!../imports/mathquill.js";
+import "script!imports/jquery.js";
+import "script!imports/mathquill.js";
 
 export interface ICmd {
   cmd: string;
@@ -71,7 +71,7 @@ export class InputMath extends Polymer.Element {
     var editor: HTMLElement = this._editor;
     editor.id = "editor";
     editor.classList.add(this.is);
-    this["_mathField"] = MathQuill.getInterface(2).MathField(editor, {
+    this[ "_mathField" ] = MathQuill.getInterface(2).MathField(editor, {
       spaceBehavesLikeTab: true,
       handlers: {
         edit: this._updateValue.bind(this)
@@ -96,7 +96,7 @@ export class InputMath extends Polymer.Element {
   }
 
   @observe("value")
-  valueChanged(value: string, prevValue: string): Array<{test: boolean}> {
+  valueChanged(value: string, prevValue: string): Array<{ test: boolean }> {
     this._updateHistory(prevValue);
 
     if (this._observerLocked) {
@@ -125,7 +125,7 @@ export class InputMath extends Polymer.Element {
     }
   }
 
-  _updateValue(test: {a: () => void, b: any}): void {
+  _updateValue(test: { a: () => void, b: any }): void {
     console.log(test);
     this._observerLocked = true;
     this.value = this._mathField.latex();
