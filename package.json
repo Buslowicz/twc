@@ -18,7 +18,8 @@
   },
   "license": "ISC",
   "dependencies": {
-    "commander": "^2.9.0",
+    "command-line-args": "^3.0.5",
+    "command-line-usage": "^4.0.0",
     "find-up": "^2.1.0",
     "gulp": "^3.9.1",
     "gulp-typescript": "^3.1.2",
