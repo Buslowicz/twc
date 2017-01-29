@@ -1,3 +1,6 @@
+/// <reference path="../types/dom.d.ts"/>
+/// <reference path="../types/polymer.d.ts"/>
+
 export function template(tpl: string): (target: Function) => void;
 export function style(style: string): (target: Function) => void;
 export function behavior(behavior: any): (target: Function) => void;
@@ -7,3 +10,6 @@ export function computed(props: string): (proto: any, key: string) => void;
 export function computed(proto: any, key: string): void;
 export function observe(props: string): (proto: any, key: string) => void;
 export function observe(proto: any, key: string): void;
+
+import Polymer from "../types/polymer";
+export default Polymer;

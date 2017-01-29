@@ -147,14 +147,14 @@ export default class Module extends JSParser {
         ...Array.from(this.events.values()).map(event => {
           return [
             "/**",
-            ...(event.description ? [
-                ` * ${event.description}`,
+            ...(event.comment ? [
+                ` * ${event.comment}`,
                 ` *`
               ] : []),
             ` * @event ${kebabCase(event.name)}`,
-            ...event.params.map(({ type, name, description }) => {
+            ...event.params.map(({ type, name, comment }) => {
               let parsedType = type.replace(/\s+/g, " ").replace(/(.+?:.+?);/g, "$1,");
-              return ` * @param {${parsedType}} ${name}${description ? ` ${description}` : ""}`;
+              return ` * @param {${parsedType}} ${name}${comment ? ` ${comment}` : ""}`;
             }),
             " */"
           ].join("\n");

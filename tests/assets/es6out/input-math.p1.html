@@ -9,6 +9,9 @@
       "use strict";
 
       const InputMath = InputMath_1 = Polymer({
+                /**
+                 * @event polymer-event
+                 */
         is: "input-math",
         properties: {
           testValue: {
@@ -38,7 +41,7 @@
         created: function () {
           var editor = this._editor;
           editor.id = "editor";
-          editor.classList.add(this.is);
+          editor.classList.add("input-math");
           this[ "_mathField" ] = MathQuill.getInterface(2).MathField(editor, {
             spaceBehavesLikeTab: true,
             handlers: {

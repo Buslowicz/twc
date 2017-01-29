@@ -18,7 +18,7 @@ var InputMath = InputMath_1 = (function (_super) {
         _this._editor = document.createElement("div");
         var editor = _this._editor;
         editor.id = "editor";
-        editor.classList.add(_this.is);
+        editor.classList.add("input-math");
         _this["_mathField"] = MathQuill.getInterface(2).MathField(editor, {
             spaceBehavesLikeTab: true,
             handlers: {
@@ -81,7 +81,7 @@ var InputMath = InputMath_1 = (function (_super) {
         }
     };
     return InputMath;
-}(Polymer.Element));
+}(polymer_1.default.Element));
 InputMath.HISTORY_SIZE = 20;
 InputMath.SYMBOLS_BASIC = [
     { cmd: "\\sqrt", name: "√" },

@@ -1,5 +1,11 @@
+import Polymer from "../../../annotations/polymer";
 import "link!imports/polymer.html";
 import "link!imports/esp.html";
+export declare namespace Polymer {
+    interface TheBehavior {
+        created(): void;
+    }
+}
 export interface ProfileChangeEvent extends CustomEvent {
     detail: {
         /** New profile. */
@@ -16,12 +22,14 @@ export interface SomeEvent extends CustomEvent {
         name: string;
     };
 }
+export interface ElementName extends Polymer.TheBehavior {
+}
 /**
  * A test class
  *
  * @demo test.html
  */
-export declare class ElementName {
+export declare class ElementName extends Polymer.Element {
     /**
      * A greetings list
      */
@@ -31,7 +39,10 @@ export declare class ElementName {
     /**
      * Some static method
      */
-    static staticTest(): void;
+    static staticTest(test: string, test2: {
+        a: boolean;
+        b: any;
+    }, test3?: number): void;
     /**
      * Observer method
      */

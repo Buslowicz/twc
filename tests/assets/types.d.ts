@@ -1,15 +1,3 @@
-declare namespace Polymer {
-  export interface BaseClass extends HTMLElement {
-    new (): BaseClass;
-    is: string;
-    $: any;
-    register(): void;
-  }
-
-  // tslint:disable-next-line
-  export let Element: BaseClass;
-}
-
 declare namespace MathQuill {
   export interface EditableField {
     cmd(command: any): any;

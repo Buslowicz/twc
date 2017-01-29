@@ -1,6 +1,12 @@
-import { template, style, behavior, attr, notify, observe, computed } from "../../annotations/polymer";
+import Polymer, { template, style, behavior, attr, notify, observe, computed } from "../../annotations/polymer";
 import "link!imports/polymer.html";
 import "link!imports/esp.html";
+
+export namespace Polymer {
+  export interface TheBehavior {
+    created(): void;
+  }
+}
 
 export interface ProfileChangeEvent extends CustomEvent {
   detail: {
@@ -28,6 +34,8 @@ const myBehavior = {
   }
 };
 
+export interface ElementName extends Polymer.TheBehavior {}
+
 /**
  * A test class
  *
@@ -38,7 +46,7 @@ const myBehavior = {
 @style("style.css")
 @style("shared-style")
 @behavior(myBehavior)
-export class ElementName {
+export class ElementName extends Polymer.Element {
   /**
    * A greetings list
    */
@@ -49,7 +57,7 @@ export class ElementName {
   /**
    * Some static method
    */
-  static staticTest() {
+  static staticTest(test: string, test2: {a: boolean, b: any}, test3?: number) {
     console.log("static");
   }
 

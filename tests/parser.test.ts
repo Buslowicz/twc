@@ -10,10 +10,8 @@ describe("parsers", () => {
     let deprecatedCallbacksDTS;
 
     before(() => {
-      meta = new DTSParser(
-        `${__dirname}/assets/es6out`,
-        readFileSync(`${__dirname}/assets/es6out/input-math.d.ts`, "utf8")
-      );
+      let src = readFileSync(`${__dirname}/assets/es6out/input-math.d.ts`, "utf8");
+      meta = new DTSParser(`${__dirname}/assets/es6out`, src);
       deprecatedCallbacksDTS = readFileSync(`${__dirname}/assets/deprecated-callbacks.d.ts`, "utf8");
     });
 
@@ -182,27 +180,27 @@ describe("parsers", () => {
       it("should fetch declared events data", () => {
         expect(elementNameMeta.events.get("ProfileChangeEvent")).to.deep.equal({
           name: "ProfileChangeEvent",
-          description: "",
+          comment: undefined,
           params: [
             {
               name: "newProfile",
-              description: "New profile.",
+              comment: "New profile.",
               type: "any"
             }
           ]
         });
         expect(elementNameMeta.events.get("SomeEvent")).to.deep.equal({
           name: "SomeEvent",
-          description: "Fires whenever ** .. yo!",
+          comment: "Fires whenever ** .. yo!",
           params: [
             {
               name: "deep",
-              description: "",
+              comment: undefined,
               type: "{\n            property: boolean;\n        }"
             },
             {
               name: "name",
-              description: "New name",
+              comment: "New name",
               type: "string"
             }
           ]
@@ -315,7 +313,7 @@ describe("parsers", () => {
       it("should fetch method bodies", () => {
         expect(elementNameMeta.methods.get("constructor")).to.equal(undefined);
         expect(elementNameMeta.methods.get("staticTest").body).to.be.equalIgnoreSpaces(`
-          () {
+          (test, test2, test3) {
             console.log("static");
           }
         `);
@@ -346,9 +344,9 @@ describe("parsers", () => {
           esVersion === 5 ? `() {
             var _this = _super.call(this) || this;
             var editor = _this._editor;
-            editor.id = \"editor\";
-            editor.classList.add(_this.is);
-            _this[\"_mathField\"] = MathQuill.getInterface(2).MathField(editor, {
+            editor.id = "editor";
+            editor.classList.add("input-math");
+            _this["_mathField"] = MathQuill.getInterface(2).MathField(editor, {
               spaceBehavesLikeTab: true,
               handlers: {
                 edit: _this._updateValue.bind(_this)
@@ -358,9 +356,9 @@ describe("parsers", () => {
           }` : `() {
             super();
             var editor = this._editor;
-            editor.id = \"editor\";
-            editor.classList.add(this.is);
-            this[\"_mathField\"] = MathQuill.getInterface(2).MathField(editor, {
+            editor.id = "editor";
+            editor.classList.add("input-math");
+            this["_mathField"] = MathQuill.getInterface(2).MathField(editor, {
               spaceBehavesLikeTab: true,
               handlers: {
                 edit: this._updateValue.bind(this)

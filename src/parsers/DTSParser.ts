@@ -1,5 +1,5 @@
 import { goTo, regExpClosestIndexOf, findClosing, split } from "../helpers/source-crawlers";
-import { arrToObject } from "../helpers/misc";
+import { arrToObject, findDocComment, stripJSDoc, get } from "../helpers/misc";
 
 const deprecationNotice = (legacy, native) => `\`${legacy}\` callback is deprecated. Please use \`${native}\` instead`;
 const TYPES = {
@@ -189,6 +189,70 @@ export function buildFieldConfig({ modifiers, name, params, type, jsDoc }: Confi
   return Object.assign({}, arrToObject(modifiers), config);
 }
 
+export function parseMethodParams(params: string) {
+  return params.length === 0 ? [] : split(params, ",", true).map(param => {
+      let { 1: pName, 2: pOptional, 3: pType } = param.match(/(?:([\w\d_$]+)(\??))(?:: ?([\W\w]*))?/) || [];
+      let paramMeta = { name: pName } as any;
+      if (pOptional) {
+        paramMeta.isOptional = !!pOptional;
+      }
+      if (pType) {
+        paramMeta.type = pType;
+      }
+      return paramMeta;
+    });
+}
+export function parseDeclarationBody(body): { methods: Array<BodyItem>; properties: Array<BodyItem> } {
+  let methods = [];
+  let properties = [];
+  let tab = (body.match(/\n(\s+)[\w_$]/) || [])[ 1 ] || "";
+  void body.replace(new RegExp(`^${tab}([\\w_$][\\w_$ ]*\\??)(\\:|\\(|\\;)`, "gm"), (_, def, type, index) => {
+    let chunks = def.split(" ");
+    let name = chunks.pop();
+    let comment = findDocComment(body, index);
+    let isOptional = name.endsWith("?");
+    if (isOptional) {
+      name = name.slice(0, -1);
+    }
+    let itemMeta: BodyItem = { name };
+    if (isOptional) {
+      itemMeta.isOptional = isOptional;
+    }
+    if (comment) {
+      itemMeta.comment = stripJSDoc(comment);
+    }
+    chunks.forEach(modifier => itemMeta[ modifier ] = true);
+    if (type === "(") {
+      methods.push(itemMeta);
+    }
+    else {
+      properties.push(itemMeta);
+    }
+    switch (type) {
+      case ";":
+        return _;
+      case ":":
+        index += tab.length + def.length;
+        break;
+      case "(":
+        let paramsStart = index + _.length;
+        let paramsEnd = findClosing(body, paramsStart - 1, "()");
+        let params = body.slice(paramsStart, paramsEnd);
+        itemMeta.params = parseMethodParams(params);
+        index = paramsEnd + 1;
+        if (body[ index ] === ";") {
+          return _;
+        }
+        break;
+    }
+    itemMeta.type = body.slice(index + 1, goTo(body, ";", index)).trim();
+    return _;
+  });
+  return {
+    methods, properties
+  };
+}
+
 export default class DTSParser {
   public className: string;
   public parent: string;
@@ -196,22 +260,31 @@ export default class DTSParser {
   public methods: Map<string, FieldConfig> = new Map();
   public events: Map<string, EventInfo> = new Map();
 
-  protected dtsSrc: string;
+  public meta: Map<string, DefinitionMeta> = new Map();
 
   protected options: JSParserOptions = {
     allowDecorators: false
   };
 
-  path: string;
-
-  constructor(path: string, src: string, options?: JSParserOptions) {
-    this.path = path;
-    this.dtsSrc = src;
+  constructor(readonly path: string, protected readonly dtsSrc: string, options?: JSParserOptions) {
     Object.assign(this.options, options);
 
-    (<any> src).replace(...this.getEvents());
+    (<any> dtsSrc).replace(...this.getDeclarations());
+    const instanceOfEvent = parent => ["Event", "CustomEvent"].indexOf(parent) !== -1;
+    Array
+      .from(this.meta.values())
+      .filter(definition => get(definition, "interface.extends", []).some(instanceOfEvent))
+      .forEach(definition => this.events.set(definition.name, {
+        name: definition.name,
+        comment: definition.interface.comment,
+        params: parseDeclarationBody(definition.interface.properties[0].type).properties.map(prop => ({
+          name: prop.name,
+          type: prop.type,
+          comment: prop.comment
+        }))
+      }));
 
-    let match = src.match(/[\s\n]class ([\w$_]+)(?:[\s]+extends ([^{]+))?[\s]*\{/);
+    let match = dtsSrc.match(/[\s\n]class ([\w$_]+)(?:[\s]+extends ([^{]+))?[\s]*\{/);
     if (!match) {
       throw new Error("no class found");
     }
@@ -221,31 +294,31 @@ export default class DTSParser {
 
     let start = match.index + match[ 0 ].length;
 
-    for (let ptr = start, end = src.length, char = src.charAt(ptr); ptr < end; char = src.charAt(++ptr)) {
+    for (let ptr = start, end = dtsSrc.length, char = dtsSrc.charAt(ptr); ptr < end; char = dtsSrc.charAt(++ptr)) {
       let params, found;
       // skip whitespace
-      let from = ptr = goTo(src, /\S/, ptr);
+      let from = ptr = goTo(dtsSrc, /\S/, ptr);
 
       // is it the end of class?
-      if (src.charAt(from) === "}") {
+      if (dtsSrc.charAt(from) === "}") {
         break;
       }
 
       // find next stop (semicolon for the end of line, colon for end of prop name, parenthesis for end of method name
-      ({ index: ptr, found } = regExpClosestIndexOf(src, /;|:|\(/, ptr));
+      ({ index: ptr, found } = regExpClosestIndexOf(dtsSrc, /;|:|\(/, ptr));
 
       // get name and modifiers
-      let { name, modifiers, jsDoc } = getPropertyNoType(src, from, ptr);
+      let { name, modifiers, jsDoc } = getPropertyNoType(dtsSrc, from, ptr);
 
       // method
       if (found === "(") {
         // find end of parameters declaration
-        let end = findClosing(src, ptr, "()");
+        let end = findClosing(dtsSrc, ptr, "()");
 
         // find the colon to start searching for type
-        params = parseParams(src, ptr + 1, end);
+        params = parseParams(dtsSrc, ptr + 1, end);
 
-        let closing = regExpClosestIndexOf(src, /;|:/, end);
+        let closing = regExpClosestIndexOf(dtsSrc, /;|:/, end);
 
         ptr = closing.index + 1;
 
@@ -260,8 +333,8 @@ export default class DTSParser {
         continue;
       }
 
-      let { type, end: typeEnd } = getType(src, ptr + 1);
-      ptr = src.indexOf(";", typeEnd);
+      let { type, end: typeEnd } = getType(dtsSrc, ptr + 1);
+      ptr = dtsSrc.indexOf(";", typeEnd);
 
       if (params) {
         this.methods.set(name, buildFieldConfig({ modifiers, name, params, type, jsDoc }));
@@ -289,32 +362,29 @@ export default class DTSParser {
     }
   }
 
-  getEvents(): Replacer {
+  getDeclarations(): Replacer {
     return [
-      /(\*\/\s+)?(?:export )?interface ([\w\d_]+) extends (?:Custom)?Event {\s+detail:/g,
-      (match, hasComment, name, index, str) => {
-        let idx: number = <any> index;
-        let description = "";
-        if (hasComment) {
-          let c = idx;
-          while (c >= 2) {
-            if (str.substr(c - 3, 3) === "/**") {
-              description = str.slice(c, idx).trim();
-              break;
-            }
-            c--;
-          }
+      /(export (default )?)?(declare )?(class|interface) (\w[\d\w_$]+) (?:extends (.*) )?\{(\s*})?$/mg,
+      (_, exported, defaultExport, declared, type, name, extend, empty, idx, str) => {
+        let index = <any> idx as number;
+        let comment = findDocComment(str, index);
+        let definition = <DefinitionMeta> { name };
+        let bodyStart = index + _.length;
+        let bodyEnd = empty ? null : findClosing(str, bodyStart - 1, "{}");
+        definition[ type ] = empty ? <any>{} : parseDeclarationBody(str.slice(bodyStart, bodyEnd));
+        let definitionDetails = <DefinitionMetaDetails> definition[ type ];
+        if (comment) {
+          definitionDetails.comment = stripJSDoc(comment);
         }
-        let details = str.slice(idx + match.length, findClosing(str, idx + match.length, "{}")).trim().slice(1, -2);
-        let params = split(details, /;|,/, true)
-          .filter(prop => !!prop)
-          .map(param => {
-            let [ , pDescription, pName, pType ] = param.match(/(?:\/\*\*\s*([\S\s]+?)\s*\*\/\s*)?(.+?):\s*([\S\s]*)$/);
-            return { name: pName, description: pDescription || "", type: pType };
-          });
-
-        this.events.set(name, { name, description, params });
-        return match;
+        if (extend) {
+          definitionDetails.extends = extend.split(/\s*,\s*/);
+        }
+        let obj = this.meta.get(name);
+        if (!obj) {
+          this.meta.set(name, obj = <DefinitionMeta> {});
+        }
+        Object.assign(obj, definition);
+        return _;
       }
     ];
   }

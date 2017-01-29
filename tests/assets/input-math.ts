@@ -1,5 +1,5 @@
 import "./types";
-import { template, attr, notify, observe } from "../../annotations/polymer";
+import Polymer, { template, attr, notify, observe } from "../../annotations/polymer";
 
 import "script!imports/jquery.js";
 import "script!imports/mathquill.js";
@@ -70,7 +70,7 @@ export class InputMath extends Polymer.Element {
     super();
     var editor: HTMLElement = this._editor;
     editor.id = "editor";
-    editor.classList.add(this.is);
+    editor.classList.add("input-math");
     this[ "_mathField" ] = MathQuill.getInterface(2).MathField(editor, {
       spaceBehavesLikeTab: true,
       handlers: {

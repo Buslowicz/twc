@@ -15,19 +15,20 @@ const myBehavior = {
  *
  * @demo test.html
  */
-let ElementName = class ElementName {
+let ElementName = class ElementName extends polymer_1.default.Element {
     /**
      * A test class
      *
      * @demo test.html
      */
     constructor() {
+        super(...arguments);
         this.test = "tester";
     }
     /**
      * Some static method
      */
-    static staticTest() {
+    static staticTest(test, test2, test3) {
         console.log("static");
     }
     /**
