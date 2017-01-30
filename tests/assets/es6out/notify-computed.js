@@ -1,6 +1,6 @@
 "use strict";
 const polymer_1 = require("../../annotations/polymer");
-class NotifyComputed {
+class NotifyComputed extends polymer_1.default.Element {
     test(prop) {
         console.log(prop);
         return "test";

@@ -1,7 +1,6 @@
 import { expect } from "chai";
-import { getPropertyNoType, getType, parseParams, buildFieldConfig } from "../src/parsers/DTSParser";
 import { goTo, split, findClosing, regExpClosestIndexOf } from "../src/helpers/source-crawlers";
-import { arrToObject } from "../src/helpers/misc";
+import { arrToObject, type2js } from "../src/helpers/misc";
 import { buildProperty, buildPropertiesMap } from "../src/PolymerModule";
 
 describe("parser helpers", () => {
@@ -62,73 +61,6 @@ describe("parser helpers", () => {
       expect(regExpClosestIndexOf("def", /b|c/, 0)).to.deep.equal({ index: -1, found: null });
     });
   });
-  describe("getPropertyNoType", () => {
-    it("should recognize all modifiers and a name", () => {
-      expect(getPropertyNoType("prop;")).to.deep.equal({ name: "prop", modifiers: [], jsDoc: undefined });
-      expect(getPropertyNoType("readonly prop;")).to.deep.equal({
-        name: "prop",
-        modifiers: [ "readonly" ],
-        jsDoc: undefined
-      });
-      expect(getPropertyNoType("private readonly prop;")).to.deep.equal({
-        name: "prop",
-        modifiers: [ "private", "readonly" ],
-        jsDoc: undefined
-      });
-    });
-
-    it("should not exceed char limit", () => {
-      let dts = "; readonly prop; test;";
-      expect(getPropertyNoType(dts, dts.indexOf("readonly"), dts.indexOf("prop;") + 4)).to.deep.equal({
-        name: "prop",
-        modifiers: [ "readonly" ],
-        jsDoc: undefined
-      });
-    });
-  });
-  describe("getType", () => {
-    function testType(type, expected = type, end = type.length) {
-      expect(getType(`${type};`)).to.deep.equal({ type: expected, end });
-    }
-
-    it("should recognize simple type", () => {
-      testType("number", "Number");
-      testType("string", "String");
-      testType("object", "Object");
-      testType("User");
-    });
-    it("should recognize arrays", () => {
-      testType("Array<string>", "Array");
-      testType("string[]", "Array");
-      testType("[string]", "Array");
-      testType("string[][]", "Array");
-    });
-    it("should recognize types with generics", () => {
-      testType("Promise<string>", "Promise");
-      testType("Promise<>", "Promise");
-      testType("Promise<Promise<null>>", "Promise");
-    });
-    it("should recognize inline objects", () => {
-      testType("{next: () => any}", "Object");
-      testType("{a: any; b: number;}", "Object");
-      testType(`{test: "true"|"false"}`, "Object");
-      testType("{test: {deep: boolean}}", "Object");
-    });
-    it("should recognize combined types", () => {
-      testType("string|null", "String");
-      testType("string | null", "String");
-      testType("string|number", "Object");
-      testType("string | number", "Object");
-    });
-    it("should recognize fixed string values", () => {
-      testType(`"yep"`, "String");
-      testType(`"yep"|"nope"`, "String");
-      testType(`"yep" | "nope"`, "String");
-    });
-    it("should throw a syntax error if there was an error parsing the template", () => {
-      expect(() => getType("{test: boolean;")).to.throw(`Parenthesis has no closing at line 1.`);
-    });
-  });
   describe("arrToObject", () => {
     it("should create an object using array values as keys", () => {
       expect(arrToObject([])).to.deep.equal({});
@@ -138,49 +70,6 @@ describe("parser helpers", () => {
     it("should use the value provided in second argument", () => {
       expect(arrToObject([ "a", "b" ], null)).to.deep.equal({ a: null, b: null });
       expect(arrToObject([ "a", "b" ], "yup")).to.deep.equal({ a: "yup", b: "yup" });
-    });
-  });
-  describe("parseParams", () => {
-    it("should recognize number of params", () => {
-      expect(parseParams("test1").length).to.equal(1);
-      expect(parseParams("test1, test2").length).to.equal(2);
-      expect(parseParams("test1: number, test2: any").length).to.equal(2);
-      expect(parseParams("test1: {a: number; b: any;}, test2: any").length).to.equal(2);
-      expect(parseParams("test1: {a: number, b: any;}, test2: any").length).to.equal(2);
-    });
-    it("should recognise name and type of params", () => {
-      expect(parseParams("test1")).to.deep.equal([ { name: "test1" } ]);
-      expect(parseParams("test1, test2")).to.deep.equal([ { name: "test1" }, { name: "test2" } ]);
-      expect(parseParams("test1: number, test2: any")).to.deep.equal([
-        { name: "test1", type: "Number" },
-        { name: "test2" }
-      ]);
-      expect(parseParams("test1: {a: number; b: any;}, test2: any")).to.deep.equal([
-        { name: "test1", type: "Object" },
-        { name: "test2" }
-      ]);
-    });
-  });
-  describe("buildFieldConfig", () => {
-    it("should always add name and modifiers", () => {
-      let field = buildFieldConfig({ modifiers: [ "modifier" ], name: "name" });
-      expect(field).to.have.property("modifier");
-      expect(field).to.have.property("name");
-    });
-    it("should have params and type if they are defined", () => {
-      let field = buildFieldConfig({
-        modifiers: [ "modifier" ],
-        name: "name",
-        params: [ { name: "params" } ],
-        type: "type"
-      });
-      expect(field).to.have.property("type");
-      expect(field).to.have.property("params");
-    });
-    it("should NOT add params or type if they are not provided", () => {
-      let field = buildFieldConfig({ modifiers: [ "modifier" ], name: "name" });
-      expect(field).to.not.have.property("type");
-      expect(field).to.not.have.property("params");
     });
   });
   describe("buildPropertiesMap", () => {
@@ -220,6 +109,79 @@ describe("parser helpers", () => {
           value: `{test: true}`
         }
       ])).to.equal(`test:{type:Object,value:{test: true}}`);
+    });
+  });
+  describe("get", () => {
+    // TODO
+  });
+  describe("nonEmpty", () => {
+    // TODO
+  });
+  describe("stripJSDoc", () => {
+    // TODO
+  });
+  describe("wrapJSDoc", () => {
+    // TODO
+  });
+  describe("findDocComment", () => {
+    // TODO
+  });
+  describe("type2js", () => {
+    it("should parse TS type to valid JS type", () => {
+      expect(type2js("string")).to.equal("String");
+      expect(type2js("number")).to.equal("Number");
+      expect(type2js("boolean")).to.equal("Boolean");
+      expect(type2js("Date")).to.equal("Date");
+      expect(type2js("User")).to.equal("User");
+      expect(type2js("null")).to.equal(null);
+      expect(type2js("undefined")).to.equal(null);
+      expect(type2js("number|boolean")).to.equal("Object");
+      expect(type2js("{a: boolean}")).to.equal("Object");
+      expect(type2js("any|{a: boolean}")).to.equal("Object");
+      expect(type2js("{a: boolean}|any")).to.equal("Object");
+      expect(type2js("Array<string>")).to.equal("Array");
+      expect(type2js("[string]")).to.equal("Array");
+      expect(type2js("string[]")).to.equal("Array");
+    });
+    function testType(type, expected = type) {
+      expect(type2js(`${type}`)).to.deep.equal(expected);
+    }
+    it("should recognize simple type", () => {
+      testType("number", "Number");
+      testType("string", "String");
+      testType("object", "Object");
+      testType("User");
+    });
+    it("should recognize arrays", () => {
+      testType("Array<string>", "Array");
+      testType("string[]", "Array");
+      testType("[string]", "Array");
+      testType("string[][]", "Array");
+    });
+    it("should recognize types with generics", () => {
+      testType("Promise<string>", "Promise");
+      testType("Promise<>", "Promise");
+      testType("Promise<Promise<null>>", "Promise");
+    });
+    it("should recognize inline objects", () => {
+      testType("{next: () => any}", "Object");
+      testType("{a: any; b: number;}", "Object");
+      testType(`{test: "true"|"false"}`, "Object");
+      testType("{test: {deep: boolean}}", "Object");
+    });
+    it("should recognize combined types", () => {
+      testType("string|null", "String");
+      testType("string | null", "String");
+      testType("string|number", "Object");
+      testType("string | number", "Object");
+    });
+    it("should recognize fixed string values", () => {
+      testType(`"yep"`, "String");
+      testType(`"yep"|"nope"`, "String");
+      testType(`"yep" | "nope"`, "String");
+    });
+    it("should throw a syntax error if there was an error parsing the template", () => {
+      expect(() => type2js("{test: boolean")).to.throw(`Parenthesis has no closing at line 1.`);
     });
   });
 });

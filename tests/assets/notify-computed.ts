@@ -1,5 +1,5 @@
-import { notify, computed } from "../../annotations/polymer";
-export class NotifyComputed {
+import Polymer, { notify, computed } from "../../annotations/polymer";
+export class NotifyComputed extends Polymer.Element {
   prop: string;
 
   @notify @computed test(prop: string) {

@@ -1,193 +1,9 @@
-import { goTo, regExpClosestIndexOf, findClosing, split } from "../helpers/source-crawlers";
-import { arrToObject, findDocComment, stripJSDoc, get } from "../helpers/misc";
+import { goTo, findClosing, split } from "../helpers/source-crawlers";
+import { findDocComment, stripJSDoc, get, type2js } from "../helpers/misc";
+
+import { cloneDeep } from "lodash";
 
 const deprecationNotice = (legacy, native) => `\`${legacy}\` callback is deprecated. Please use \`${native}\` instead`;
-const TYPES = {
-  IS_PRIMITIVE: type => "boolean|number|string|object".indexOf(type) !== -1,
-  IS_IGNORED: type => "void|null|undefined|never".indexOf(type) !== -1,
-  BOOLEAN: "Boolean",
-  NUMBER: "Number",
-  STRING: "String",
-  DATE: "Date",
-  OBJECT: "Object",
-  ARRAY: "Array"
-};
-
-/**
- * Get modifiers and name of a property or method (does not get types)
- *
- * @param src String to search
- * @param from (Optional) Search from this index
- * @param to (Optional) Search up to this index
- *
- * @returns name and array of property/method modifiers
- */
-export function getPropertyNoType(src: string, from: number = 0, to: number = src.indexOf(";")): PropertyConfig {
-  let jsDoc;
-  if (src.substr(from, 3) === "/**") {
-    let jsDocEndsAt = src.indexOf("*/", from) + 2;
-    jsDoc = src.slice(from + 3, jsDocEndsAt - 2)
-      .trim()
-      .split(/\r?\n/)
-      .map(doc => doc.replace(/^\s*\*\s*/, ""))
-      .join("\n");
-    from = jsDocEndsAt;
-  }
-
-  let [ ...modifiers ] = src.slice(from, to).trim().split(" ");
-  let name = modifiers.pop();
-  return { name, modifiers, jsDoc };
-}
-
-/**
- * Get type of property, method or param. Inline structures are casted to Object or Array.
- * Combined types are casted to Object. Generic types are stripped.
- *
- * @fixme function interface type ( () => void; )
- *
- * @param src String to search
- * @param offset (Optional) Search offset
- *
- * @returns Found type and index of the END of type declaration or null and -1 if not found
- */
-export function getType(src: string, offset: number = 0): FoundType {
-  let start = goTo(src, /\S/, offset);
-  let done = false;
-  let index = start;
-  let types = [];
-  let char;
-  let type;
-
-  while (!done && (char = src.charAt(index))) {
-    switch (char) {
-      case ")":
-      case ",":
-      case ";":
-        type = src.slice(start, index).trim();
-        if (type.length > 0) {
-          types.push(type);
-        }
-        done = true;
-        break;
-      case "{":
-        types.push(TYPES.OBJECT);
-        index = findClosing(src, index, "{}");
-        start = ++index;
-        break;
-      case "[":
-        types.push(TYPES.ARRAY);
-        index = findClosing(src, index, "[]");
-        start = ++index;
-        break;
-      case "<":
-        type = src.slice(start, index).trim();
-        if (type.length > 0) {
-          types.push(type);
-        }
-        index = findClosing(src, index, "<>");
-        if (index === -1) {
-          return { type: null, end: -1 };
-        }
-        start = ++index;
-        break;
-      case "\"":
-        types.push(TYPES.STRING);
-        index = src.indexOf("\"", index + 1);
-        start = ++index;
-        break;
-      case "|":
-      case "&":
-        type = src.slice(start, index).trim();
-        start = ++index;
-        if (type.length > 0) {
-          types.push(type);
-        }
-        break;
-      case "":
-        return { type: null, end: -1 };
-      default:
-        index++;
-    }
-  }
-
-  type = types.reduce((current, result) => {
-    if (result === TYPES.OBJECT || !current) {
-      return result;
-    }
-    if (TYPES.IS_IGNORED(result)) {
-      return current;
-    }
-    if (result !== current) {
-      return TYPES.OBJECT;
-    }
-    return current;
-  }, null);
-  if (TYPES.IS_PRIMITIVE(type)) {
-    type = `${type.charAt(0).toUpperCase()}${type.substr(1)}`;
-  }
-  return { type, end: index };
-}
-
-/**
- * Get list of params with their types
- *
- * @param src String to search
- * @param from (Optional) Search from this index
- * @param to (Optional) Search up to this index
- *
- * @returns List of parameter names and types
- */
-export function parseParams(src: string, from: number = 0, to: number = src.length): Array<ParamConfig> {
-  let params = [];
-  while (from < to) {
-    let firstStop = regExpClosestIndexOf(src, /,|:/, from);
-    if (firstStop.index === -1) {
-      params.push({ name: src.slice(from, to).trim() });
-      break;
-    }
-    let param: ParamConfig = { name: src.slice(from, firstStop.index).trim() };
-
-    if (firstStop.found === ":") {
-      let { type, end } = getType(src, firstStop.index + 1);
-      if (type) {
-        param.type = type;
-      }
-      from = end + 1;
-    }
-    else {
-      from = firstStop.index + 1;
-    }
-
-    params.push(param);
-  }
-
-  return params;
-}
-
-/**
- * Build a full property config
- *
- * @param modifiers List of field modifiers
- * @param name Property/method name
- * @param params List of parameters (names and types)
- * @param type Type of field
- * @param jsDoc Documentation of the field
- *
- * @returns Field configuration object
- */
-export function buildFieldConfig({ modifiers, name, params, type, jsDoc }: ConfigBuilderOptions): FieldConfig {
-  let config: FieldConfig = { name };
-  if (params) {
-    config.params = params;
-  }
-  if (type) {
-    config.type = type;
-  }
-  if (jsDoc) {
-    config.jsDoc = jsDoc;
-  }
-  return Object.assign({}, arrToObject(modifiers), config);
-}
 
 export function parseMethodParams(params: string) {
   return params.length === 0 ? [] : split(params, ",", true).map(param => {
@@ -252,15 +68,21 @@ export function parseDeclarationBody(body): { methods: Array<BodyItem>; properti
     methods, properties
   };
 }
-
+export function convertType(descriptor: { type?: string }) {
+  let type = type2js(descriptor.type);
+  if (type) {
+    descriptor.type = type;
+  }
+  else {
+    delete descriptor.type;
+  }
+}
 export default class DTSParser {
   public className: string;
   public parent: string;
   public properties: Map<string, FieldConfig> = new Map();
   public methods: Map<string, FieldConfig> = new Map();
   public events: Map<string, EventInfo> = new Map();
-
-  public meta: Map<string, DefinitionMeta> = new Map();
 
   protected options: JSParserOptions = {
     allowDecorators: false
@@ -269,80 +91,53 @@ export default class DTSParser {
   constructor(readonly path: string, protected readonly dtsSrc: string, options?: JSParserOptions) {
     Object.assign(this.options, options);
 
-    (<any> dtsSrc).replace(...this.getDeclarations());
-    const instanceOfEvent = parent => ["Event", "CustomEvent"].indexOf(parent) !== -1;
-    Array
-      .from(this.meta.values())
+    let meta: Map<string, DefinitionMeta> = new Map();
+
+    (<any> dtsSrc).replace(...this.getDeclarations(meta));
+
+    const metaValues = Array.from(meta.values());
+
+    const instanceOfEvent = parent => [ "Event", "CustomEvent" ].indexOf(parent) !== -1;
+    metaValues
       .filter(definition => get(definition, "interface.extends", []).some(instanceOfEvent))
       .forEach(definition => this.events.set(definition.name, {
         name: definition.name,
         comment: definition.interface.comment,
-        params: parseDeclarationBody(definition.interface.properties[0].type).properties.map(prop => ({
+        params: parseDeclarationBody(definition.interface.properties[ 0 ].type).properties.map(prop => ({
           name: prop.name,
           type: prop.type,
           comment: prop.comment
         }))
       }));
 
-    let match = dtsSrc.match(/[\s\n]class ([\w$_]+)(?:[\s]+extends ([^{]+))?[\s]*\{/);
-    if (!match) {
-      throw new Error("no class found");
-    }
+    const instanceOfPolymer = parent => [ "Polymer.Element" ].indexOf(parent) !== -1;
+    metaValues
+      .filter(definition => get(definition, "class.extends", []).some(instanceOfPolymer))
+      .forEach(definition => {
+        this.className = definition.name;
+        this.parent = definition.class.extends[ 0 ];
 
-    this.className = match[ 1 ];
-    this.parent = match[ 2 ];
+        definition.class.methods.forEach((method) => {
+          let methodDescriptor = <BodyItem & FieldConfig>cloneDeep(method);
+          if (methodDescriptor.comment) {
+            methodDescriptor.jsDoc = methodDescriptor.comment;
+            delete method.comment; // TODO: refactor jsDoc to comment
+          }
+          convertType(methodDescriptor);
+          methodDescriptor.params.forEach(convertType);
+          this.methods.set(method.name, methodDescriptor);
+        });
 
-    let start = match.index + match[ 0 ].length;
-
-    for (let ptr = start, end = dtsSrc.length, char = dtsSrc.charAt(ptr); ptr < end; char = dtsSrc.charAt(++ptr)) {
-      let params, found;
-      // skip whitespace
-      let from = ptr = goTo(dtsSrc, /\S/, ptr);
-
-      // is it the end of class?
-      if (dtsSrc.charAt(from) === "}") {
-        break;
-      }
-
-      // find next stop (semicolon for the end of line, colon for end of prop name, parenthesis for end of method name
-      ({ index: ptr, found } = regExpClosestIndexOf(dtsSrc, /;|:|\(/, ptr));
-
-      // get name and modifiers
-      let { name, modifiers, jsDoc } = getPropertyNoType(dtsSrc, from, ptr);
-
-      // method
-      if (found === "(") {
-        // find end of parameters declaration
-        let end = findClosing(dtsSrc, ptr, "()");
-
-        // find the colon to start searching for type
-        params = parseParams(dtsSrc, ptr + 1, end);
-
-        let closing = regExpClosestIndexOf(dtsSrc, /;|:/, end);
-
-        ptr = closing.index + 1;
-
-        if (closing.found === ";") {
-          this.methods.set(name, buildFieldConfig({ modifiers, name, params, jsDoc }));
-          continue;
-        }
-      }
-      // no type property
-      else if (found === ";") {
-        this.properties.set(name, buildFieldConfig({ modifiers, name, jsDoc }));
-        continue;
-      }
-
-      let { type, end: typeEnd } = getType(dtsSrc, ptr + 1);
-      ptr = dtsSrc.indexOf(";", typeEnd);
-
-      if (params) {
-        this.methods.set(name, buildFieldConfig({ modifiers, name, params, type, jsDoc }));
-      }
-      else {
-        this.properties.set(name, buildFieldConfig({ modifiers, name, type, jsDoc }));
-      }
-    }
+        definition.class.properties.forEach((property) => {
+          let propertyDescriptor = <BodyItem & FieldConfig>cloneDeep(property);
+          if (propertyDescriptor.comment) {
+            propertyDescriptor.jsDoc = propertyDescriptor.comment;
+            delete property.comment; // TODO: refactor jsDoc to comment
+          }
+          convertType(propertyDescriptor);
+          this.properties.set(property.name, propertyDescriptor);
+        });
+      });
 
     /* ********* check for lifecycle methods validity ********* */
     if (this.methods.has("created")) {
@@ -362,7 +157,7 @@ export default class DTSParser {
     }
   }
 
-  getDeclarations(): Replacer {
+  getDeclarations(collector: Map<string, DefinitionMeta>): Replacer {
     return [
       /(export (default )?)?(declare )?(class|interface) (\w[\d\w_$]+) (?:extends (.*) )?\{(\s*})?$/mg,
       (_, exported, defaultExport, declared, type, name, extend, empty, idx, str) => {
@@ -379,9 +174,9 @@ export default class DTSParser {
         if (extend) {
           definitionDetails.extends = extend.split(/\s*,\s*/);
         }
-        let obj = this.meta.get(name);
+        let obj = collector.get(name);
         if (!obj) {
-          this.meta.set(name, obj = <DefinitionMeta> {});
+          collector.set(name, obj = <DefinitionMeta> {});
         }
         Object.assign(obj, definition);
         return _;

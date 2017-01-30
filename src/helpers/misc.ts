@@ -1,3 +1,4 @@
+import { split } from "./source-crawlers";
 /**
  * Convert array to object, using given value (default `true`) as value
  *
@@ -87,4 +88,56 @@ export function findDocComment(str, i): string | undefined {
     }
   }
   return str.slice(commentStart, commentEnd + 1);
+}
+
+const TYPES = {
+  IS_PRIMITIVE: type => "boolean|number|string|object".indexOf(type) !== -1,
+  IS_IGNORED: type => "void|null|undefined|never".indexOf(type) !== -1,
+  BOOLEAN: "Boolean",
+  NUMBER: "Number",
+  STRING: "String",
+  DATE: "Date",
+  OBJECT: "Object",
+  ARRAY: "Array"
+};
+
+/**
+ * @todo parse arrow functions
+ */
+export function type2js(type) {
+  if (!type) {
+    return null;
+  }
+
+  let types = split(type, /&|\|/, true);
+
+  type = types.reduce((previous, current) => {
+    if (TYPES.IS_IGNORED(current)) {
+      return previous;
+    }
+    if (TYPES.IS_PRIMITIVE(current)) {
+      current = `${current.charAt(0).toUpperCase()}${current.substr(1)}`;
+    }
+    if (current.startsWith("Array") || current.endsWith("[]") || /^\[[\W\w]*]$/.test(current)) {
+      current = TYPES.ARRAY;
+    }
+    if (/^\{[\W\w]*}$/.test(current)) {
+      current = TYPES.OBJECT;
+    }
+    if (/^['"`][\W\w]*['"`]$/.test(current)) {
+      current = TYPES.STRING;
+    }
+    let indexOfGeneric = current.indexOf("<");
+    if (indexOfGeneric !== -1) {
+      current = current.slice(0, indexOfGeneric);
+    }
+    if (previous && (previous !== current)) {
+      return TYPES.OBJECT;
+    }
+    return current;
+  }, null);
+  if (TYPES.IS_PRIMITIVE(type)) {
+    type = `${type.charAt(0).toUpperCase()}${type.substr(1)}`;
+  }
+  return type;
 }

@@ -73,19 +73,16 @@ describe("parsers", () => {
         },
         {
           name: "ready",
-          type: "void",
           params: []
         },
         {
           name: "cmd",
-          type: "void",
           params: [
             { name: "ev", type: "PolymerEvent" }
           ]
         },
         {
           name: "undo",
-          type: "void",
           params: []
         },
         {
@@ -98,21 +95,18 @@ describe("parsers", () => {
         },
         {
           name: "symbolsChanged",
-          type: "void",
           params: [
             { name: "symbols", type: "String" }
           ]
         },
         {
           name: "keyShortcuts",
-          type: "void",
           params: [
             { name: "ev", type: "KeyboardEvent" }
           ]
         },
         {
           name: "_updateValue",
-          type: "void",
           params: [
             { name: "test", type: "Object" }
           ]
