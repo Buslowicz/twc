@@ -27,7 +27,7 @@
     "lodash": "^4.17.2",
     "merge2": "latest",
     "through2": "^2.0.3",
-    "typescript": "^2.1.4"
+    "typescript": "2.1.6"
   },
   "devDependencies": {
     "@types/chai": "^3.4.34",
