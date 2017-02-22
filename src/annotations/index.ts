@@ -1,4 +1,4 @@
-import { startCase, camelCase } from "lodash";
+import { upperFirst, camelCase } from "lodash";
 
 export function template({ params }: AnnotationOptions) {
   let template = params.slice(1, -1);
@@ -88,7 +88,7 @@ export function computed({ config, propertiesMap, method, params }: AnnotationOp
     observedProps = config.params.map(param => param.name);
   }
   let name = config.name;
-  method.name = `_compute${startCase(camelCase(name))}`;
+  method.name = `_compute${upperFirst(camelCase(name))}`;
   let field = propertiesMap.get(name);
   let computed = { type: config.type, computed: `"${method.name}(${observedProps.join(", ")})"` };
   if (field) {
