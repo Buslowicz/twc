@@ -1,6 +1,6 @@
 import Polymer, { template, style, behavior, attr, notify, observe, computed } from "../../annotations/polymer";
-import "link!imports/polymer.html";
-import "link!imports/esp.html";
+import "imports/polymer.html";
+import "imports/esp.html";
 
 export namespace Polymer {
   export interface TheBehavior {

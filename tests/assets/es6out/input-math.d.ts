@@ -1,7 +1,7 @@
 import "./types";
-import Polymer from "../../../annotations/polymer";
-import "script!imports/jquery.js";
-import "script!imports/mathquill.js";
+import Polymer from "../../annotations/polymer";
+import "imports/jquery.js";
+import "imports/mathquill.js";
 export interface ICmd {
     cmd: string;
     name: string;

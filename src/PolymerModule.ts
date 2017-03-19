@@ -118,7 +118,7 @@ export default class Module extends JSParser {
     let methodsMap = buildMethodsMap(methods, properties, propertiesMap, observers);
 
     let meta = new Map<string, any>([
-      [ "styles", styles ],
+      [ "css", styles ],
       [ "properties", propertiesMap ],
       [ "methods", methodsMap ]
     ]);
@@ -193,7 +193,7 @@ export default class Module extends JSParser {
     }
 
     let { dir } = parse(this.path);
-    let styles = meta.get("styles");
+    let styles = meta.get("css");
     let tpl = (({ template, type } = {}) => {
       switch (type) {
         case "link":
@@ -206,7 +206,7 @@ export default class Module extends JSParser {
     })(meta.get("template"));
 
     return beautify([
-      ...this.links.map(module => `<link rel="import" href="${module}">`),
+      ...this.links.map(module => `<link rel="import" href="${module.path}">`),
       ...this.scripts.map(module => `<script src="${module}"></script>`),
 
       nonEmpty`<!--\n${this.jsDoc}\n-->`,

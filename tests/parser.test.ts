@@ -161,8 +161,8 @@ describe("parsers", () => {
       it("should fetch list of scripts and html imports and remove them", () => {
         expect(elementNameMeta.scripts).to.deep.equal([]);
         expect(elementNameMeta.links).to.deep.equal([
-          "imports/polymer.html",
-          "imports/esp.html"
+          { "ns": null, "repo": null, "path": "imports/polymer.html" },
+          { "ns": null, "repo": null, "path": "imports/esp.html" }
         ]);
 
         expect(inputMathMeta.links).to.deep.equal([]);

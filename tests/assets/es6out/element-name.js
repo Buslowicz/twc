@@ -1,7 +1,7 @@
 "use strict";
 const polymer_1 = require("../../annotations/polymer");
-require("link!imports/polymer.html");
-require("link!imports/esp.html");
+require("imports/polymer.html");
+require("imports/esp.html");
 /**
  * A behavior
  */

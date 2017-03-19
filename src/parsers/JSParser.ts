@@ -16,7 +16,7 @@ export default class JSParser extends DTSParser {
 
   public jsDoc: string;
 
-  public links: Array<string> = [];
+  public links: Array<{ path: string; ns: string; repo: string; }> = [];
   public scripts: Array<string> = [];
 
   protected jsSrc: string;
@@ -132,29 +132,32 @@ export default class JSParser extends DTSParser {
   getImports(): Replacer {
     let { dir } = parse(this.path);
     return [
-      /(?:(var|const) \S+ = )?(?:require|import) ?\(?['"](.*?)['"]\)?;\n?/g,
+      /(?:(var|const) [\w$]+ = )?(?:require|import) ?\(?['"](.*?)['"]\)?;\n?/g,
       (m, v, module) => {
-        if (module.startsWith("link!")) {
-          let link = module.substr(5);
-          if (existsSync(join(dir, "bower_components", "twc", link)) || existsSync(join(dir, link))) {
-            this.links.push(link);
-          }
-          else {
-            console.log("\x1b[33m", `TWC (${relative(cwd, this.path)}):`, "\x1b[0m", `\`${link}\` does not exist`);
-          }
-        }
-        else if (module.startsWith("script!")) {
-          let script = module.substr(7);
-          if (existsSync(join(dir, "bower_components", "twc", script)) || existsSync(join(dir, script))) {
-            this.scripts.push(script);
-          }
-          else {
-            console.log("\x1b[33m", `TWC (${relative(cwd, this.path)}):`, "\x1b[0m", `\`${script}\` does not exist`);
-          }
+        let [ , repo = null, path = "", type = null, ns = null ] = module
+          .match(/(?:(bower|npm):)?([^#]*\.(js|html))(?:#([\w$.]+))?/) || [];
+
+        switch (type) {
+          case "html":
+            this.warnIfInvalidPath(repo, dir, path);
+            this.links.push({ repo, path, ns });
+            break;
+          case "js":
+            this.warnIfInvalidPath(repo, dir, path);
+            this.scripts.push(path);
+            break;
         }
         return "";
       }
     ];
+  }
+
+  warnIfInvalidPath(repo: string, dir: string, path: string) {
+    let repos = { bower: "bower_components", npm: "node_modules" };
+    if (existsSync(join(dir, repos[repo] || "bower_components", "twc", path)) || existsSync(join(dir, path))) {
+      return;
+    }
+    console.log("\x1b[33m", `TWC (${relative(cwd, this.path)}):`, "\x1b[0m", `\`${path}\` does not exist`);
   }
 
   getClassJsDoc(): Replacer {
@@ -257,9 +260,9 @@ export default class JSParser extends DTSParser {
           let decor = decors[ i ];
           let ptr = decor.indexOf("(");
           let [ name, params = undefined ] = ptr !== -1 ? [
-              decor.slice(0, ptr).split(".").slice(-1)[ 0 ],
-              decor.slice(ptr + 1, decor.length - 1)
-            ] : [ decor.split(".").slice(-1)[ 0 ] ];
+            decor.slice(0, ptr).split(".").slice(-1)[ 0 ],
+            decor.slice(ptr + 1, decor.length - 1)
+          ] : [ decor.split(".").slice(-1)[ 0 ] ];
 
           if (name in definedAnnotations) {
             usedAnnotations.push({ name, params, descriptor, src: decor });
@@ -302,9 +305,9 @@ export default class JSParser extends DTSParser {
           let decor = decors[ i ];
           let ptr = decor.indexOf("(");
           let [ name, params = undefined ] = ptr !== -1 ? [
-              decor.slice(0, ptr).split(".").slice(-1)[ 0 ],
-              decor.slice(ptr + 1, decor.length - 1)
-            ] : [ decor.split(".").slice(-1)[ 0 ] ];
+            decor.slice(0, ptr).split(".").slice(-1)[ 0 ],
+            decor.slice(ptr + 1, decor.length - 1)
+          ] : [ decor.split(".").slice(-1)[ 0 ] ];
 
           if (name in definedAnnotations) {
             this.annotations.push({ name, params, src: decor });

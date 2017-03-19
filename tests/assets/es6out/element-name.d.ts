@@ -1,6 +1,6 @@
-import Polymer from "../../../annotations/polymer";
-import "link!imports/polymer.html";
-import "link!imports/esp.html";
+import Polymer from "../../annotations/polymer";
+import "imports/polymer.html";
+import "imports/esp.html";
 export declare namespace Polymer {
     interface TheBehavior {
         created(): void;

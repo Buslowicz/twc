@@ -1,8 +1,8 @@
 import "./types";
 import Polymer, { template, attr, notify, observe } from "../../annotations/polymer";
 
-import "script!imports/jquery.js";
-import "script!imports/mathquill.js";
+import "imports/jquery.js";
+import "imports/mathquill.js";
 
 export interface ICmd {
   cmd: string;
