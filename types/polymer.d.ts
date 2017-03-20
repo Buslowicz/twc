@@ -8,18 +8,33 @@
  * subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
  */
 
-type Constructor<T> = { new (...args: any[]): T; }
+declare interface Window {
+  customElements: CustomElementRegistry;
+}
+
+declare class CustomElementRegistry {
+  define(name: string, definition: { prototype: any }): void;
+}
+
+declare interface HTMLElement {
+  shadowRoot: DocumentFragment;
+}
+
+interface Constructor<T> {
+  new (...args: any[]): T;
+}
 
 /**
  * An interface to match all Objects, but not primitives.
  */
-type Base = {}
+interface Base {}
 
 /**
  * A subclass-factory style mixin that extends `superclass` with a new subclass
  * that implements the interface `M`.
  */
-type Mixin<M> = <C extends Base>(superclass: Constructor<C>) => Constructor<M & C>;
+type Mixin<M> =
+  <C extends Base>(superclass: Constructor<C>) => Constructor<M & C>;
 
 /**
  * The Polymer function and namespace.
@@ -49,8 +64,8 @@ declare interface PolymerElementConstructor {
 }
 
 declare class PolymerElement extends PolymerMetaEffects {
-  static finalized: boolean;
   static readonly template: HTMLTemplateElement;
+  static finalized: boolean;
 
   static finalize(): void;
 
@@ -59,7 +74,11 @@ declare class PolymerElement extends PolymerMetaEffects {
   updateStyles(properties: string[]): void;
 }
 
-declare class PolymerPropertyEffects extends HTMLElement {
+declare class PolymerHelpers extends HTMLElement {
+  $: any;
+}
+
+declare class PolymerPropertyEffects extends PolymerHelpers {
   ready(): void;
 
   linkPaths(to: string, from: string): void;
@@ -68,20 +87,16 @@ declare class PolymerPropertyEffects extends HTMLElement {
 
   notifySplices(path: string, splices: any[]): void;
 
-  get(path: string|(string|number)[], root: any): any;
+  get(path: string | (string | number)[], root: any): any;
 
-  set(path: string|(string|number)[], value: any): void;
+  set(path: string | (string | number)[], value: any): void;
 
   push(path: string, ...items: any[]): any;
 
   pop(path: string): any;
 }
 
-declare class PolymerHelpers extends PolymerPropertyEffects {
-  $: any;
-}
-
-declare class PolymerBatchedEffects extends PolymerHelpers {
+declare class PolymerBatchedEffects extends PolymerPropertyEffects {
   // _propertiesChanged(currentProps, changedProps, oldProps): void;
   // _setPropertyToNodeFromAnnotation(node, prop, value): void;
   // _setPropertyFromNotification(path, value, event): void;
@@ -96,5 +111,3 @@ declare class PolymerMetaEffects extends PolymerBatchedEffects {
   // _createPropertyFromInfo(name: string, info): void;
   // _setPropertyDefaults(properties): void;
 }
-
-export default Polymer;

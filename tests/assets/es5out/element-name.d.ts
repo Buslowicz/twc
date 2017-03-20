@@ -1,4 +1,3 @@
-import Polymer from "../../../annotations/polymer";
 import "imports/polymer.html";
 import "imports/esp.html";
 export declare namespace Polymer {

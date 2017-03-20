@@ -1,5 +1,5 @@
 import "./types";
-import Polymer, { template, attr, notify, observe } from "../../annotations/polymer";
+import { template, attr, notify, observe } from "twc/polymer";
 
 import "imports/jquery.js";
 import "imports/mathquill.js";

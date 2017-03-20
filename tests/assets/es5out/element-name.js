@@ -1,5 +1,5 @@
 "use strict";
-var polymer_1 = require("../../annotations/polymer");
+var polymer_1 = require("twc/polymer");
 require("imports/polymer.html");
 require("imports/esp.html");
 /**
@@ -46,7 +46,7 @@ var ElementName = (function (_super) {
         return test + "!";
     };
     return ElementName;
-}(polymer_1.default.Element));
+}(Polymer.Element));
 __decorate([
     polymer_1.attr
 ], ElementName.prototype, "greetings", void 0);

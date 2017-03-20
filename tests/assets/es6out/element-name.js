@@ -1,5 +1,5 @@
 "use strict";
-const polymer_1 = require("../../annotations/polymer");
+const polymer_1 = require("twc/polymer");
 require("imports/polymer.html");
 require("imports/esp.html");
 /**
@@ -15,7 +15,7 @@ const myBehavior = {
  *
  * @demo test.html
  */
-let ElementName = class ElementName extends polymer_1.default.Element {
+let ElementName = class ElementName extends Polymer.Element {
     /**
      * A test class
      *

@@ -1,4 +1,4 @@
-import Polymer, { template, style, behavior, attr, notify, observe, computed } from "../../annotations/polymer";
+import { template, style, behavior, attr, notify, observe, computed } from "twc/polymer";
 import "imports/polymer.html";
 import "imports/esp.html";
 

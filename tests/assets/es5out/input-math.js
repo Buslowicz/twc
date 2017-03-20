@@ -1,6 +1,6 @@
 "use strict";
 require("./types");
-var polymer_1 = require("../../annotations/polymer");
+var polymer_1 = require("twc/polymer");
 require("imports/jquery.js");
 require("imports/mathquill.js");
 var InputMath = InputMath_1 = (function (_super) {
@@ -81,7 +81,7 @@ var InputMath = InputMath_1 = (function (_super) {
         }
     };
     return InputMath;
-}(polymer_1.default.Element));
+}(Polymer.Element));
 InputMath.HISTORY_SIZE = 20;
 InputMath.SYMBOLS_BASIC = [
     { cmd: "\\sqrt", name: "√" },

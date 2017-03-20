@@ -1,5 +1,5 @@
 "use strict";
-var polymer_1 = require("../../annotations/polymer");
+var polymer_1 = require("twc/polymer");
 var NotifyComputed = (function (_super) {
     __extends(NotifyComputed, _super);
     function NotifyComputed() {
@@ -10,7 +10,7 @@ var NotifyComputed = (function (_super) {
         return "test";
     };
     return NotifyComputed;
-}(polymer_1.default.Element));
+}(Polymer.Element));
 __decorate([
     polymer_1.notify, polymer_1.computed
 ], NotifyComputed.prototype, "test", null);

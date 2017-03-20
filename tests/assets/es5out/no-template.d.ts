@@ -1,4 +1,4 @@
-import Polymer from "../../../annotations/polymer";
+import "twc/polymer";
 export declare class NoTemplate extends Polymer.Element {
     name: string;
 }

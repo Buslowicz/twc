@@ -1,6 +1,6 @@
 "use strict";
-const polymer_1 = require("../../annotations/polymer");
-class NotifyComputed extends polymer_1.default.Element {
+const polymer_1 = require("twc/polymer");
+class NotifyComputed extends Polymer.Element {
     test(prop) {
         console.log(prop);
         return "test";

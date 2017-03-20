@@ -1,4 +1,4 @@
-import Polymer, { notify, computed } from "../../annotations/polymer";
+import { notify, computed } from "twc/polymer";
 export class NotifyComputed extends Polymer.Element {
   prop: string;
 
