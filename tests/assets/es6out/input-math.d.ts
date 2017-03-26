@@ -1,6 +1,6 @@
 import "./types";
-import "imports/jquery.js";
-import "imports/mathquill.js";
+import "./imports/jquery.js";
+import "./imports/mathquill.js";
 export interface ICmd {
     cmd: string;
     name: string;

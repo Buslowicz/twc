@@ -95,8 +95,8 @@ export function buildMethodsMap(methods: FieldConfigMap,
 }
 
 export default class Module extends JSParser {
-  constructor(path: string, dts: string, js: string, options?: JSParserOptions) {
-    super(path, dts, js, options);
+  constructor(path: string, ts: string, dts: string, js: string, options?: JSParserOptions) {
+    super(path, ts, dts, js, options);
   }
 
   /**
@@ -110,7 +110,7 @@ export default class Module extends JSParser {
   } {
     let observers: Array<string> = [];
     let behaviors: Array<string> = [];
-    let styles: Array<{ type: "link"|"shared"|"inline", style: string }> = [];
+    let styles: Array<{ type: "link" | "shared" | "inline", style: string }> = [];
 
     let { annotations, methods, properties } = this;
 
@@ -148,9 +148,9 @@ export default class Module extends JSParser {
           return [
             "/**",
             ...(event.comment ? [
-                ` * ${event.comment}`,
-                ` *`
-              ] : []),
+              ` * ${event.comment}`,
+              ` *`
+            ] : []),
             ` * @event ${kebabCase(event.name)}`,
             ...event.params.map(({ type, name, comment }) => {
               let parsedType = type.replace(/\s+/g, " ").replace(/(.+?:.+?);/g, "$1,");
@@ -205,9 +205,29 @@ export default class Module extends JSParser {
       }
     })(meta.get("template"));
 
+    let script = [
+      "(function () {",
+      this.jsSrc.slice(0, this.classBodyPosition.start),
+      src,
+      this.jsSrc.slice(this.classBodyPosition.end + 1),
+      "}());"
+    ].join("\n");
+
+    Array
+      .from(this.links.values())
+      .filter(({ variable }) => !!variable)
+      .forEach(({ ns, variable }) => {
+        script = script.replace(new RegExp(`${variable}\\.`, "g"), `${ns || "window"}.`);
+      });
+
     return beautify([
-      ...this.links.map(module => `<link rel="import" href="${module.path}">`),
-      ...this.scripts.map(module => `<script src="${module}"></script>`),
+      ...Array
+        .from(this.links.values())
+        .map(module => `<link rel="import" href="${this.getModulePath(module.repo, module.path)}">`),
+
+      ...Array
+        .from(this.scripts.values())
+        .map(module => `<script src="${this.getModulePath(module.repo, module.path)}"></script>`),
 
       nonEmpty`<!--\n${this.jsDoc}\n-->`,
       `<dom-module id="${kebabCase(this.className)}">${[
@@ -227,13 +247,7 @@ export default class Module extends JSParser {
           }),
           this.isES6 ? tpl : tpl.replace(/\\n/g, "\n").replace(/\\"/g, '"')
         ].join("\n")}</template>`,
-        `<script\>${([
-          "(function () {",
-          this.jsSrc.slice(0, this.classBodyPosition.start),
-          src,
-          this.jsSrc.slice(this.classBodyPosition.end + 1),
-          "}());"
-        ].join("\n"))}</script>`
+        `<script\>${script}</script>`
       ].join("\n")}</dom-module>`
     ].join("\n"), { max_preserve_newlines: 2, end_with_newline: true });
   }

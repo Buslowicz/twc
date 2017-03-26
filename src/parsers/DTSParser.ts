@@ -7,16 +7,16 @@ const deprecationNotice = (legacy, native) => `\`${legacy}\` callback is depreca
 
 export function parseMethodParams(params: string) {
   return params.length === 0 ? [] : split(params, ",", true).map(param => {
-      let { 1: pName, 2: pOptional, 3: pType } = param.match(/(?:([\w\d_$]+)(\??))(?:: ?([\W\w]*))?/) || [];
-      let paramMeta = { name: pName } as any;
-      if (pOptional) {
-        paramMeta.isOptional = !!pOptional;
-      }
-      if (pType) {
-        paramMeta.type = pType;
-      }
-      return paramMeta;
-    });
+    let { 1: pName, 2: pOptional, 3: pType } = param.match(/(?:([\w\d_$]+)(\??))(?:: ?([\W\w]*))?/) || [];
+    let paramMeta = { name: pName } as any;
+    if (pOptional) {
+      paramMeta.isOptional = !!pOptional;
+    }
+    if (pType) {
+      paramMeta.type = pType;
+    }
+    return paramMeta;
+  });
 }
 export function parseDeclarationBody(body): { methods: Array<BodyItem>; properties: Array<BodyItem> } {
   let methods = [];
@@ -84,16 +84,26 @@ export default class DTSParser {
   public methods: Map<string, FieldConfig> = new Map();
   public events: Map<string, EventInfo> = new Map();
 
+  public links: Map<string, FilePath> = new Map();
+  public scripts: Map<string, FilePath> = new Map();
+
   protected options: JSParserOptions = {
     allowDecorators: false
   };
 
-  constructor(readonly path: string, protected readonly dtsSrc: string, options?: JSParserOptions) {
+  constructor(public readonly path: string,
+              protected readonly ts: string,
+              protected readonly dtsSrc: string,
+              options?: JSParserOptions) {
     Object.assign(this.options, options);
 
     let meta: Map<string, DefinitionMeta> = new Map();
 
-    (<any> dtsSrc).replace(...this.getDeclarations(meta));
+    (<any> dtsSrc)
+      .replace(...this.getDeclarations(meta));
+
+    (<any> ts)
+      .replace(...this.getImportDeclarations(this.links, this.scripts));
 
     const metaValues = Array.from(meta.values());
 
@@ -121,7 +131,7 @@ export default class DTSParser {
           let methodDescriptor = <BodyItem & FieldConfig>cloneDeep(method);
           if (methodDescriptor.comment) {
             methodDescriptor.jsDoc = methodDescriptor.comment;
-            delete method.comment; // TODO: refactor jsDoc to comment
+            delete method.comment;
           }
           convertType(methodDescriptor);
           methodDescriptor.params.forEach(convertType);
@@ -157,9 +167,26 @@ export default class DTSParser {
     }
   }
 
+  getImportDeclarations(links: Map<string, FilePath>, scripts: Map<string, FilePath>): Replacer {
+    return [
+      /import (?:({?[\w, -$*\/]+}?) from )?["'](?:(bower|npm):)?([^'"#]*?(?:\.(js|html))?)(?:#([\w$.]+))?["'];/mg,
+      (_, imports, repo, path, type, ns) => {
+        switch (type) {
+          case "html":
+            links.set(`${repo || "rel"}:${path}`, { repo, path, ns });
+            break;
+          case "js":
+            scripts.set(`${repo || "rel"}:${path}`, { repo, path, ns });
+            break;
+        }
+        return _;
+      }
+    ];
+  }
+
   getDeclarations(collector: Map<string, DefinitionMeta>): Replacer {
     return [
-      /(export (default )?)?(declare )?(class|interface) (\w[\d\w_$]+) (?:extends (.*) )?\{(\s*})?$/mg,
+      /(export (default )?)?(declare )?(class|interface) (\w[\d\w_$]+) (?:extends (.*) )?{(\s*})?$/mg,
       (_, exported, defaultExport, declared, type, name, extend, empty, idx, str) => {
         let index = <any> idx as number;
         let comment = findDocComment(str, index);

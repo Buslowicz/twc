@@ -1,6 +1,7 @@
+import "./types";
 import { template, style, behavior, attr, notify, observe, computed } from "twc/polymer";
-import "imports/polymer.html";
-import "imports/esp.html";
+import "bower:polymer/polymer.html";
+import { test } from "bower:esp/esp.html";
 
 export namespace Polymer {
   export interface TheBehavior {
@@ -80,5 +81,9 @@ export class ElementName extends Polymer.Element {
   @computed computedPropAuto(test: string) {
     console.log("test:", test);
     return test + "!";
+  }
+
+  externalDependency() {
+    return test;
   }
 }

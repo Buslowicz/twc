@@ -1,8 +1,8 @@
 import "./types";
 import { template, attr, notify, observe } from "twc/polymer";
 
-import "imports/jquery.js";
-import "imports/mathquill.js";
+import "./imports/jquery.js";
+import "./imports/mathquill.js";
 
 export interface ICmd {
   cmd: string;

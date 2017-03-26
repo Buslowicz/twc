@@ -34,9 +34,16 @@ function ts2html(input, { tsConfigPath = find.sync("tsconfig.json"), bowerConfig
     }
   );
   tsConfig.target = <ts.ScriptTarget> (Number(polymerVersion) === 2 ? "es6" : tsConfig.target || "es5");
-  let map: Map<string, FilePair> = new Map<string, FilePair>();
+  let map: Map<string, FileSources> = new Map<string, FileSources>();
   let tsStream: ReadWriteStream & { js: ReadWriteStream; dts: ReadWriteStream } = input
-    .pipe(through2.obj((file, enc, next) => file.path.endsWith(".ts") ? next(null, file) : next()))
+    .pipe(through2.obj((file, enc, next) => {
+      if (file.path.endsWith(".ts")) {
+        map.set(file.path.replace(/\.ts$/, ".html"), { src: file });
+        next(null, file);
+      } else {
+        next();
+      }
+    }))
     .pipe(createProject(tsConfig)());
 
   let nonTsStream: ReadWriteStream = input
@@ -52,23 +59,23 @@ function ts2html(input, { tsConfigPath = find.sync("tsconfig.json"), bowerConfig
           return ".html";
         });
 
-        let pair = map.get(path);
-        if (!pair) {
-          pair = {};
-          map.set(path, pair);
-        }
+        let sources = map.get(path);
+        sources[ ext ] = file;
 
-        pair[ ext ] = file;
-
-        if (pair.js && pair.ts) {
-          let tsPath = pair.ts.path.replace(/d\.ts$/, "ts");
+        if (sources.js && sources.ts) {
+          let tsPath = sources.ts.path.replace(/d\.ts$/, "ts");
           map.delete(path);
-          pair.js.path = path;
-          pair.js.contents = new Module(tsPath, pair.ts.contents.toString(), pair.js.contents.toString())
+          sources.js.path = path;
+          sources.js.contents = new Module(
+            tsPath,
+            sources.src.contents.toString(),
+            sources.ts.contents.toString(),
+            sources.js.contents.toString()
+          )
             .toBuffer(Number(polymerVersion));
 
-          this.push(pair.ts);
-          this.push(pair.js);
+          this.push(sources.ts);
+          this.push(sources.js);
         }
         next();
       }))

@@ -10,3 +10,10 @@ declare namespace MathQuill {
 
 declare const component: (name: string) => any;
 declare const listen: (name: any) => any;
+
+declare module "bower:esp/esp.html" {
+  export const test = "test";
+}
+
+declare module "bower:polymer/polymer.html" {
+}

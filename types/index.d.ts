@@ -33,7 +33,7 @@ declare interface AnnotationOptions {
   methodsMap?: FieldConfigMap;
   observers?: Array<string>;
   behaviors?: Array<string>;
-  styles?: Array<{ type: "link"|"shared"|"inline", style: string }>;
+  styles?: Array<{ type: "link" | "shared" | "inline", style: string }>;
   method?: FieldConfig;
   prop?: PolymerPropertyConfig;
   params?: string;
@@ -110,8 +110,17 @@ declare interface PolymerPropertyConfig {
 declare interface JSParserOptions {
   polymerVersion?: number;
   allowDecorators?: boolean;
+  bowerDir?: string;
+  npmDir?: string;
 }
-declare interface FilePair {
+declare interface FilePath {
+  path: string;
+  ns?: string;
+  repo: string;
+  variable?: string;
+}
+declare interface FileSources {
   js?: File & { contents: Buffer; path: string; };
   ts?: File & { contents: Buffer; path: string; };
+  src?: File & { contents: Buffer; path: string; };
 }

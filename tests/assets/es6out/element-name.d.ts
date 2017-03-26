@@ -1,5 +1,5 @@
-import "imports/polymer.html";
-import "imports/esp.html";
+import "./types";
+import "bower:polymer/polymer.html";
 export declare namespace Polymer {
     interface TheBehavior {
         created(): void;
@@ -49,4 +49,5 @@ export declare class ElementName extends Polymer.Element {
     observerAuto(greetings: Array<string>): void;
     computedProp(val: string): string;
     computedPropAuto(test: string): string;
+    externalDependency(): string;
 }

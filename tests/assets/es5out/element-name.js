@@ -1,7 +1,8 @@
 "use strict";
+require("./types");
 var polymer_1 = require("twc/polymer");
-require("imports/polymer.html");
-require("imports/esp.html");
+require("bower:polymer/polymer.html");
+var esp_html_1 = require("bower:esp/esp.html");
 /**
  * A behavior
  */
@@ -44,6 +45,9 @@ var ElementName = (function (_super) {
     ElementName.prototype.computedPropAuto = function (test) {
         console.log("test:", test);
         return test + "!";
+    };
+    ElementName.prototype.externalDependency = function () {
+        return esp_html_1.test;
     };
     return ElementName;
 }(Polymer.Element));

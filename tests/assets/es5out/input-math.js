@@ -1,8 +1,8 @@
 "use strict";
 require("./types");
 var polymer_1 = require("twc/polymer");
-require("imports/jquery.js");
-require("imports/mathquill.js");
+require("./imports/jquery.js");
+require("./imports/mathquill.js");
 var InputMath = InputMath_1 = (function (_super) {
     __extends(InputMath, _super);
     function InputMath() {

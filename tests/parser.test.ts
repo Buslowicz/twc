@@ -8,39 +8,42 @@ describe("parsers", () => {
   describe("DTS Parser", () => {
     let meta;
     let deprecatedCallbacksDTS;
+    let deprecatedCallbacksTS;
 
     before(() => {
-      let src = readFileSync(`${__dirname}/assets/es6out/input-math.d.ts`, "utf8");
-      meta = new DTSParser(`${__dirname}/assets/es6out`, src);
-      deprecatedCallbacksDTS = readFileSync(`${__dirname}/assets/deprecated-callbacks.d.ts`, "utf8");
+      let ts = readFileSync(`${__dirname}/assets/input-math.ts`, "utf8");
+      let dts = readFileSync(`${__dirname}/assets/es6out/input-math.d.ts`, "utf8");
+      meta = new DTSParser(`${__dirname}/assets`, ts, dts);
+      deprecatedCallbacksTS = readFileSync(`${__dirname}/assets/deprecated-callbacks.ts`, "utf8");
+      deprecatedCallbacksDTS = readFileSync(`${__dirname}/assets/es5out/deprecated-callbacks.d.ts`, "utf8");
     });
 
     it("should throw an error if deprecated lifecycle callback is used", () => {
       let assetsDir = `${__dirname}/assets/`;
       expect(() => new DTSParser(
-        assetsDir, deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksTS, deprecatedCallbacksDTS
       )).to.throw("`created` callback is deprecated. Please use `constructor` instead");
 
       expect(() => new DTSParser(
-        assetsDir, deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksTS, deprecatedCallbacksDTS
           .replace(/created/, "constructor")
       )).to.throw("`attached` callback is deprecated. Please use `connectedCallback` instead");
 
       expect(() => new DTSParser(
-        assetsDir, deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksTS, deprecatedCallbacksDTS
           .replace(/created/, "constructor")
           .replace(/attached/, "connectedCallback")
       )).to.throw("`detached` callback is deprecated. Please use `disconnectedCallback` instead");
 
       expect(() => new DTSParser(
-        assetsDir, deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksTS, deprecatedCallbacksDTS
           .replace(/created/, "constructor")
           .replace(/attached/, "connectedCallback")
           .replace(/detached/, "disconnectedCallback")
       )).to.throw("`attributeChanged` callback is deprecated. Please use `attributeChangedCallback` instead");
 
       expect(() => new DTSParser(
-        assetsDir, deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksTS, deprecatedCallbacksDTS
           .replace(/created/, "constructor")
           .replace(/attached/, "connectedCallback")
           .replace(/detached/, "disconnectedCallback")
@@ -129,23 +132,29 @@ describe("parsers", () => {
       let noTemplateMeta: JSParser;
 
       before(() => {
-        let baseDir = `${__dirname}/assets/es${esVersion}out`;
+        let baseDir = `${__dirname}/assets`;
         inputMathMeta = new JSParser(
           baseDir,
-          readFileSync(`${baseDir}/input-math.d.ts`, "utf8"),
-          readFileSync(`${baseDir}/input-math.js`, "utf8")
+          readFileSync(`${baseDir}/input-math.ts`, "utf8"),
+          readFileSync(`${baseDir}/es${esVersion}out/input-math.d.ts`, "utf8"),
+          readFileSync(`${baseDir}/es${esVersion}out/input-math.js`, "utf8"),
+          { bowerDir: "./imports" }
         );
 
         elementNameMeta = new JSParser(
           baseDir,
-          readFileSync(`${baseDir}/element-name.d.ts`, "utf8"),
-          readFileSync(`${baseDir}/element-name.js`, "utf8")
+          readFileSync(`${baseDir}/element-name.ts`, "utf8"),
+          readFileSync(`${baseDir}/es${esVersion}out/element-name.d.ts`, "utf8"),
+          readFileSync(`${baseDir}/es${esVersion}out/element-name.js`, "utf8"),
+          { bowerDir: "./imports" }
         );
 
         noTemplateMeta = new JSParser(
           baseDir,
-          readFileSync(`${baseDir}/no-template.d.ts`, "utf8"),
-          readFileSync(`${baseDir}/no-template.js`, "utf8")
+          readFileSync(`${baseDir}/no-template.ts`, "utf8"),
+          readFileSync(`${baseDir}/es${esVersion}out/no-template.d.ts`, "utf8"),
+          readFileSync(`${baseDir}/es${esVersion}out/no-template.js`, "utf8"),
+          { bowerDir: "./imports" }
         );
       });
 
@@ -159,16 +168,28 @@ describe("parsers", () => {
         expect(inputMathMeta.methods.get("constructor").body).to.not.equal(undefined);
       });
       it("should fetch list of scripts and html imports and remove them", () => {
-        expect(elementNameMeta.scripts).to.deep.equal([]);
-        expect(elementNameMeta.links).to.deep.equal([
-          { "ns": null, "repo": null, "path": "imports/polymer.html" },
-          { "ns": null, "repo": null, "path": "imports/esp.html" }
+        expect(elementNameMeta.scripts.size).to.equal(0);
+        expect(Array.from(elementNameMeta.links.values())).to.deep.equal([
+          { ns: null, repo: "bower", path: "polymer/polymer.html", variable: undefined },
+          { ns: null, repo: "bower", path: "esp/esp.html", variable: "esp_html_1" }
         ]);
 
-        expect(inputMathMeta.links).to.deep.equal([]);
-        expect(inputMathMeta.scripts).to.deep.equal([
-          "imports/jquery.js",
-          "imports/mathquill.js"
+        expect(Array.from(inputMathMeta.links.values())).to.deep.equal([
+          { path: "polymer/polymer.html", repo: "bower" }
+        ]);
+        expect(Array.from(inputMathMeta.scripts.values())).to.deep.equal([
+          {
+            ns: null,
+            path: "./imports/jquery.js",
+            repo: null,
+            variable: undefined
+          },
+          {
+            ns: null,
+            path: "./imports/mathquill.js",
+            repo: null,
+            variable: undefined
+          }
         ]);
       });
       it("should fetch declared events data", () => {
@@ -221,7 +242,7 @@ describe("parsers", () => {
       it("should fetch list of methods", () => {
         expect(Array.from(noTemplateMeta.methods.keys())).to.deep.equal([]);
         expect(Array.from(elementNameMeta.methods.keys())).to.deep.equal([
-          "staticTest", "observer", "observerAuto", "computedProp", "computedPropAuto"
+          "staticTest", "observer", "observerAuto", "computedProp", "computedPropAuto", "externalDependency"
         ]);
         expect(Array.from(inputMathMeta.methods.keys())).to.deep.equal([
           "constructor", "ready", "cmd", "undo", "valueChanged",

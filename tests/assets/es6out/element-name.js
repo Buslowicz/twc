@@ -1,7 +1,8 @@
 "use strict";
+require("./types");
 const polymer_1 = require("twc/polymer");
-require("imports/polymer.html");
-require("imports/esp.html");
+require("bower:polymer/polymer.html");
+const esp_html_1 = require("bower:esp/esp.html");
 /**
  * A behavior
  */
@@ -47,6 +48,9 @@ let ElementName = class ElementName extends Polymer.Element {
     computedPropAuto(test) {
         console.log("test:", test);
         return test + "!";
+    }
+    externalDependency() {
+        return esp_html_1.test;
     }
 };
 __decorate([

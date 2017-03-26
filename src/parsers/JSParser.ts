@@ -16,18 +16,17 @@ export default class JSParser extends DTSParser {
 
   public jsDoc: string;
 
-  public links: Array<{ path: string; ns: string; repo: string; }> = [];
-  public scripts: Array<string> = [];
-
   protected jsSrc: string;
   protected isES6: boolean;
 
   protected options: JSParserOptions = {
-    allowDecorators: false
+    allowDecorators: false,
+    bowerDir: "bower_components",
+    npmDir: "node_modules"
   };
 
-  constructor(path: string, dts: string, js: string, options?: JSParserOptions) {
-    super(path, dts, options);
+  constructor(path: string, ts: string, dts: string, js: string, options?: JSParserOptions) {
+    super(path, ts, dts, options);
     this.jsSrc = js;
     Object.assign(this.options, options);
 
@@ -130,34 +129,47 @@ export default class JSParser extends DTSParser {
   }
 
   getImports(): Replacer {
-    let { dir } = parse(this.path);
     return [
-      /(?:(var|const) [\w$]+ = )?(?:require|import) ?\(?['"](.*?)['"]\)?;\n?/g,
-      (m, v, module) => {
+      /(?:(var|const) ([\w$]+) = )?(?:require|import) ?\(?['"](.*?)['"]\)?;\n?/g,
+      (m, declaration, variable, module) => {
         let [ , repo = null, path = "", type = null, ns = null ] = module
           .match(/(?:(bower|npm):)?([^#]*\.(js|html))(?:#([\w$.]+))?/) || [];
-
         switch (type) {
           case "html":
-            this.warnIfInvalidPath(repo, dir, path);
-            this.links.push({ repo, path, ns });
+            this.warnIfInvalidPath(repo, path);
+            this.links.set(`${repo || "rel"}:${path}`, { repo, path, ns, variable });
             break;
           case "js":
-            this.warnIfInvalidPath(repo, dir, path);
-            this.scripts.push(path);
+            this.warnIfInvalidPath(repo, path);
+            this.scripts.set(`${repo || "rel"}:${path}`, { repo, path, ns, variable });
             break;
+          default:
+            if (module === "twc/polymer") {
+              this.links.set(`bower:polymer/polymer.html`, { repo: "bower", path: "polymer/polymer.html" });
+            }
         }
         return "";
       }
     ];
   }
 
-  warnIfInvalidPath(repo: string, dir: string, path: string) {
-    let repos = { bower: "bower_components", npm: "node_modules" };
-    if (existsSync(join(dir, repos[repo] || "bower_components", "twc", path)) || existsSync(join(dir, path))) {
+  getModulePath(repo: string, path: string): string {
+    let repos = { bower: this.options.bowerDir, npm: this.options.npmDir };
+    if (repo) {
+      return join(repos[ repo ], path);
+    } else {
+      return path;
+    }
+  }
+
+  warnIfInvalidPath(repo: string, path: string) {
+    let modulePath = this.getModulePath(repo, path);
+    let parsedPath = parse(this.path);
+    let rootPath = parsedPath.ext === "" ? this.path : parsedPath.dir;
+    if (existsSync(join(rootPath, modulePath))) {
       return;
     }
-    console.log("\x1b[33m", `TWC (${relative(cwd, this.path)}):`, "\x1b[0m", `\`${path}\` does not exist`);
+    console.log("\x1b[33m", `TWC (${relative(cwd, this.path)}):`, "\x1b[0m", `\`${modulePath}\` does not exist`);
   }
 
   getClassJsDoc(): Replacer {
