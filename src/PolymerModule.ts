@@ -109,10 +109,9 @@ export default class Module extends JSParser {
     src: string;
   } {
     let observers: Array<string> = [];
-    let behaviors: Array<string> = [];
     let styles: Array<{ type: "link" | "shared" | "inline", style: string }> = [];
 
-    let { annotations, methods, properties } = this;
+    let { annotations, behaviors, methods, properties } = this;
 
     let propertiesMap = buildPropertiesMap(properties, methods, this.isES6);
     let methodsMap = buildMethodsMap(methods, properties, propertiesMap, observers);
@@ -141,6 +140,14 @@ export default class Module extends JSParser {
 
     const filterEmpty = chunk => !!chunk;
 
+    let importedKeys = Array
+      .from(this.links.values())
+      .filter(({ imports }) => !!imports)
+      .reduce((map, { imports, ns }) => {
+        imports.forEach((key) => map[ key ] = ns);
+        return map;
+      }, {});
+
     return {
       meta, src: [
         `${this.isES6 ? "const" : "var"} ${this.className}${helperName} = Polymer({`,
@@ -163,7 +170,9 @@ export default class Module extends JSParser {
           `is:"${kebabCase(this.className)}"`,
           nonEmpty`properties:{${Array.from(propertiesMap).map(buildProperty)}}`,
           nonEmpty`observers:[${observers}]`,
-          nonEmpty`behaviors:[${behaviors}]`,
+          nonEmpty`behaviors:[${behaviors.map((behavior) => {
+            return importedKeys[ behavior ] ? `${importedKeys[ behavior ]}.${behavior}` : behavior;
+          })}]`,
           ...Array.from(methodsMap.values()).filter(config => !config.static).map(({ name, body, jsDoc }) => {
             if (name === "constructor") {
               body = body

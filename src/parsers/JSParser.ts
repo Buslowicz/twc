@@ -134,18 +134,20 @@ export default class JSParser extends DTSParser {
       (m, declaration, variable, module) => {
         let [ , repo = null, path = "", type = null, ns = null ] = module
           .match(/(?:(bower|npm):)?([^#]*\.(js|html))(?:#([\w$.]+))?/) || [];
+        let key = `${repo || "rel"}:${path}`;
+        let value = { repo, path, ns, variable };
         switch (type) {
           case "html":
             this.warnIfInvalidPath(repo, path);
-            this.links.set(`${repo || "rel"}:${path}`, { repo, path, ns, variable });
+            this.links.set(key, Object.assign(value, this.links.get(key)));
             break;
           case "js":
             this.warnIfInvalidPath(repo, path);
-            this.scripts.set(`${repo || "rel"}:${path}`, { repo, path, ns, variable });
+            this.scripts.set(key, Object.assign(value, this.scripts.get(key)));
             break;
           default:
-            if (module === "twc/polymer") {
-              this.links.set(`bower:polymer/polymer.html`, { repo: "bower", path: "polymer/polymer.html" });
+            if (module === "twc/polymer" && !this.links.has("bower:polymer/polymer.html")) {
+              this.links.set("bower:polymer/polymer.html", { repo: "bower", path: "polymer/polymer.html" });
             }
         }
         return "";

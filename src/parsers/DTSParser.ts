@@ -80,6 +80,7 @@ export function convertType(descriptor: { type?: string }) {
 export default class DTSParser {
   public className: string;
   public parent: string;
+  public behaviors: Array<string> = [];
   public properties: Map<string, FieldConfig> = new Map();
   public methods: Map<string, FieldConfig> = new Map();
   public events: Map<string, EventInfo> = new Map();
@@ -121,33 +122,34 @@ export default class DTSParser {
       }));
 
     const instanceOfPolymer = parent => [ "Polymer.Element" ].indexOf(parent) !== -1;
-    metaValues
-      .filter(definition => get(definition, "class.extends", []).some(instanceOfPolymer))
-      .forEach(definition => {
-        this.className = definition.name;
-        this.parent = definition.class.extends[ 0 ];
+    let definition = metaValues.find(def => get(def, "class.extends", []).some(instanceOfPolymer));
+    this.className = definition.name;
+    this.parent = definition.class.extends[ 0 ];
 
-        definition.class.methods.forEach((method) => {
-          let methodDescriptor = <BodyItem & FieldConfig>cloneDeep(method);
-          if (methodDescriptor.comment) {
-            methodDescriptor.jsDoc = methodDescriptor.comment;
-            delete method.comment;
-          }
-          convertType(methodDescriptor);
-          methodDescriptor.params.forEach(convertType);
-          this.methods.set(method.name, methodDescriptor);
-        });
+    if (definition.interface && definition.interface.extends) {
+      this.behaviors = definition.interface.extends.slice();
+    }
 
-        definition.class.properties.forEach((property) => {
-          let propertyDescriptor = <BodyItem & FieldConfig>cloneDeep(property);
-          if (propertyDescriptor.comment) {
-            propertyDescriptor.jsDoc = propertyDescriptor.comment;
-            delete property.comment; // TODO: refactor jsDoc to comment
-          }
-          convertType(propertyDescriptor);
-          this.properties.set(property.name, propertyDescriptor);
-        });
-      });
+    definition.class.methods.forEach((method) => {
+      let methodDescriptor = <BodyItem & FieldConfig>cloneDeep(method);
+      if (methodDescriptor.comment) {
+        methodDescriptor.jsDoc = methodDescriptor.comment;
+        delete method.comment;
+      }
+      convertType(methodDescriptor);
+      methodDescriptor.params.forEach(convertType);
+      this.methods.set(method.name, methodDescriptor);
+    });
+
+    definition.class.properties.forEach((property) => {
+      let propertyDescriptor = <BodyItem & FieldConfig>cloneDeep(property);
+      if (propertyDescriptor.comment) {
+        propertyDescriptor.jsDoc = propertyDescriptor.comment;
+        delete property.comment; // TODO: refactor jsDoc to comment
+      }
+      convertType(propertyDescriptor);
+      this.properties.set(property.name, propertyDescriptor);
+    });
 
     /* ********* check for lifecycle methods validity ********* */
     if (this.methods.has("created")) {
@@ -171,12 +173,16 @@ export default class DTSParser {
     return [
       /import (?:({?[\w, -$*\/]+}?) from )?["'](?:(bower|npm):)?([^'"#]*?(?:\.(js|html))?)(?:#([\w$.]+))?["'];/mg,
       (_, imports, repo, path, type, ns) => {
+        let importsList = null;
+        if (typeof imports === "string") {
+          importsList = { imports: imports.slice(1, -1).trim().split(/, ?/) };
+        }
         switch (type) {
           case "html":
-            links.set(`${repo || "rel"}:${path}`, { repo, path, ns });
+            links.set(`${repo || "rel"}:${path}`, Object.assign({ repo, path, ns }, importsList));
             break;
           case "js":
-            scripts.set(`${repo || "rel"}:${path}`, { repo, path, ns });
+            scripts.set(`${repo || "rel"}:${path}`, Object.assign({ repo, path, ns }, importsList));
             break;
         }
         return _;

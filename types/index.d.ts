@@ -118,6 +118,7 @@ declare interface FilePath {
   ns?: string;
   repo: string;
   variable?: string;
+  imports?: Array<string>;
 }
 declare interface FileSources {
   js?: File & { contents: Buffer; path: string; };

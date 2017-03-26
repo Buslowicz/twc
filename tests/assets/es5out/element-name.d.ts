@@ -1,5 +1,5 @@
 import "./types";
-import "bower:polymer/polymer.html";
+import { Templatizer } from "bower:polymer/polymer.html#Polymer";
 export declare namespace Polymer {
     interface TheBehavior {
         created(): void;
@@ -21,7 +21,7 @@ export interface SomeEvent extends CustomEvent {
         name: string;
     };
 }
-export interface ElementName extends Polymer.TheBehavior {
+export interface ElementName extends Polymer.TheBehavior, Templatizer {
 }
 /**
  * A test class

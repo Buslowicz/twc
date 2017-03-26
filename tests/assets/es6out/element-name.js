@@ -1,7 +1,6 @@
 "use strict";
 require("./types");
 const polymer_1 = require("twc/polymer");
-require("bower:polymer/polymer.html");
 const esp_html_1 = require("bower:esp/esp.html");
 /**
  * A behavior

@@ -1,6 +1,6 @@
 import "./types";
 import { template, style, behavior, attr, notify, observe, computed } from "twc/polymer";
-import "bower:polymer/polymer.html";
+import { Templatizer } from "bower:polymer/polymer.html#Polymer";
 import { test } from "bower:esp/esp.html";
 
 export namespace Polymer {
@@ -35,7 +35,7 @@ const myBehavior = {
   }
 };
 
-export interface ElementName extends Polymer.TheBehavior {}
+export interface ElementName extends Polymer.TheBehavior, Templatizer {}
 
 /**
  * A test class

@@ -162,6 +162,14 @@ describe("parsers", () => {
         expect(elementNameMeta.helperClassName).to.be.oneOf([ "ElementName_1", undefined ]);
         expect(inputMathMeta.helperClassName).to.be.oneOf([ "InputMath_1", undefined ]);
       });
+      it("should fetch parent (super) class", () => {
+        expect(elementNameMeta.parent).to.equal("Polymer.Element");
+        expect(inputMathMeta.parent).to.equal("Polymer.Element");
+      });
+      it("should fetch behaviors", () => {
+        // only fetches behaviors added via interface
+        expect(elementNameMeta.behaviors).to.deep.equal([ "Polymer.TheBehavior", "Templatizer" ]);
+      });
       it("should fetch constructor body if it was defined in TS file, otherwise it should be skipped", () => {
         expect(elementNameMeta.methods.get("constructor")).to.equal(undefined);
         expect(inputMathMeta.methods.get("constructor")).to.not.equal(undefined);
@@ -170,26 +178,16 @@ describe("parsers", () => {
       it("should fetch list of scripts and html imports and remove them", () => {
         expect(elementNameMeta.scripts.size).to.equal(0);
         expect(Array.from(elementNameMeta.links.values())).to.deep.equal([
-          { ns: null, repo: "bower", path: "polymer/polymer.html", variable: undefined },
-          { ns: null, repo: "bower", path: "esp/esp.html", variable: "esp_html_1" }
+          { ns: "Polymer", repo: "bower", path: "polymer/polymer.html", imports: [ "Templatizer" ] },
+          { ns: undefined, repo: "bower", path: "esp/esp.html", variable: "esp_html_1", imports: [ "test" ] }
         ]);
 
         expect(Array.from(inputMathMeta.links.values())).to.deep.equal([
           { path: "polymer/polymer.html", repo: "bower" }
         ]);
         expect(Array.from(inputMathMeta.scripts.values())).to.deep.equal([
-          {
-            ns: null,
-            path: "./imports/jquery.js",
-            repo: null,
-            variable: undefined
-          },
-          {
-            ns: null,
-            path: "./imports/mathquill.js",
-            repo: null,
-            variable: undefined
-          }
+          { path: "./imports/jquery.js", ns: undefined, repo: undefined, variable: undefined },
+          { path: "./imports/mathquill.js", ns: undefined, repo: undefined, variable: undefined }
         ]);
       });
       it("should fetch declared events data", () => {

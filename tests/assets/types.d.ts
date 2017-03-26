@@ -17,3 +17,12 @@ declare module "bower:esp/esp.html" {
 
 declare module "bower:polymer/polymer.html" {
 }
+
+declare module "bower:polymer/polymer.html#Polymer" {
+  export interface Templatizer {
+    templatize(template: any): any;
+    stamp(model: any): any;
+    modelForElement(el: any): any;
+    new(): Templatizer;
+  }
+}
