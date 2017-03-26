@@ -4,6 +4,7 @@ const commandLineArgs = require("command-line-args");
 const commandLineUsage = require("command-line-usage");
 import twc = require("./index");
 import { join, parse } from "path";
+import { existsSync, readFileSync } from "fs";
 import { src, dest } from "gulp";
 
 const cliOptions = [
@@ -12,14 +13,16 @@ const cliOptions = [
     alias: "p",
     type: String,
     description: "tsconfig.json file location",
-    typeLabel: "[underline]{path}"
+    typeLabel: "[underline]{path}",
+    defaultValue: "tsconfig.json"
   },
   {
     name: "bowerConfig",
     alias: "b",
     type: String,
     description: "bower.json file location",
-    typeLabel: "[underline]{path}"
+    typeLabel: "[underline]{path}",
+    defaultValue: "bower.json"
   },
   {
     name: "outDir",
@@ -47,7 +50,7 @@ const cliOptions = [
     type: String,
     multiple: true,
     defaultOption: true,
-    defaultValue: ["*.ts"]
+    defaultValue: [ "*.ts" ]
   }
 ];
 let cli;
@@ -106,11 +109,16 @@ if (!base) {
   });
 }
 
-console.time("Done");
-twc(src(files || [ "*.ts" ], { cwd, base }), {
+const config = <any> {
   tsConfigPath: fullPath(cli.tsConfig),
   bowerConfigPath: fullPath(cli.bowerConfig)
-})
+};
+let bowerRCFilePath = fullPath(".bowerrc");
+if (existsSync(bowerRCFilePath)) {
+  config.bowerDir = JSON.parse(readFileSync(bowerRCFilePath).toString()).directory;
+}
+console.time("Done");
+twc(src(files || [ "*.ts" ], { cwd, base }), config)
   .pipe(dest(cli.outDir || base))
   .on("finish", () => {
     console.timeEnd("Done");
