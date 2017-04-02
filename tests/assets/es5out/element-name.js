@@ -1,7 +1,7 @@
 "use strict";
-var polymer_1 = require("../../annotations/polymer");
-require("link!imports/polymer.html");
-require("link!imports/esp.html");
+require("./types");
+var polymer_1 = require("twc/polymer");
+var esp_html_1 = require("bower:esp/esp.html");
 /**
  * A behavior
  */
@@ -15,14 +15,17 @@ var myBehavior = {
  *
  * @demo test.html
  */
-var ElementName = (function () {
+var ElementName = (function (_super) {
+    __extends(ElementName, _super);
     function ElementName() {
-        this.test = "tester";
+        var _this = _super !== null && _super.apply(this, arguments) || this;
+        _this.test = "tester";
+        return _this;
     }
     /**
      * Some static method
      */
-    ElementName.staticTest = function () {
+    ElementName.staticTest = function (test, test2, test3) {
         console.log("static");
     };
     /**
@@ -42,8 +45,11 @@ var ElementName = (function () {
         console.log("test:", test);
         return test + "!";
     };
+    ElementName.prototype.externalDependency = function () {
+        return esp_html_1.test;
+    };
     return ElementName;
-}());
+}(Polymer.Element));
 __decorate([
     polymer_1.attr
 ], ElementName.prototype, "greetings", void 0);

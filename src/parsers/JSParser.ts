@@ -16,18 +16,17 @@ export default class JSParser extends DTSParser {
 
   public jsDoc: string;
 
-  public links: Array<string> = [];
-  public scripts: Array<string> = [];
-
   protected jsSrc: string;
   protected isES6: boolean;
 
   protected options: JSParserOptions = {
-    allowDecorators: false
+    allowDecorators: false,
+    bowerDir: "bower_components",
+    npmDir: "node_modules"
   };
 
-  constructor(path: string, dts: string, js: string, options?: JSParserOptions) {
-    super(path, dts, options);
+  constructor(path: string, ts: string, dts: string, js: string, options?: JSParserOptions) {
+    super(path, ts, dts, options);
     this.jsSrc = js;
     Object.assign(this.options, options);
 
@@ -130,31 +129,49 @@ export default class JSParser extends DTSParser {
   }
 
   getImports(): Replacer {
-    let { dir } = parse(this.path);
     return [
-      /(?:(var|const) \S+ = )?(?:require|import) ?\(?['"](.*?)['"]\)?;\n?/g,
-      (m, v, module) => {
-        if (module.startsWith("link!")) {
-          let link = module.substr(5);
-          if (existsSync(join(dir, "bower_components", "twc", link)) || existsSync(join(dir, link))) {
-            this.links.push(link);
-          }
-          else {
-            console.log("\x1b[33m", `TWC (${relative(cwd, this.path)}):`, "\x1b[0m", `\`${link}\` does not exist`);
-          }
-        }
-        else if (module.startsWith("script!")) {
-          let script = module.substr(7);
-          if (existsSync(join(dir, "bower_components", "twc", script)) || existsSync(join(dir, script))) {
-            this.scripts.push(script);
-          }
-          else {
-            console.log("\x1b[33m", `TWC (${relative(cwd, this.path)}):`, "\x1b[0m", `\`${script}\` does not exist`);
-          }
+      /(?:(var|const) ([\w$]+) = )?(?:require|import) ?\(?['"](.*?)['"]\)?;\n?/g,
+      (m, declaration, variable, module) => {
+        let [ , repo = null, path = "", type = null, ns = null ] = module
+          .match(/(?:(bower|npm):)?([^#]*\.(js|html))(?:#([\w$.]+))?/) || [];
+        let key = `${repo || "rel"}:${path}`;
+        let value = { repo, path, ns, variable };
+        switch (type) {
+          case "html":
+            this.warnIfInvalidPath(repo, path);
+            this.links.set(key, Object.assign(value, this.links.get(key)));
+            break;
+          case "js":
+            this.warnIfInvalidPath(repo, path);
+            this.scripts.set(key, Object.assign(value, this.scripts.get(key)));
+            break;
+          default:
+            if (module === "twc/polymer" && !this.links.has("bower:polymer/polymer.html")) {
+              this.links.set("bower:polymer/polymer.html", { repo: "bower", path: "polymer/polymer.html" });
+            }
         }
         return "";
       }
     ];
+  }
+
+  getModulePath(repo: string, path: string): string {
+    let repos = { bower: this.options.bowerDir, npm: this.options.npmDir };
+    if (repo) {
+      return join(repos[ repo ], path);
+    } else {
+      return path;
+    }
+  }
+
+  warnIfInvalidPath(repo: string, path: string) {
+    let modulePath = this.getModulePath(repo, path);
+    let parsedPath = parse(this.path);
+    let rootPath = parsedPath.ext === "" ? this.path : parsedPath.dir;
+    if (existsSync(join(rootPath, modulePath))) {
+      return;
+    }
+    console.log("\x1b[33m", `TWC (${relative(cwd, this.path)}):`, "\x1b[0m", `\`${modulePath}\` does not exist`);
   }
 
   getClassJsDoc(): Replacer {
@@ -257,9 +274,9 @@ export default class JSParser extends DTSParser {
           let decor = decors[ i ];
           let ptr = decor.indexOf("(");
           let [ name, params = undefined ] = ptr !== -1 ? [
-              decor.slice(0, ptr).split(".").slice(-1)[ 0 ],
-              decor.slice(ptr + 1, decor.length - 1)
-            ] : [ decor.split(".").slice(-1)[ 0 ] ];
+            decor.slice(0, ptr).split(".").slice(-1)[ 0 ],
+            decor.slice(ptr + 1, decor.length - 1)
+          ] : [ decor.split(".").slice(-1)[ 0 ] ];
 
           if (name in definedAnnotations) {
             usedAnnotations.push({ name, params, descriptor, src: decor });
@@ -302,9 +319,9 @@ export default class JSParser extends DTSParser {
           let decor = decors[ i ];
           let ptr = decor.indexOf("(");
           let [ name, params = undefined ] = ptr !== -1 ? [
-              decor.slice(0, ptr).split(".").slice(-1)[ 0 ],
-              decor.slice(ptr + 1, decor.length - 1)
-            ] : [ decor.split(".").slice(-1)[ 0 ] ];
+            decor.slice(0, ptr).split(".").slice(-1)[ 0 ],
+            decor.slice(ptr + 1, decor.length - 1)
+          ] : [ decor.split(".").slice(-1)[ 0 ] ];
 
           if (name in definedAnnotations) {
             this.annotations.push({ name, params, src: decor });

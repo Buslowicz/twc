@@ -1,5 +1,6 @@
-<script src="imports/jquery.js"></script>
-<script src="imports/mathquill.js"></script>
+<link rel="import" href="imports/polymer/polymer.html">
+<script src="./imports/jquery.js"></script>
+<script src="./imports/mathquill.js"></script>
 <dom-module id="input-math">
   <template>
     <input>
@@ -9,6 +10,9 @@
       "use strict";
 
       var InputMath = InputMath_1 = Polymer({
+        /**
+         * @event polymer-event
+         */
         is: "input-math",
         properties: {
           testValue: {
@@ -41,7 +45,7 @@
           var _this = this;
           var editor = _this._editor;
           editor.id = "editor";
-          editor.classList.add(_this.is);
+          editor.classList.add("input-math");
           _this[ "_mathField" ] = MathQuill.getInterface(2).MathField(editor, {
             spaceBehavesLikeTab: true,
             handlers: {

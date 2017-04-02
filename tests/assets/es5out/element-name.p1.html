@@ -1,5 +1,5 @@
-<link rel="import" href="imports/polymer.html">
-<link rel="import" href="imports/esp.html">
+<link rel="import" href="imports/polymer/polymer.html">
+<link rel="import" href="imports/esp/esp.html">
 <!--
 A test class
 
@@ -74,7 +74,7 @@ A test class
           }
         },
         observers: [ "observer(profile.prop)" ],
-        behaviors: [ myBehavior ],
+        behaviors: [ Polymer.TheBehavior, Polymer.Templatizer, myBehavior ],
 
         /**
          * Observer method
@@ -92,13 +92,16 @@ A test class
         _computeComputedPropAuto: function (test) {
           console.log("test:", test);
           return test + "!";
+        },
+        externalDependency: function () {
+          return window.test;
         }
       });
 
       /**
        * Some static method
        */
-      ElementName.staticTest = function () {
+      ElementName.staticTest = function(test, test2, test3) {
         console.log("static");
       };
     }());

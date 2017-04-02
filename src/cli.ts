@@ -1,10 +1,17 @@
 #!/usr/bin/env node
 
+import "typescript/lib/typescriptServices";
 const commandLineArgs = require("command-line-args");
 const commandLineUsage = require("command-line-usage");
-import twc = require("./index");
-import { join, parse } from "path";
-import { src, dest } from "gulp";
+import ReadWriteStream = NodeJS.ReadWriteStream;
+import find = require("find-up");
+import * as If from "gulp-if";
+import * as merge from "merge2";
+import { join } from "path";
+import { existsSync, readFileSync } from "fs";
+import { dest } from "gulp";
+import { createProject } from "gulp-typescript";
+import { StreamParser } from "./StreamParser";
 
 const cliOptions = [
   {
@@ -12,42 +19,22 @@ const cliOptions = [
     alias: "p",
     type: String,
     description: "tsconfig.json file location",
-    typeLabel: "[underline]{path}"
+    typeLabel: "[underline]{path}",
+    defaultValue: "tsconfig.json"
   },
   {
     name: "bowerConfig",
     alias: "b",
     type: String,
     description: "bower.json file location",
-    typeLabel: "[underline]{path}"
-  },
-  {
-    name: "outDir",
-    alias: "o",
-    type: String,
-    description: "Redirect output structure to the directory.",
-    typeLabel: "[underline]{path}"
-  },
-  {
-    name: "rootDir",
-    alias: "r",
-    type: String,
-    description: "Specify the root directory of input files. " +
-    "Use to control the output directory structure with --outDir.",
-    typeLabel: "[underline]{path}"
+    typeLabel: "[underline]{path}",
+    defaultValue: "bower.json"
   },
   {
     name: "help",
     alias: "?",
     type: Boolean,
     description: "Shows this help"
-  },
-  {
-    name: "input",
-    type: String,
-    multiple: true,
-    defaultOption: true,
-    defaultValue: ["*.ts"]
   }
 ];
 let cli;
@@ -59,7 +46,6 @@ try {
   process.exit(-1);
 }
 
-let files = cli.input;
 if (cli.help) {
   console.log(commandLineUsage([
     {
@@ -68,14 +54,13 @@ if (cli.help) {
     },
     {
       header: "Syntax",
-      content: "twc [options] [file ...]"
+      content: "twc [options]"
     },
     {
       header: "Examples",
       content: [
-        "twc my-element.ts",
-        "twc --outDir dist *.ts",
-        "twc --tsConfig custom-config.json src/**/*.ts"
+        "twc",
+        "twc --tsConfig custom-config.json"
       ].join("\n")
     },
     {
@@ -84,34 +69,34 @@ if (cli.help) {
   ]));
   process.exit();
 }
-if (files.length === 0) {
-  console.error("No files given");
-  process.exit(-1);
-}
 
-let cwd = process.cwd();
+const cwd = process.cwd();
 const fullPath = path => path ? join(cwd, path) : undefined;
 
-let base = fullPath(cli.rootDir);
+const bowerRCFilePath = find.sync(".bowerrc");
+const tsConfigPath = cli.tsConfig ? fullPath(cli.tsConfig) : find.sync("tsconfig.json");
+const bowerConfigPath = cli.bowerConfig ? fullPath(cli.bowerConfig) : find.sync("bower.json");
+const tsConfig = require(tsConfigPath);
 
-if (!base) {
-  // calculate the rootDir if it wasn't provided via --rootDir (tsc style, longest common prefix)
-  base = files.map(file => parse(file).dir).reduce((a, b) => {
-    let A = [ a, b ].concat().sort(),
-      a1 = A[ 0 ], a2 = A[ A.length - 1 ], L = a1.length, i = 0;
-    while (i < L && a1.charAt(i) === a2.charAt(i)) {
-      i++;
-    }
-    return a1.substring(0, i);
-  });
+const { outDir, declaration, declarationDir } = tsConfig.compilerOptions;
+
+let bowerDir: "bower_components";
+if (existsSync(bowerRCFilePath)) {
+  bowerDir = JSON.parse(readFileSync(bowerRCFilePath).toString()).directory;
 }
 
 console.time("Done");
-twc(src(files || [ "*.ts" ], { cwd, base }), {
-  tsConfigPath: fullPath(cli.tsConfig),
-  bowerConfigPath: fullPath(cli.bowerConfig)
-})
-  .pipe(dest(cli.outDir || base))
+const { 1: polymerVersion = 1 } = require(bowerConfigPath).dependencies.polymer.match(/#[\D]*(\d)(?:\.\d)+/) || {};
+const collector = new StreamParser(Number(polymerVersion), tsConfig.compilerOptions.target, bowerDir);
+const tsProject = createProject(tsConfigPath, collector.tsConfig);
+const stream: { js: ReadWriteStream; dts: ReadWriteStream } = tsProject.src()
+  .pipe(collector.collectSources())
+  .pipe(tsProject());
+
+merge([ stream.dts, stream.js ])
+  .pipe(collector.generateOutput())
+  .pipe(If("*.html", dest(outDir || ".")))
+  .pipe(If(({ path }) => declaration && path.endsWith(".d.ts"), dest(declarationDir || outDir || ".")))
   .on("finish", () => {
     console.timeEnd("Done");
     process.exit(0);

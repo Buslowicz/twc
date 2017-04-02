@@ -1,6 +1,20 @@
 declare type Replacer = [ RegExp, string | ((...args: Array<string>) => string) ];
 declare type FieldConfigMap = Map<string, FieldConfig>;
 
+declare interface DefinitionMetaDetails {
+  methods: Array<BodyItem>;
+  properties: Array<BodyItem>;
+  comment?: string;
+  // noinspection ReservedWordAsName
+  extends: Array<string>;
+}
+declare interface DefinitionMeta {
+  name: string;
+  // noinspection ReservedWordAsName
+  interface: DefinitionMetaDetails;
+  // noinspection ReservedWordAsName
+  class: DefinitionMetaDetails;
+}
 declare interface PositionInSource {
   start: number;
   end: number;
@@ -19,7 +33,7 @@ declare interface AnnotationOptions {
   methodsMap?: FieldConfigMap;
   observers?: Array<string>;
   behaviors?: Array<string>;
-  styles?: Array<{ type: "link"|"shared"|"inline", style: string }>;
+  styles?: Array<{ type: "link" | "shared" | "inline", style: string }>;
   method?: FieldConfig;
   prop?: PolymerPropertyConfig;
   params?: string;
@@ -50,16 +64,10 @@ declare interface PropertyConfig {
 }
 declare interface EventInfo {
   name: string;
-  description: string;
-  params: Array<{ name: string; description: string; type: string; }>;
+  comment: string;
+  params: Array<{ name: string; comment: string; type: string; }>;
 }
-declare interface FieldConfig {
-  name: string;
-  type?: string;
-  value?: string;
-  isPrimitive?: boolean;
-  body?: string;
-  params?: Array<ParamConfig>;
+declare interface FieldModifiers {
   // noinspection ReservedWordAsName
   static?: boolean;
   // noinspection ReservedWordAsName
@@ -69,9 +77,24 @@ declare interface FieldConfig {
   // noinspection ReservedWordAsName
   public?: boolean;
   readonly?: boolean;
+}
+declare interface FieldConfig extends FieldModifiers {
+  name: string;
+  type?: string;
+  value?: string;
+  isPrimitive?: boolean;
+  body?: string;
+  params?: Array<ParamConfig>;
   decorators?: Array<Decorator>;
   annotations?: Array<Decorator>;
   jsDoc?: string;
+}
+interface BodyItem extends FieldModifiers {
+  name: string;
+  isOptional?: boolean;
+  comment?: string;
+  type?: string;
+  params?: Array<{ name: string; type?: string }>;
 }
 declare interface PolymerPropertyConfig {
   type: string;
@@ -87,8 +110,18 @@ declare interface PolymerPropertyConfig {
 declare interface JSParserOptions {
   polymerVersion?: number;
   allowDecorators?: boolean;
+  bowerDir?: string;
+  npmDir?: string;
 }
-declare interface FilePair {
+declare interface FilePath {
+  path: string;
+  ns?: string;
+  repo: string;
+  variable?: string;
+  imports?: Array<string>;
+}
+declare interface FileSources {
   js?: File & { contents: Buffer; path: string; };
   ts?: File & { contents: Buffer; path: string; };
+  src?: File & { contents: Buffer; path: string; };
 }

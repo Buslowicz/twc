@@ -8,41 +8,42 @@ describe("parsers", () => {
   describe("DTS Parser", () => {
     let meta;
     let deprecatedCallbacksDTS;
+    let deprecatedCallbacksTS;
 
     before(() => {
-      meta = new DTSParser(
-        `${__dirname}/assets/es6out`,
-        readFileSync(`${__dirname}/assets/es6out/input-math.d.ts`, "utf8")
-      );
-      deprecatedCallbacksDTS = readFileSync(`${__dirname}/assets/deprecated-callbacks.d.ts`, "utf8");
+      let ts = readFileSync(`${__dirname}/assets/input-math.ts`, "utf8");
+      let dts = readFileSync(`${__dirname}/assets/es6out/input-math.d.ts`, "utf8");
+      meta = new DTSParser(`${__dirname}/assets`, ts, dts);
+      deprecatedCallbacksTS = readFileSync(`${__dirname}/assets/deprecated-callbacks.ts`, "utf8");
+      deprecatedCallbacksDTS = readFileSync(`${__dirname}/assets/es5out/deprecated-callbacks.d.ts`, "utf8");
     });
 
     it("should throw an error if deprecated lifecycle callback is used", () => {
       let assetsDir = `${__dirname}/assets/`;
       expect(() => new DTSParser(
-        assetsDir, deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksTS, deprecatedCallbacksDTS
       )).to.throw("`created` callback is deprecated. Please use `constructor` instead");
 
       expect(() => new DTSParser(
-        assetsDir, deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksTS, deprecatedCallbacksDTS
           .replace(/created/, "constructor")
       )).to.throw("`attached` callback is deprecated. Please use `connectedCallback` instead");
 
       expect(() => new DTSParser(
-        assetsDir, deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksTS, deprecatedCallbacksDTS
           .replace(/created/, "constructor")
           .replace(/attached/, "connectedCallback")
       )).to.throw("`detached` callback is deprecated. Please use `disconnectedCallback` instead");
 
       expect(() => new DTSParser(
-        assetsDir, deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksTS, deprecatedCallbacksDTS
           .replace(/created/, "constructor")
           .replace(/attached/, "connectedCallback")
           .replace(/detached/, "disconnectedCallback")
       )).to.throw("`attributeChanged` callback is deprecated. Please use `attributeChangedCallback` instead");
 
       expect(() => new DTSParser(
-        assetsDir, deprecatedCallbacksDTS
+        assetsDir, deprecatedCallbacksTS, deprecatedCallbacksDTS
           .replace(/created/, "constructor")
           .replace(/attached/, "connectedCallback")
           .replace(/detached/, "disconnectedCallback")
@@ -75,19 +76,16 @@ describe("parsers", () => {
         },
         {
           name: "ready",
-          type: "void",
           params: []
         },
         {
           name: "cmd",
-          type: "void",
           params: [
             { name: "ev", type: "PolymerEvent" }
           ]
         },
         {
           name: "undo",
-          type: "void",
           params: []
         },
         {
@@ -100,21 +98,18 @@ describe("parsers", () => {
         },
         {
           name: "symbolsChanged",
-          type: "void",
           params: [
             { name: "symbols", type: "String" }
           ]
         },
         {
           name: "keyShortcuts",
-          type: "void",
           params: [
             { name: "ev", type: "KeyboardEvent" }
           ]
         },
         {
           name: "_updateValue",
-          type: "void",
           params: [
             { name: "test", type: "Object" }
           ]
@@ -137,23 +132,29 @@ describe("parsers", () => {
       let noTemplateMeta: JSParser;
 
       before(() => {
-        let baseDir = `${__dirname}/assets/es${esVersion}out`;
+        let baseDir = `${__dirname}/assets`;
         inputMathMeta = new JSParser(
           baseDir,
-          readFileSync(`${baseDir}/input-math.d.ts`, "utf8"),
-          readFileSync(`${baseDir}/input-math.js`, "utf8")
+          readFileSync(`${baseDir}/input-math.ts`, "utf8"),
+          readFileSync(`${baseDir}/es${esVersion}out/input-math.d.ts`, "utf8"),
+          readFileSync(`${baseDir}/es${esVersion}out/input-math.js`, "utf8"),
+          { bowerDir: "./imports" }
         );
 
         elementNameMeta = new JSParser(
           baseDir,
-          readFileSync(`${baseDir}/element-name.d.ts`, "utf8"),
-          readFileSync(`${baseDir}/element-name.js`, "utf8")
+          readFileSync(`${baseDir}/element-name.ts`, "utf8"),
+          readFileSync(`${baseDir}/es${esVersion}out/element-name.d.ts`, "utf8"),
+          readFileSync(`${baseDir}/es${esVersion}out/element-name.js`, "utf8"),
+          { bowerDir: "./imports" }
         );
 
         noTemplateMeta = new JSParser(
           baseDir,
-          readFileSync(`${baseDir}/no-template.d.ts`, "utf8"),
-          readFileSync(`${baseDir}/no-template.js`, "utf8")
+          readFileSync(`${baseDir}/no-template.ts`, "utf8"),
+          readFileSync(`${baseDir}/es${esVersion}out/no-template.d.ts`, "utf8"),
+          readFileSync(`${baseDir}/es${esVersion}out/no-template.js`, "utf8"),
+          { bowerDir: "./imports" }
         );
       });
 
@@ -161,48 +162,58 @@ describe("parsers", () => {
         expect(elementNameMeta.helperClassName).to.be.oneOf([ "ElementName_1", undefined ]);
         expect(inputMathMeta.helperClassName).to.be.oneOf([ "InputMath_1", undefined ]);
       });
+      it("should fetch parent (super) class", () => {
+        expect(elementNameMeta.parent).to.equal("Polymer.Element");
+        expect(inputMathMeta.parent).to.equal("Polymer.Element");
+      });
+      it("should fetch behaviors", () => {
+        // only fetches behaviors added via interface
+        expect(elementNameMeta.behaviors).to.deep.equal([ "Polymer.TheBehavior", "Templatizer" ]);
+      });
       it("should fetch constructor body if it was defined in TS file, otherwise it should be skipped", () => {
         expect(elementNameMeta.methods.get("constructor")).to.equal(undefined);
         expect(inputMathMeta.methods.get("constructor")).to.not.equal(undefined);
         expect(inputMathMeta.methods.get("constructor").body).to.not.equal(undefined);
       });
       it("should fetch list of scripts and html imports and remove them", () => {
-        expect(elementNameMeta.scripts).to.deep.equal([]);
-        expect(elementNameMeta.links).to.deep.equal([
-          "imports/polymer.html",
-          "imports/esp.html"
+        expect(elementNameMeta.scripts.size).to.equal(0);
+        expect(Array.from(elementNameMeta.links.values())).to.deep.equal([
+          { ns: "Polymer", repo: "bower", path: "polymer/polymer.html", imports: [ "Templatizer" ] },
+          { ns: undefined, repo: "bower", path: "esp/esp.html", variable: "esp_html_1", imports: [ "test" ] }
         ]);
 
-        expect(inputMathMeta.links).to.deep.equal([]);
-        expect(inputMathMeta.scripts).to.deep.equal([
-          "imports/jquery.js",
-          "imports/mathquill.js"
+        expect(Array.from(inputMathMeta.links.values())).to.deep.equal([
+          { path: "polymer/polymer.html", repo: "bower" }
+        ]);
+        expect(Array.from(inputMathMeta.scripts.values())).to.deep.equal([
+          { path: "./imports/jquery.js", ns: undefined, repo: undefined, variable: undefined },
+          { path: "./imports/mathquill.js", ns: undefined, repo: undefined, variable: undefined }
         ]);
       });
       it("should fetch declared events data", () => {
         expect(elementNameMeta.events.get("ProfileChangeEvent")).to.deep.equal({
           name: "ProfileChangeEvent",
-          description: "",
+          comment: undefined,
           params: [
             {
               name: "newProfile",
-              description: "New profile.",
+              comment: "New profile.",
               type: "any"
             }
           ]
         });
         expect(elementNameMeta.events.get("SomeEvent")).to.deep.equal({
           name: "SomeEvent",
-          description: "Fires whenever ** .. yo!",
+          comment: "Fires whenever ** .. yo!",
           params: [
             {
               name: "deep",
-              description: "",
+              comment: undefined,
               type: "{\n            property: boolean;\n        }"
             },
             {
               name: "name",
-              description: "New name",
+              comment: "New name",
               type: "string"
             }
           ]
@@ -229,7 +240,7 @@ describe("parsers", () => {
       it("should fetch list of methods", () => {
         expect(Array.from(noTemplateMeta.methods.keys())).to.deep.equal([]);
         expect(Array.from(elementNameMeta.methods.keys())).to.deep.equal([
-          "staticTest", "observer", "observerAuto", "computedProp", "computedPropAuto"
+          "staticTest", "observer", "observerAuto", "computedProp", "computedPropAuto", "externalDependency"
         ]);
         expect(Array.from(inputMathMeta.methods.keys())).to.deep.equal([
           "constructor", "ready", "cmd", "undo", "valueChanged",
@@ -315,7 +326,7 @@ describe("parsers", () => {
       it("should fetch method bodies", () => {
         expect(elementNameMeta.methods.get("constructor")).to.equal(undefined);
         expect(elementNameMeta.methods.get("staticTest").body).to.be.equalIgnoreSpaces(`
-          () {
+          (test, test2, test3) {
             console.log("static");
           }
         `);
@@ -346,9 +357,9 @@ describe("parsers", () => {
           esVersion === 5 ? `() {
             var _this = _super.call(this) || this;
             var editor = _this._editor;
-            editor.id = \"editor\";
-            editor.classList.add(_this.is);
-            _this[\"_mathField\"] = MathQuill.getInterface(2).MathField(editor, {
+            editor.id = "editor";
+            editor.classList.add("input-math");
+            _this["_mathField"] = MathQuill.getInterface(2).MathField(editor, {
               spaceBehavesLikeTab: true,
               handlers: {
                 edit: _this._updateValue.bind(_this)
@@ -358,9 +369,9 @@ describe("parsers", () => {
           }` : `() {
             super();
             var editor = this._editor;
-            editor.id = \"editor\";
-            editor.classList.add(this.is);
-            this[\"_mathField\"] = MathQuill.getInterface(2).MathField(editor, {
+            editor.id = "editor";
+            editor.classList.add("input-math");
+            this["_mathField"] = MathQuill.getInterface(2).MathField(editor, {
               spaceBehavesLikeTab: true,
               handlers: {
                 edit: this._updateValue.bind(this)

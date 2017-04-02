@@ -1,8 +1,8 @@
 "use strict";
 require("./types");
-var polymer_1 = require("../../annotations/polymer");
-require("script!imports/jquery.js");
-require("script!imports/mathquill.js");
+var polymer_1 = require("twc/polymer");
+require("./imports/jquery.js");
+require("./imports/mathquill.js");
 var InputMath = InputMath_1 = (function (_super) {
     __extends(InputMath, _super);
     function InputMath() {
@@ -18,7 +18,7 @@ var InputMath = InputMath_1 = (function (_super) {
         _this._editor = document.createElement("div");
         var editor = _this._editor;
         editor.id = "editor";
-        editor.classList.add(_this.is);
+        editor.classList.add("input-math");
         _this["_mathField"] = MathQuill.getInterface(2).MathField(editor, {
             spaceBehavesLikeTab: true,
             handlers: {

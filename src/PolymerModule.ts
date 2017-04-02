@@ -95,8 +95,8 @@ export function buildMethodsMap(methods: FieldConfigMap,
 }
 
 export default class Module extends JSParser {
-  constructor(path: string, dts: string, js: string, options?: JSParserOptions) {
-    super(path, dts, js, options);
+  constructor(path: string, ts: string, dts: string, js: string, options?: JSParserOptions) {
+    super(path, ts, dts, js, options);
   }
 
   /**
@@ -109,16 +109,15 @@ export default class Module extends JSParser {
     src: string;
   } {
     let observers: Array<string> = [];
-    let behaviors: Array<string> = [];
-    let styles: Array<{ type: "link"|"shared"|"inline", style: string }> = [];
+    let styles: Array<{ type: "link" | "shared" | "inline", style: string }> = [];
 
-    let { annotations, methods, properties } = this;
+    let { annotations, behaviors, methods, properties } = this;
 
     let propertiesMap = buildPropertiesMap(properties, methods, this.isES6);
     let methodsMap = buildMethodsMap(methods, properties, propertiesMap, observers);
 
     let meta = new Map<string, any>([
-      [ "styles", styles ],
+      [ "css", styles ],
       [ "properties", propertiesMap ],
       [ "methods", methodsMap ]
     ]);
@@ -141,20 +140,28 @@ export default class Module extends JSParser {
 
     const filterEmpty = chunk => !!chunk;
 
+    let importedKeys = Array
+      .from(this.links.values())
+      .filter(({ imports }) => !!imports)
+      .reduce((map, { imports, ns }) => {
+        imports.forEach((key) => map[ key ] = ns);
+        return map;
+      }, {});
+
     return {
       meta, src: [
         `${this.isES6 ? "const" : "var"} ${this.className}${helperName} = Polymer({`,
         ...Array.from(this.events.values()).map(event => {
           return [
             "/**",
-            ...(event.description ? [
-                ` * ${event.description}`,
-                ` *`
-              ] : []),
+            ...(event.comment ? [
+              ` * ${event.comment}`,
+              ` *`
+            ] : []),
             ` * @event ${kebabCase(event.name)}`,
-            ...event.params.map(({ type, name, description }) => {
+            ...event.params.map(({ type, name, comment }) => {
               let parsedType = type.replace(/\s+/g, " ").replace(/(.+?:.+?);/g, "$1,");
-              return ` * @param {${parsedType}} ${name}${description ? ` ${description}` : ""}`;
+              return ` * @param {${parsedType}} ${name}${comment ? ` ${comment}` : ""}`;
             }),
             " */"
           ].join("\n");
@@ -163,7 +170,9 @@ export default class Module extends JSParser {
           `is:"${kebabCase(this.className)}"`,
           nonEmpty`properties:{${Array.from(propertiesMap).map(buildProperty)}}`,
           nonEmpty`observers:[${observers}]`,
-          nonEmpty`behaviors:[${behaviors}]`,
+          nonEmpty`behaviors:[${behaviors.map((behavior) => {
+            return importedKeys[ behavior ] ? `${importedKeys[ behavior ]}.${behavior}` : behavior;
+          })}]`,
           ...Array.from(methodsMap.values()).filter(config => !config.static).map(({ name, body, jsDoc }) => {
             if (name === "constructor") {
               body = body
@@ -193,7 +202,7 @@ export default class Module extends JSParser {
     }
 
     let { dir } = parse(this.path);
-    let styles = meta.get("styles");
+    let styles = meta.get("css");
     let tpl = (({ template, type } = {}) => {
       switch (type) {
         case "link":
@@ -205,9 +214,29 @@ export default class Module extends JSParser {
       }
     })(meta.get("template"));
 
+    let script = [
+      "(function () {",
+      this.jsSrc.slice(0, this.classBodyPosition.start),
+      src,
+      this.jsSrc.slice(this.classBodyPosition.end + 1),
+      "}());"
+    ].join("\n");
+
+    Array
+      .from(this.links.values())
+      .filter(({ variable }) => !!variable)
+      .forEach(({ ns, variable }) => {
+        script = script.replace(new RegExp(`${variable}\\.`, "g"), `${ns || "window"}.`);
+      });
+
     return beautify([
-      ...this.links.map(module => `<link rel="import" href="${module}">`),
-      ...this.scripts.map(module => `<script src="${module}"></script>`),
+      ...Array
+        .from(this.links.values())
+        .map(module => `<link rel="import" href="${this.getModulePath(module.repo, module.path)}">`),
+
+      ...Array
+        .from(this.scripts.values())
+        .map(module => `<script src="${this.getModulePath(module.repo, module.path)}"></script>`),
 
       nonEmpty`<!--\n${this.jsDoc}\n-->`,
       `<dom-module id="${kebabCase(this.className)}">${[
@@ -227,13 +256,7 @@ export default class Module extends JSParser {
           }),
           this.isES6 ? tpl : tpl.replace(/\\n/g, "\n").replace(/\\"/g, '"')
         ].join("\n")}</template>`,
-        `<script\>${([
-          "(function () {",
-          this.jsSrc.slice(0, this.classBodyPosition.start),
-          src,
-          this.jsSrc.slice(this.classBodyPosition.end + 1),
-          "}());"
-        ].join("\n"))}</script>`
+        `<script\>${script}</script>`
       ].join("\n")}</dom-module>`
     ].join("\n"), { max_preserve_newlines: 2, end_with_newline: true });
   }

@@ -1,7 +1,7 @@
 "use strict";
-const polymer_1 = require("../../annotations/polymer");
-require("link!imports/polymer.html");
-require("link!imports/esp.html");
+require("./types");
+const polymer_1 = require("twc/polymer");
+const esp_html_1 = require("bower:esp/esp.html");
 /**
  * A behavior
  */
@@ -15,19 +15,20 @@ const myBehavior = {
  *
  * @demo test.html
  */
-let ElementName = class ElementName {
+let ElementName = class ElementName extends Polymer.Element {
     /**
      * A test class
      *
      * @demo test.html
      */
     constructor() {
+        super(...arguments);
         this.test = "tester";
     }
     /**
      * Some static method
      */
-    static staticTest() {
+    static staticTest(test, test2, test3) {
         console.log("static");
     }
     /**
@@ -46,6 +47,9 @@ let ElementName = class ElementName {
     computedPropAuto(test) {
         console.log("test:", test);
         return test + "!";
+    }
+    externalDependency() {
+        return esp_html_1.test;
     }
 };
 __decorate([

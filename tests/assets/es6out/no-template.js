@@ -1,4 +1,5 @@
 "use strict";
-class NoTemplate {
+require("twc/polymer");
+class NoTemplate extends Polymer.Element {
 }
 exports.NoTemplate = NoTemplate;

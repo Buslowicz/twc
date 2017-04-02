@@ -13,6 +13,7 @@
     "outDir": "es5out"
   },
   "include": [
-    "*.ts"
+    "*.ts",
+    "../../types/polymer.annotations.d.ts"
   ]
 }
