@@ -144,6 +144,37 @@ namespace `Polymer`, declared in `iron-control-state.html`. If there was
 no namespace (the `IronControlState` would be accessible from `window`
 object), the `#Polymer` can be skipped.
 
+#### Generating types for Polymer elements/behaviors
+To generate the type declarations from ready behaviors/components, use
+the [potts](https://github.com/Draccoz/potts) tool. Simply install it
+globally (`npm install potts -g`) and run `potts path/to/component.html`.
+Declarations will be saved under `types` directory by default (configurable
+via `--outDir` or `-d` flag). This will generate declarations for html
+module and all its dependencies. All modules will be declared to match the
+importable path (for example `bower:polymer/polymer.html`) and a separate
+module for each declared global namespace (like `bower:polymer/polymer.html#Polymer`
+or `bower:iron-behaviors/iron-control-state.html#Polymer`).
+
+Further improvement of `potts` tool will generate types of every bower
+dependency which is a polymer component.
+
+**For generating types out of internal components/behaviors please allow
+[this](https://github.com/Draccoz/twc/issues/48) issue to be resolved.**
+
+### Documenting events
+Every solid project should have a proper documentation. This also includes
+documenting events fired by the component. TWC lets you do it with ease
+by creating an interface that extends `Event` or `CustomEvent`.
+```
+/** My custom event, which fires when needed */
+export interface SomeEvent extends CustomEvent {
+  detail: {
+    /** Property inside event.detail */
+    myCustomProp: string;
+  };
+}
+```
+
 ### Default values for properties
 Any value set directly to property declaration will be used as the default
 value. Any not primitive value (Array, Object, etc) will be converted to
