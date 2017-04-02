@@ -4,7 +4,7 @@
 Typed Web Component brings you a boilerplate-less, TypeScript based way,
 to write native Polymer modules (Polymer toolbox friendly). The entire
 process is done in the design time, so no additional library needs to be
-added in the project.
+added to the project.
 
 ## Installation
 ```
@@ -12,37 +12,38 @@ npm install -g twc
 ```
 
 ## Using
-TWC comes with CLI and Stream consuming function (compatible with Gulp).
-For single components building, preferred method is to call `twc` command:
+TWC comes with its CLI (gulp pipe was temporarily removed). Most of its
+configuration comes from `tsconfig` (and `bower.json`), and it pretty
+much works the same as tsc. To generate ts files into polymer modules,
+just enter the project dir and execute in the terminal:
 
 ```
-twc my-element.ts --out-dir dist
+twc
 ```
 
-This will analyze the `my-element.ts` file and output `my-element.d.ts`
-and `my-element.html` files in the `dist` folder.
-
-If you want to use a full Polymer toolbox together with TWC, just follow
-[custom-build](https://github.com/PolymerElements/generator-polymer-init-custom-build)
-instructions to get a glance on Polymer Custom Build structure. Once you
-get something similar, import `twc` in your `project.js` gulp task and
-wrap `project.sources()` and `project.dependencies()` with imported function:
-
-```JavaScript
-const twc = require('twc');
-/* ... */
-function splitSource() {
-  return twc(project.sources()).pipe(project.splitHtml());
-}
-
-function splitDependencies() {
-  return twc(project.dependencies()).pipe(project.splitHtml());
-}
-```
-
-Done!
+This works pretty much the same as `tsc`, reading configuration from
+`tsconfig.json` file. The only difference is it outputs `.html` files
+with Polymer module instead of plain `.js`.
 
 ## Configuration
+### Including annotations
+Annotations will be available at the `@types` npm namespace. Until this
+happens, types need to be included in tsconfig:
+```
+{
+  "compilerOptions": {
+    ...
+  },
+
+  "files": [
+    ...
+  ],
+  "include": [
+    "node_modules/twc/types/polymer.annotations.d.ts"
+  ]
+}
+```
+
 ### Polymer version
 TWC allows to compile the same code into either Polymer 1.x or Polymer 2.x
 ([WIP](https://github.com/Draccoz/twc/issues/16)). Decision on which one
@@ -55,7 +56,7 @@ will build a Polymer 1.x module, while this one:
 ```
 "polymer": "Polymer/polymer#2.0-preview"
 ```
-builds a ES6 based Polymer 2.x module.
+builds an ES6 based Polymer 2.x module.
 
 ### EcmaScript version and TypeScript options
 Sometimes you might want to pick a target EcmaScript version. This can be
@@ -63,22 +64,19 @@ done in `tsconfig.json` file ([here](https://www.typescriptlang.org/docs/handboo
 is more info on `tsconfig`). There is one restriction: Polymer 2.x will
 **NOT** compile to ES5 (it is based on ES classes).
 You can also change other TypeScript CompilerOptions. The only flags that
-cannot be changed are:
+are fixed are:
 ```
-declaration: true,
 experimentalDecorators: true,
 module: "commonjs",
 noEmit: false
 ```
-
-Default config can be found [here](src/config.json).
 
 ## Creating modules
 Modules in TWC embrace the syntax and keywords of the TypeScript, and
 are simply classes. Conventions to follow match closely Polymer 2.x ones.
 
 ```TypeScript
-export class MyElement {
+export class MyElement extends Polymer.Element {
     name: string;
 }
 ```
@@ -99,28 +97,57 @@ equals
 ```
 
 ### Importing scripts and html modules
-ES imports do not work in the browsers yet, but Polymer brings the HTML
-Imports polyfill. This allows us to use `<link>` tags to import modules,
-but how do we do it in TWC? Using imports with `link!` prefix:
+ES imports do not work in the browsers yet. Instead Polymer uses the HTML
+Imports. This allows us to use `<link>` tags to import modules, but how
+do we do it in TWC?
 ```
-import "link!../bower_components/polymer/polymer.html";
+import "./my-component.html";
 ```
 Same principle applies to scripts (converted to `<script>` tags):
 ```
-import "script!../bower_components/jquery/jquery.js";
+import "./some-library.js";
 ```
 The above are compiled to
 ```
-<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="./my-component.html">
 ```
 and
 ```
-<script src="../bower_components/jquery/jquery.js"></script>
+<script src="./some-library.js"></script>
 ```
 respectively.
 
+#### Imports from bower
+To not worry about placement of `bower_components`, linking modules from
+this folder can use absolute path:
+```
+import "bower:polymer/polymer.html";
+import "bower:jquery/jquery.min.js";
+```
+
+The above will be translated to use the bower directory from `.bowerrc`
+and will fall back to `bower_components`.
+
+Different paths for prod/dev will [soon be possible](https://github.com/Draccoz/twc/issues/75).
+
+#### Importing members of a module
+Sometimes (or maybe even quite often) you might want to import types
+from the module (for example importing a behavior). It is almost identical
+to how it is done in TypeScript itself:
+
+```
+import { IronControlState } from "bower:iron-behaviors/iron-control-state.html#Polymer";
+```
+
+In the above example, we are importing `IronControlState` from the global
+namespace `Polymer`, declared in `iron-control-state.html`. If there was
+no namespace (the `IronControlState` would be accessible from `window`
+object), the `#Polymer` can be skipped.
+
 ### Default values for properties
-Any value set directly to property declaration will be used as the default value. Any not primitive value (Array, Object, etc) will be converted to a value function
+Any value set directly to property declaration will be used as the default
+value. Any not primitive value (Array, Object, etc) will be converted to
+a value function
 ``` TypeScript
 export class MyElement {
     title: string = '';
@@ -166,6 +193,24 @@ export class MyElement {
 }
 ```
 
+### Behaviors
+Behaviors are a bit tricky. Annotations will work for generating valid
+output, but it will not add types. This is why instead of `@behavior`
+annotation, a trick is needed:
+```
+export interface MyComponent extends IronControlState {}
+
+@template("<h1>Hello {{name}}</h1>")
+export class MyComponent extends Polymer.Element {
+    ...
+}
+```
+The above creates both interface and component with the same name. This
+allows to extend definitions, which are later used in the component
+itself. Furthermore, the above syntax will allow TWC to add the behavior
+to the component declaration. **The ES Mixins syntax
+[will soon be supported](https://github.com/Draccoz/twc/issues/12) as well.**
+
 ### Annotations
 As mentioned before, not everything can be done with keywords. This is why
 TWC comes with a set of design-time annotations.
@@ -174,7 +219,7 @@ To use them, install twc locally and import in elements' source files as
 required:
 
 ```TypeScript
-import { attr, behavior,  computed, notify, observe, style, template } from 'twc/annotations/polymer';
+import { attr, behavior,  computed, notify, observe, style, template } from 'twc/polymer';
 ```
 
 #### @template
@@ -207,17 +252,6 @@ export class MyElement {
     name: string;
 }
 ```
-
-#### @behavior
-To add behaviors to your component, use `@behavior` annotation:
-```TypeScript
-@template(`<h1>Hello {{name}}</h1>`)
-@behavior(Polymer.IronButtonState)
-export class MyElement {
-    name: string;
-}
-```
-**Note:** Behaviors are subject to change due to lack of typings.
 
 #### @attr and @notify
 `@attr` and `@notify` add `reflectToAttribute` and `notify` flags to
@@ -269,7 +303,7 @@ hesitate to also post ideas!
 ## Running tests on Windows
 
 To run tests on Windows (`npm run test`) it is currently necessary to
-modify the `include` section of `tsconfig.json` file do that it contains
+modify the `include` section of `tsconfig.json` file so it contains
 the pattern below:
 
 ``` json
