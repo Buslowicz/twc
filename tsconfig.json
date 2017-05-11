@@ -1,19 +1,26 @@
 {
   "compilerOptions": {
     "experimentalDecorators": true,
-    "sourceMap": true,
-    "target": "es5",
-    "pretty": true,
-    "noUnusedLocals": true,
+    "forceConsistentCasingInFileNames": true,
     "module": "commonjs",
-    "lib": [
-      "dom",
-      "es6"
-    ]
+    "moduleResolution": "node",
+    "noEmit": true,
+    "noImplicitAny": false,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noImplicitUseStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "pretty": true,
+    "sourceMap": false,
+    "strictNullChecks": false,
+    "target": "es6"
   },
   "include": [
-    "tests/**/*.ts",
-    "src/**/*.ts",
-    "types/**/*.d.ts"
+    "node_modules/twc/types/polymer.annotations.d.ts",
+    "types/fake.d.ts",
+    "types/polymer.d.ts",
+    "tests/*",
+    "*.ts"
   ]
 }

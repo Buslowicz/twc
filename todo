@@ -1,0 +1,20 @@
+class comment
+
+events
+
+properties
+	-- decorators
+	-- jsdoc
+	-- modifiers
+	-- type
+
+	++ readonly
+	++ skip private
+	++ reflectToAttribute
+	++ notify
+
+observers
+
+behaviors
+
+methods
