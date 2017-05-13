@@ -3,49 +3,16 @@ import {
   ClassDeclaration, createSourceFile, EnumDeclaration, FunctionDeclaration, ImportDeclaration, InterfaceDeclaration,
   ModuleDeclaration, ScriptTarget, SourceFile, SyntaxKind, TypeAliasDeclaration, VariableStatement
 } from 'typescript';
-import { parseDeclarationType, parseDeclarationInitializer } from './parsers';
+import { getTypeAndValue } from './parsers';
 
 const fileName = 'complex.ts';
 const content = readFileSync(fileName).toString();
 const source: SourceFile = createSourceFile(fileName, content, ScriptTarget.ES2015, false);
 
-/*
- Wrap initializer with function:
- BinaryExpression
- TemplateExpression
- NewExpression
- ObjectLiteralExpression
- ArrayLiteralExpression
- PropertyAccessExpression
-
- object type
-
- Do NOT wrap init for:
- FirstTemplateToken
- StringLiteral
- FirstLiteralToken
- TrueKeyword
- FalseKeyword
- NullKeyword
- UndefinedKeyword
- */
-
 const isProperty = (member) => member.kind === SyntaxKind.PropertyDeclaration;
-const flattenExpressionTypes = (node) => [
-  ...(node.left ? flattenExpressionTypes(node.left) : []),
-  ...(node.text || node.kind === SyntaxKind.PropertyAccessExpression ? [ node ] : []),
-  ...(node.right ? flattenExpressionTypes(node.right) : [])
-];
-
-function getJSType(member) {
-  const map = Object.keys(SyntaxKind).filter((key) => isNaN(Number(key)));
-  const declarationType = map[ parseDeclarationType(member) ];
-  const initializerWithType = parseDeclarationInitializer(member);
-  console.log(member.getFullText().trim(), '>>>', declarationType, initializerWithType);
-}
 
 function buildPropertyDeclaration(member) {
-  return getJSType(member);
+  return getTypeAndValue(member);
 }
 
 function parseImport(importDeclaration: ImportDeclaration) {

@@ -1,7 +1,6 @@
 import {
-  BinaryExpression, Expression,
-  LiteralTypeNode, Node, PartiallyEmittedExpression, PrefixUnaryExpression, SyntaxKind, TypeNode, TypeReferenceNode,
-  UnionOrIntersectionTypeNode, VariableDeclaration
+  BinaryExpression, Expression, Identifier, LiteralTypeNode, Node, PartiallyEmittedExpression, PrefixUnaryExpression,
+  SyntaxKind, TypeNode, TypeReferenceNode, UnionOrIntersectionTypeNode, VariableDeclaration
 } from 'typescript';
 
 type ValidValue = string | number | boolean | (() => any);
@@ -21,6 +20,7 @@ export const transparentTypes = [
 
 export const isBinaryExpression = (expression): expression is BinaryExpression => 'operatorToken' in expression;
 export const isPrefixUnaryExpression = (expression): expression is PrefixUnaryExpression => 'operator' in expression;
+export const isIdentifier = (expression): expression is Identifier => 'originalKeywordKind' in expression;
 
 export const nonTransparent = ({ kind }: Node): boolean => transparentTypes.indexOf(kind) === -1;
 export const toFinalType = (type: Node): Node => 'literal' in type ? (type as LiteralTypeNode).literal : type;
@@ -161,7 +161,7 @@ export function parseDeclarationInitializer({ initializer }: VariableDeclaration
     return { type: SyntaxKind.Unknown };
   }
 
-  switch (initializer.kind) {
+  switch (isIdentifier(initializer) ? initializer.originalKeywordKind : initializer.kind) {
     case SyntaxKind.TrueKeyword:
       return { type: SyntaxKind.BooleanKeyword, value: true };
     case SyntaxKind.FalseKeyword:
@@ -180,6 +180,10 @@ export function parseDeclarationInitializer({ initializer }: VariableDeclaration
       }
     case SyntaxKind.BinaryExpression:
       return { type: parseExpression(initializer as BinaryExpression), value: wrapValue(initializer.getText()) };
+    case SyntaxKind.NullKeyword:
+      return { type: SyntaxKind.Unknown, value: null };
+    case SyntaxKind.UndefinedKeyword:
+      return { type: SyntaxKind.Unknown, value: undefined };
     default:
       return defaultCase();
   }
