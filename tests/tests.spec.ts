@@ -1,7 +1,11 @@
+/* tslint:disable:no-unused-expression */
 import { expect } from 'chai';
 import {
-  BinaryExpression, createSourceFile, ScriptTarget, SyntaxKind, UnionOrIntersectionTypeNode, VariableStatement
+  BinaryExpression, ClassDeclaration, createSourceFile, PropertyDeclaration, ScriptTarget, SyntaxKind,
+  UnionOrIntersectionTypeNode, VariableStatement
 } from 'typescript';
+import { buildPropertyObject } from '../builder';
+import { hasDecorator, hasModifier, isProperty, notPrivate, notStatic } from '../helpers';
 import {
   getTypeAndValue, parseDeclarationInitializer, parseDeclarationType, parseExpression, parseUnionOrIntersectionType,
   typeToSimpleKind
@@ -10,7 +14,7 @@ import {
 describe('parsers', () => {
   function parse(src) {
     const statement: VariableStatement = createSourceFile('', src, ScriptTarget.ES2015, true).statements[ 0 ] as any;
-    return statement.declarationList.declarations[ 0 ];
+    return statement.declarationList.declarations[ 0 ] as any as PropertyDeclaration;
   }
 
   describe('::typeToSimpleKind()', () => {
@@ -237,13 +241,198 @@ describe('parsers', () => {
   describe('::getTypeAndValue()', () => {
     it('should prefer implicit type over deducted one', () => {
       expect(getTypeAndValue(parse('let p: number = null;')))
-        .to.deep.equal({ type: SyntaxKind.NumberKeyword, value: null });
+        .to.deep.equal({ type: SyntaxKind.NumberKeyword, value: null, isDate: false });
       expect(getTypeAndValue(parse('let p: number = undefined;')))
-        .to.deep.equal({ type: SyntaxKind.NumberKeyword, value: undefined });
+        .to.deep.equal({ type: SyntaxKind.NumberKeyword, value: undefined, isDate: false });
 
       const initAndType = getTypeAndValue(parse('let p: string = document.title;'));
       expect(initAndType.type).to.equal(SyntaxKind.StringKeyword);
       expect(initAndType.value.toString().replace(/\s+/g, ' ')).to.equal('function () { return document.title; }');
+    });
+  });
+});
+describe('builders', () => {
+  function parseClass(src) {
+    return createSourceFile('', src, ScriptTarget.ES2015, true).statements[ 0 ] as ClassDeclaration;
+  }
+
+  describe('::buildPropertyObject()', () => {
+    it('should parse class correctly and build valid property objects', () => {
+      let parsed = parseClass(`class Test {
+      public readonly t1: string = document.title;
+      t2 = "test";
+      t3: string;
+      private helper: string;
+      /** Some test property */
+      test1: Date = Date.now();
+      test2: Date = new Date();
+      @attr @test('true') attr: string = null;
+    }`);
+      expect(getTypeAndValue(parsed.members[ 0 ] as PropertyDeclaration))
+        .to.include({ type: SyntaxKind.StringKeyword }).and.include.keys('value');
+
+      expect(hasModifier(parsed.members[ 0 ], SyntaxKind.ReadonlyKeyword)).to.be.true;
+      expect(hasModifier(parsed.members[ 2 ], SyntaxKind.PublicKeyword)).to.be.false;
+      expect(hasDecorator(parsed.members[ 6 ], 'attr')).to.be.true;
+      expect(hasDecorator(parsed.members[ 6 ], 'notify')).to.be.false;
+
+      let properties = parsed.members
+        .filter(isProperty)
+        .filter(notPrivate)
+        .filter(notStatic)
+        .map(buildPropertyObject);
+
+      expect(properties).to.have.length(6);
+      expect(properties.map((prop) => prop.toString())).to.deep.equal([
+        't1: { type: String, value: function () {\nreturn document.title;\n}, readOnly: true }',
+        't2: { type: String, value: "test" }',
+        't3: String',
+        '/** Some test property */\ntest1: { type: Date, value: function () {\nreturn Date.now();\n} }',
+        'test2: { type: Date, value: function () {\nreturn new Date();\n} }',
+        'attr: { type: String, reflectToAttribute: true }'
+      ]);
+      parsed = parseClass(`
+@component("input-math")
+@template("<input>")
+export class InputMath extends Polymer.Element {
+  static HISTORY_SIZE: number = 20;
+
+  static SYMBOLS_BASIC: ICmd[] = [
+    { cmd: "\\sqrt", name: "√" },
+    { cmd: "\\nthroot", name: "√", className: "n-sup" },
+    { cmd: "\\int", name: "∫" },
+    { cmd: "^", name: "n", className: "sup" },
+    { cmd: "_", name: "n", className: "sub" },
+    { cmd: "\\rightarrow", name: "→" },
+    { cmd: "\\infty", name: "∞" },
+    { cmd: "\\neq", name: "≠" },
+    { cmd: "\\degree", name: "°" },
+    { cmd: "\\div", name: "÷" }
+  ];
+
+  static SYMBOLS_GREEK: ICmd[] = [
+    { cmd: "\\lambda", name: "λ" },
+    { cmd: "\\pi", name: "π" },
+    { cmd: "\\mu", name: "μ" },
+    { cmd: "\\sum", name: "Σ" },
+    { cmd: "\\alpha", name: "α" },
+    { cmd: "\\beta", name: "β" },
+    { cmd: "\\gamma", name: "γ" },
+    { cmd: "\\delta", name: "ᵟ", className: "big" },
+    { cmd: "\\Delta", name: "Δ" }
+  ];
+
+  static SYMBOLS_PHYSICS: ICmd[] = [
+    { cmd: "\\ohm", name: "Ω" },
+    { cmd: "\\phi", name: "ᶲ", className: "big" }
+  ];
+
+  testValue: "yep"|"nope";
+
+  @attr value: string|null = "";
+
+  @notify symbols: ICmd[][] = [
+    InputMath.SYMBOLS_BASIC,
+    InputMath.SYMBOLS_GREEK
+  ];
+
+  showSymbols: string = "";
+
+  private _history: string[];
+  private _mathField: MathQuill.EditableField;
+  private _observerLocked: boolean = false;
+  private _freezeHistory: boolean = false;
+  private _editor: HTMLElement = document.createElement("div");
+
+  constructor() {
+    super();
+    var editor: HTMLElement = this._editor;
+    editor.id = "editor";
+    editor.classList.add("input-math");
+    this[ "_mathField" ] = MathQuill.getInterface(2).MathField(editor, {
+      spaceBehavesLikeTab: true,
+      handlers: {
+        edit: this._updateValue.bind(this)
+      }
+    });
+  }
+
+  ready(): void {
+    this.insertBefore(this._editor, this.$.controls);
+  }
+
+  cmd(ev: PolymerEvent): void {
+    this._mathField.cmd(ev.model.item.cmd).focus();
+  }
+
+  undo(): void {
+    if (this._history && this._history.length > 0) {
+      this._freezeHistory = true;
+      this.value = this._history.pop();
+      this._freezeHistory = false;
+    }
+  }
+
+  @observe("value")
+  valueChanged(value: string, prevValue: string): Array<{ test: boolean }> {
+    this._updateHistory(prevValue);
+
+    if (this._observerLocked) {
+      return;
+    }
+
+    this._mathField.select().write(value);
+    if (this._mathField.latex() === "") {
+      this.undo();
+    }
+  }
+
+  @observe("showSymbols")
+  symbolsChanged(symbols: string): void {
+    if (symbols) {
+      this.symbols = symbols.split(",").map(groupName => {
+        return InputMath[ "SYMBOLS_" + groupName.toUpperCase() ] || [];
+      });
+    }
+  }
+
+  @listen("keydown")
+  keyShortcuts(ev: KeyboardEvent): void {
+    if (ev.ctrlKey && ev.keyCode === 90) {
+      this.undo();
+    }
+  }
+
+  _updateValue(test: { a: () => void, b: any }): void {
+    console.log(test);
+    this._observerLocked = true;
+    this.value = this._mathField.latex();
+    this._observerLocked = false;
+  }
+
+  private _updateHistory(prevValue: string): void {
+    if (!this._history) {
+      this._history = [];
+    }
+
+    if (this._freezeHistory || prevValue == null) {
+      return;
+    }
+
+    this._history.push(prevValue);
+    if (this._history.length > InputMath.HISTORY_SIZE) {
+      this._history.shift();
+    }
+  }
+}`);
+
+      properties = parsed.members
+        .filter(isProperty)
+        .filter(notPrivate)
+        .filter(notStatic)
+        .map(buildPropertyObject);
+
+      expect(properties).to.have.length(4);
     });
   });
 });
