@@ -267,6 +267,8 @@ describe('builders', () => {
       test1: Date = Date.now();
       test2: Date = new Date();
       @attr @test('true') attr: string = null;
+      @compute("compute", ["test1", "test2"]) computed1: string;
+      @compute(function(t1: string, t2: string) { return t1 + t2; }, ["test1", 'test2']) computed2: string;
     }`);
       expect(getTypeAndValue(parsed.members[ 0 ] as PropertyDeclaration))
         .to.include({ type: SyntaxKind.StringKeyword }).and.include.keys('value');
@@ -275,6 +277,8 @@ describe('builders', () => {
       expect(hasModifier(parsed.members[ 2 ], SyntaxKind.PublicKeyword)).to.be.false;
       expect(hasDecorator(parsed.members[ 6 ], 'attr')).to.be.true;
       expect(hasDecorator(parsed.members[ 6 ], 'notify')).to.be.false;
+      expect(hasDecorator(parsed.members[ 7 ], 'compute')).to.be.true;
+      expect(hasDecorator(parsed.members[ 8 ], 'compute')).to.be.true;
 
       let properties = parsed.members
         .filter(isProperty)
@@ -282,14 +286,26 @@ describe('builders', () => {
         .filter(notStatic)
         .map(buildPropertyObject);
 
-      expect(properties).to.have.length(6);
-      expect(properties.map((prop) => prop.toString())).to.deep.equal([
+      expect(properties).to.have.length(8);
+      expect(properties.map((prop) => prop.config.toString())).to.deep.equal([
         't1: { type: String, value: function () {\nreturn document.title;\n}, readOnly: true }',
         't2: { type: String, value: "test" }',
         't3: String',
         '/** Some test property */\ntest1: { type: Date, value: function () {\nreturn Date.now();\n} }',
         'test2: { type: Date, value: function () {\nreturn new Date();\n} }',
-        'attr: { type: String, reflectToAttribute: true }'
+        'attr: { type: String, reflectToAttribute: true }',
+        'computed1: { type: String, computed: "compute(test1, test2)" }',
+        'computed2: { type: String, computed: "_computed2Computed(test1, test2)" }'
+      ]);
+      expect(properties
+        .map((prop) => prop
+          .extras
+          .methods
+          .map((method) => method.toString())
+        )
+        .reduce((all, curr) => all.concat(curr), [])
+      ).to.deep.equal([
+        `_computed2Computed(t1,t2) {\nreturn t1 + t2;\n}`
       ]);
       parsed = parseClass(`
 @component("input-math")

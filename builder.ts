@@ -1,5 +1,5 @@
 import { JSDoc, PropertyDeclaration, SyntaxKind } from 'typescript';
-import { hasDecorator, hasModifier } from './helpers';
+import { getDecorators, hasModifier, ParsedDecorator } from './helpers';
 import { getTypeAndValue, ValidValue } from './parsers';
 
 export interface PolymerPropertyConfig {
@@ -17,16 +17,25 @@ export interface PropertyObject {
   jsDoc?: string;
 }
 
+export interface ConfigExtras {
+  methods: Array<(...args) => any>;
+  properties: Array<PolymerProperty>;
+}
+
 export class PolymerProperty {
-  constructor(private name: string,
-              private type: Constructor<ValidValue>,
-              private value?: ValidValue,
-              private readOnly?: boolean,
-              private reflectToAttribute?: boolean,
-              private notify?: boolean,
-              // private computed?: string,
-              // private observer?: string,
-              private jsDoc?: Array<JSDoc>) {}
+  public name: string;
+  public type: Constructor<ValidValue>;
+  public value?: ValidValue;
+  public readOnly?: boolean;
+  public reflectToAttribute?: boolean;
+  public notify?: boolean;
+  public computed?: string;
+  public observer?: string;
+  public jsDoc?: Array<JSDoc>;
+
+  constructor(data) {
+    Object.assign(this, data);
+  }
 
   public toString() {
     return `${this.getJsDoc()}${this.name}: ${
@@ -36,7 +45,9 @@ export class PolymerProperty {
           this.getValue(),
           this.getReadOnly(),
           this.getReflectToAttribute(),
-          this.getNotify()
+          this.getNotify(),
+          this.getComputed(),
+          this.getObserver()
         ]
           .filter((key) => !!key)
           .join(', ')} }`
@@ -66,19 +77,26 @@ export class PolymerProperty {
     return this.notify ? 'notify: true' : undefined;
   }
 
-  // private getComputed() {
-  //   return this.computed;
-  // }
-  // private getObserver() {
-  //   return this.observer;
-  // }
+  private getComputed() {
+    return this.computed ? `computed: ${this.computed}` : undefined;
+  }
+
+  private getObserver() {
+    return this.observer ? `observer: ${this.observer}` : undefined;
+  }
 
   private getJsDoc() {
     return this.jsDoc ? `${this.jsDoc.map((doc) => doc.getText()).join('\n')}\n` : '';
   }
 
   private isSimpleConfig(): boolean {
-    return this.type && this.value === undefined && !this.readOnly && !this.reflectToAttribute && !this.notify;
+    return this.type
+      && this.value === undefined
+      && !this.readOnly
+      && !this.reflectToAttribute
+      && !this.notify
+      && !this.computed
+      && !this.observer;
   }
 }
 
@@ -90,19 +108,51 @@ export const typeMap = {
   [SyntaxKind.ArrayType]: Array
 };
 
-export function buildPropertyObject(property: PropertyDeclaration): PolymerProperty {
+const decoratorsMap = {
+  attr: (property: PolymerProperty) => property.reflectToAttribute = true,
+  compute: (property: PolymerProperty, ref: string | ((...args) => any), args: Array<string>) => {
+    if (typeof ref === 'string') {
+      property.computed = `"${ref}(${args.join(', ')})"`;
+      return { methods: [] };
+    } else {
+      property.computed = `"${ref.name}(${args.join(', ')})"`;
+      return { methods: [ ref ] };
+    }
+  },
+  notify: (property: PolymerProperty) => property.notify = true
+};
+
+function decorateProperty(propertyObject: PolymerProperty, decorators: Array<ParsedDecorator>): ConfigExtras {
+  const methods = [];
+  const properties = [];
+  decorators.forEach((decorator) => {
+    if (decorator.name in decoratorsMap) {
+      const {
+        methods: met = [],
+        properties: prop = []
+      } = decoratorsMap[ decorator.name ](propertyObject, ...(decorator.arguments || []));
+      methods.push(...met);
+      properties.push(...prop);
+    }
+  });
+
+  return { methods, properties };
+}
+
+export function buildPropertyObject(property: PropertyDeclaration): { config: PolymerProperty, extras: ConfigExtras } {
   const { type, value, isDate } = getTypeAndValue(property);
   const readOnly = hasModifier(property, SyntaxKind.ReadonlyKeyword);
-  const reflectToAttribute = hasDecorator(property, 'attr');
-  const notify = hasDecorator(property, 'notify');
+  const decorators = getDecorators(property);
 
-  return new PolymerProperty(
-    property.name.getText(),
-    isDate ? Date : typeMap[ type || SyntaxKind.ObjectKeyword ],
+  const config = new PolymerProperty({
+    jsDoc: property[ 'jsDoc' ] as Array<JSDoc>,
+    name: property.name.getText(),
+    type: isDate ? Date : typeMap[ type || SyntaxKind.ObjectKeyword ],
     value,
-    readOnly,
-    reflectToAttribute,
-    notify,
-    property[ 'jsDoc' ] as Array<JSDoc>
-  );
+    readOnly
+  });
+
+  const extras = decorateProperty(config, decorators);
+
+  return { config, extras };
 }

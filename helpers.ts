@@ -1,6 +1,13 @@
 import {
-  BinaryExpression, ClassElement, Identifier, LiteralTypeNode, Node, PrefixUnaryExpression, SyntaxKind
+  BinaryExpression, CallExpression, ClassElement, FunctionExpression, Identifier, LiteralTypeNode, Node,
+  PrefixUnaryExpression, SyntaxKind
 } from 'typescript';
+
+export interface ParsedDecorator {
+  name: string;
+  arguments?: Array<any>;
+}
+
 export const transparentTypes = [
   SyntaxKind.AnyKeyword,
   SyntaxKind.VoidKeyword,
@@ -11,13 +18,67 @@ export const transparentTypes = [
 
 export const isBinaryExpression = (expression): expression is BinaryExpression => 'operatorToken' in expression;
 export const isPrefixUnaryExpression = (expression): expression is PrefixUnaryExpression => 'operator' in expression;
+export const isCallExpression = (expression): expression is CallExpression => 'arguments' in expression;
 export const isIdentifier = (expression): expression is Identifier => 'originalKeywordKind' in expression;
 
 export const hasModifier = ({ modifiers }: ClassElement, mod: SyntaxKind): boolean => {
   return modifiers ? modifiers.some(({ kind }) => kind === mod) : false;
 };
-export const hasDecorator = ({ decorators }: ClassElement, decoratorName: string): boolean => {
-  return decorators ? decorators.some(({ expression }) => expression.getText() === decoratorName) : false;
+export const hasDecorator = (declaration: ClassElement | Array<ParsedDecorator>, decoratorName: string): boolean => {
+  if (Array.isArray(declaration)) {
+    return declaration.some(({ name }) => name === decoratorName);
+  } else if (declaration.decorators) {
+    return declaration.decorators.some(({ expression }) => {
+      return ('expression' in expression ? expression[ 'expression' ] : expression).getText() === decoratorName;
+    });
+  }
+  return false;
+};
+
+export const getFunction = (declaration: FunctionExpression | string, name = 'function'): ((...args) => any) => {
+  let fun;
+  if (typeof declaration === 'string') {
+    fun = new Function(`return ${declaration};`);
+  } else if (declaration.body.kind === SyntaxKind.Block) {
+    fun = new Function(
+      ...declaration.parameters.map((param) => param.name.getText()),
+      declaration.body.getText().slice(1, -1).trim()
+    );
+  } else {
+    fun = new Function(`return ${declaration.body.getText()};`);
+  }
+  Object.defineProperty(fun, 'name', {value: name});
+  fun.toString = () => Function.prototype.toString.call(fun)
+    .replace(/\n\/\*`?`?\*\/\)/, ')')
+    .replace('function anonymous', name);
+
+  return fun;
+};
+export const getDecorators = (declaration: ClassElement): Array<ParsedDecorator> => {
+  if (declaration.decorators) {
+    return declaration.decorators.map(({ expression }) => {
+      if (isCallExpression(expression)) {
+        const name = expression.expression.getText();
+        return {
+          arguments: expression.arguments.map((arg) => {
+            switch (arg.kind) {
+              case SyntaxKind.ArrowFunction:
+              case SyntaxKind.FunctionExpression:
+                return getFunction(arg as FunctionExpression, `_${declaration.name.getText()}Computed`);
+              default:
+                return new Function(`return ${arg.getText()}`)();
+            }
+          }),
+          name
+        };
+      } else {
+        return {
+          name: expression.getText()
+        };
+      }
+    });
+  }
+  return [];
 };
 
 export const isPrivate = (element: ClassElement): boolean => hasModifier(element, SyntaxKind.PrivateKeyword);
