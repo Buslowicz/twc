@@ -3,7 +3,7 @@ import {
   TypeNode, TypeReferenceNode, UnionOrIntersectionTypeNode
 } from 'typescript';
 import {
-  isBinaryExpression, isIdentifier, isPrefixUnaryExpression, nonTransparent, toFinalType, wrapValue
+  isBinaryExpression, isIdentifier, isPrefixUnaryExpression, notTransparent, toFinalType, wrapValue
 } from './helpers';
 
 export type ValidValue = string | number | boolean | object | Date | Array<any> | (() => ValidValue);
@@ -57,7 +57,7 @@ export function parseUnionOrIntersectionType({ types = [] }: UnionOrIntersection
   }
 
   return (types as Array<TypeNode>)
-    .filter(nonTransparent)
+    .filter(notTransparent)
     .map(typeToSimpleKind)
     .reduce((sum, kind) => {
       if (sum === SyntaxKind.ObjectKeyword || sum !== kind) {

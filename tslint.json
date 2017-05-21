@@ -20,6 +20,7 @@
       "single"
     ],
     "no-empty-interface": false,
-    "array-type": false
+    "array-type": false,
+    "max-classes-per-file": false
   }
 }

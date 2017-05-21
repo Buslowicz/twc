@@ -122,37 +122,38 @@ const decoratorsMap = {
   notify: (property: PolymerProperty) => property.notify = true
 };
 
-function decorateProperty(propertyObject: PolymerProperty, decorators: Array<ParsedDecorator>): ConfigExtras {
-  const methods = [];
-  const properties = [];
-  decorators.forEach((decorator) => {
-    if (decorator.name in decoratorsMap) {
-      const {
-        methods: met = [],
-        properties: prop = []
-      } = decoratorsMap[ decorator.name ](propertyObject, ...(decorator.arguments || []));
-      methods.push(...met);
-      properties.push(...prop);
-    }
-  });
+export class PolymerElement {
+  private properties: Array<PolymerProperty> = [];
+  private methods: Array<(...args) => any> = [];
 
-  return { methods, properties };
-}
+  public buildPropertyObject(property: PropertyDeclaration): PolymerProperty {
+    const { type, value, isDate } = getTypeAndValue(property);
+    const readOnly = hasModifier(property, SyntaxKind.ReadonlyKeyword);
+    const decorators = getDecorators(property);
 
-export function buildPropertyObject(property: PropertyDeclaration): { config: PolymerProperty, extras: ConfigExtras } {
-  const { type, value, isDate } = getTypeAndValue(property);
-  const readOnly = hasModifier(property, SyntaxKind.ReadonlyKeyword);
-  const decorators = getDecorators(property);
+    const config = new PolymerProperty({
+      jsDoc: property[ 'jsDoc' ] as Array<JSDoc>,
+      name: property.name.getText(),
+      type: isDate ? Date : typeMap[ type || SyntaxKind.ObjectKeyword ],
+      value,
+      readOnly
+    });
 
-  const config = new PolymerProperty({
-    jsDoc: property[ 'jsDoc' ] as Array<JSDoc>,
-    name: property.name.getText(),
-    type: isDate ? Date : typeMap[ type || SyntaxKind.ObjectKeyword ],
-    value,
-    readOnly
-  });
+    this.decorateProperty(config, decorators);
 
-  const extras = decorateProperty(config, decorators);
+    return config;
+  }
 
-  return { config, extras };
+  private decorateProperty(propertyObject: PolymerProperty, decorators: Array<ParsedDecorator>) {
+    decorators.forEach((decorator) => {
+      if (decorator.name in decoratorsMap) {
+        const { methods: met = [], properties: prop = [] } = decoratorsMap[ decorator.name ](
+          propertyObject,
+          ...(decorator.arguments || [])
+        );
+        this.methods.push(...met);
+        this.properties.push(...prop);
+      }
+    });
+  }
 }

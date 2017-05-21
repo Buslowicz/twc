@@ -89,18 +89,18 @@ export const isStatic = (element: ClassElement): boolean => hasModifier(element,
 export const notStatic = (element: ClassElement): boolean => !hasModifier(element, SyntaxKind.StaticKeyword);
 export const isProperty = ({ kind }: ClassElement): boolean => kind === SyntaxKind.PropertyDeclaration;
 export const notProperty = ({ kind }: ClassElement): boolean => kind !== SyntaxKind.PropertyDeclaration;
-export const isMethod = ({ kind }: ClassElement) => {
+export const isMethod = ({ kind }: ClassElement): boolean => {
   return [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructor ].indexOf(kind) !== -1;
 };
-export const notMethod = ({ kind }: ClassElement) => {
+export const notMethod = ({ kind }: ClassElement): boolean => {
   return [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructor ].indexOf(kind) === -1;
 };
 export const isGetter = ({ kind }: ClassElement): boolean => kind === SyntaxKind.GetAccessor;
 export const notGetter = ({ kind }: ClassElement): boolean => kind !== SyntaxKind.GetAccessor;
 export const isSetter = ({ kind }: ClassElement): boolean => kind === SyntaxKind.SetAccessor;
 export const notSetter = ({ kind }: ClassElement): boolean => kind !== SyntaxKind.SetAccessor;
-
-export const nonTransparent = ({ kind }: Node): boolean => transparentTypes.indexOf(kind) === -1;
+export const isTransparent = ({ kind }: Node): boolean => transparentTypes.indexOf(kind) !== -1;
+export const notTransparent = ({ kind }: Node): boolean => transparentTypes.indexOf(kind) === -1;
 export const toFinalType = (type: Node): Node => 'literal' in type ? (type as LiteralTypeNode).literal : type;
 export const wrapValue = (valueText: string): () => any => {
   const wrapper = new Function(`return ${valueText};`) as () => any;
