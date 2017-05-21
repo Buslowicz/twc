@@ -1,9 +1,9 @@
 import {
-  BinaryExpression, CallExpression, Expression, Node, PartiallyEmittedExpression, PropertyDeclaration, SyntaxKind,
-  TypeNode, TypeReferenceNode, UnionOrIntersectionTypeNode
+  BinaryExpression, CallExpression, Expression, LiteralTypeNode, Node, PartiallyEmittedExpression, PropertyDeclaration,
+  SyntaxKind, TypeNode, TypeReferenceNode, UnionOrIntersectionTypeNode
 } from 'typescript';
 import {
-  isBinaryExpression, isIdentifier, isPrefixUnaryExpression, notTransparent, toFinalType, wrapValue
+  isBinaryExpression, isIdentifier, isPrefixUnaryExpression, notTransparent, wrapValue
 } from './helpers';
 
 export type ValidValue = string | number | boolean | object | Date | Array<any> | (() => ValidValue);
@@ -14,43 +14,6 @@ export interface TypeAndValue {
   isDate?: boolean;
 }
 
-export function typeToSimpleKind(type: Node): SyntaxKind {
-  if (!type) {
-    return SyntaxKind.Unknown;
-  }
-  switch (toFinalType(type).kind) {
-    case undefined:
-      return SyntaxKind.Unknown;
-    case SyntaxKind.NumberKeyword:
-    case SyntaxKind.NumericLiteral:
-      return SyntaxKind.NumberKeyword;
-    case SyntaxKind.BooleanKeyword:
-    case SyntaxKind.TrueKeyword:
-    case SyntaxKind.FalseKeyword:
-      return SyntaxKind.BooleanKeyword;
-    case SyntaxKind.ArrayType:
-    case SyntaxKind.TupleType:
-      return SyntaxKind.ArrayType;
-    case SyntaxKind.StringKeyword:
-    case SyntaxKind.StringLiteral:
-    case SyntaxKind.NoSubstitutionTemplateLiteral:
-      return SyntaxKind.StringKeyword;
-    case SyntaxKind.TypeReference:
-      if ((type as TypeReferenceNode).typeName.getText() === 'Array') {
-        return SyntaxKind.ArrayType;
-      }
-      return SyntaxKind.ObjectKeyword;
-    case SyntaxKind.AnyKeyword:
-    case SyntaxKind.VoidKeyword:
-    case SyntaxKind.NeverKeyword:
-    case SyntaxKind.NullKeyword:
-    case SyntaxKind.UndefinedKeyword:
-      return SyntaxKind.Unknown;
-    default:
-      return SyntaxKind.ObjectKeyword;
-  }
-}
-
 export function parseUnionOrIntersectionType({ types = [] }: UnionOrIntersectionTypeNode): SyntaxKind {
   if (!types) {
     return SyntaxKind.Unknown;
@@ -58,7 +21,7 @@ export function parseUnionOrIntersectionType({ types = [] }: UnionOrIntersection
 
   return (types as Array<TypeNode>)
     .filter(notTransparent)
-    .map(typeToSimpleKind)
+    .map(getSimpleKind)
     .reduce((sum, kind) => {
       if (sum === SyntaxKind.ObjectKeyword || sum !== kind) {
         return SyntaxKind.ObjectKeyword;
@@ -114,7 +77,7 @@ export function parseExpression(expr: Expression): SyntaxKind {
         return SyntaxKind.NumberKeyword;
     }
   }
-  return typeToSimpleKind(expr);
+  return getSimpleKind(expr);
 }
 
 export function parseDeclarationType({ type }: PropertyDeclaration): SyntaxKind {
@@ -127,13 +90,13 @@ export function parseDeclarationType({ type }: PropertyDeclaration): SyntaxKind 
     case SyntaxKind.IntersectionType:
       return parseUnionOrIntersectionType(type as UnionOrIntersectionTypeNode);
     default:
-      return typeToSimpleKind(type);
+      return getSimpleKind(type);
   }
 }
 
 export function parseDeclarationInitializer({ initializer }: PropertyDeclaration): TypeAndValue {
   function defaultCase() {
-    const type = typeToSimpleKind(initializer);
+    const type = getSimpleKind(initializer);
     const valueText = initializer.getText();
     return {
       type,
@@ -181,6 +144,44 @@ export function parseDeclarationInitializer({ initializer }: PropertyDeclaration
       return defaultCase();
   }
 }
+
+export const getFinalType = (type: Node): Node => 'literal' in type ? (type as LiteralTypeNode).literal : type;
+export const getSimpleKind = (type: Node): SyntaxKind => {
+  if (!type) {
+    return SyntaxKind.Unknown;
+  }
+  switch (getFinalType(type).kind) {
+    case undefined:
+      return SyntaxKind.Unknown;
+    case SyntaxKind.NumberKeyword:
+    case SyntaxKind.NumericLiteral:
+      return SyntaxKind.NumberKeyword;
+    case SyntaxKind.BooleanKeyword:
+    case SyntaxKind.TrueKeyword:
+    case SyntaxKind.FalseKeyword:
+      return SyntaxKind.BooleanKeyword;
+    case SyntaxKind.ArrayType:
+    case SyntaxKind.TupleType:
+      return SyntaxKind.ArrayType;
+    case SyntaxKind.StringKeyword:
+    case SyntaxKind.StringLiteral:
+    case SyntaxKind.NoSubstitutionTemplateLiteral:
+      return SyntaxKind.StringKeyword;
+    case SyntaxKind.TypeReference:
+      if ((type as TypeReferenceNode).typeName.getText() === 'Array') {
+        return SyntaxKind.ArrayType;
+      }
+      return SyntaxKind.ObjectKeyword;
+    case SyntaxKind.AnyKeyword:
+    case SyntaxKind.VoidKeyword:
+    case SyntaxKind.NeverKeyword:
+    case SyntaxKind.NullKeyword:
+    case SyntaxKind.UndefinedKeyword:
+      return SyntaxKind.Unknown;
+    default:
+      return SyntaxKind.ObjectKeyword;
+  }
+};
 
 export function getTypeAndValue(declaration: PropertyDeclaration): TypeAndValue {
   const implicitType = parseDeclarationType(declaration);

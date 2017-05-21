@@ -7,13 +7,13 @@ import {
 import {
   getDecorators, getFunction, hasDecorator, hasModifier, isBinaryExpression, isCallExpression, isGetter, isIdentifier,
   isMethod, isPrefixUnaryExpression, isPrivate, isProperty, isPublic, isSetter, isStatic, isTransparent, notGetter,
-  notMethod, notPrivate, notProperty, notPublic, notSetter, notStatic, notTransparent, toFinalType, wrapValue
+  notMethod, notPrivate, notProperty, notPublic, notSetter, notStatic, notTransparent, wrapValue
 } from '../helpers';
 // import { PolymerProperty, PolymerElement } from '../builder';
 // import { hasDecorator, hasModifier, isProperty, notPrivate, notStatic } from '../helpers';
 import {
-  getTypeAndValue, parseDeclarationInitializer, parseDeclarationType, parseExpression, parseUnionOrIntersectionType,
-  typeToSimpleKind
+  getFinalType, getSimpleKind, getTypeAndValue, parseDeclarationInitializer, parseDeclarationType, parseExpression,
+  parseUnionOrIntersectionType
 } from '../parsers';
 
 describe('helpers', () => {
@@ -238,13 +238,6 @@ describe('helpers', () => {
       expect(notTransparent(parse(`let x: object;`).type)).to.be.true;
     });
   });
-  describe('toFinalType()', () => {
-    it('should return type of node or type of literal (if node is literal)', () => {
-      expect(toFinalType(parse(`let x: string`).type).kind).to.equal(SyntaxKind.StringKeyword);
-      expect(toFinalType(parse(`let x: 'test'`).type).kind).to.equal(SyntaxKind.StringLiteral);
-      expect(toFinalType(parse(`let x: 10`).type).kind).to.equal(SyntaxKind.NumericLiteral);
-    });
-  });
   describe('wrapValue()', () => {
     it('should wrap a value in a function', () => {
       expect(wrapValue('10')()).to.equal(10);
@@ -261,38 +254,7 @@ describe('parsers', () => {
     return statement.declarationList.declarations[ 0 ] as any as PropertyDeclaration;
   }
 
-  describe('::typeToSimpleKind()', () => {
-    it('should parse simple types', () => {
-      expect(typeToSimpleKind(parse(`let p;`).type)).to.equal(SyntaxKind.Unknown);
-      expect(typeToSimpleKind(parse(`let p: string;`).type)).to.equal(SyntaxKind.StringKeyword);
-      expect(typeToSimpleKind(parse(`let p: number;`).type)).to.equal(SyntaxKind.NumberKeyword);
-      expect(typeToSimpleKind(parse(`let p: boolean;`).type)).to.equal(SyntaxKind.BooleanKeyword);
-      expect(typeToSimpleKind(parse(`let p: Array<boolean>;`).type)).to.equal(SyntaxKind.ArrayType);
-    });
-    it('should convert all TypeReferences to ObjectKeyword', () => {
-      expect(typeToSimpleKind(parse(`let p: Date;`).type)).to.equal(SyntaxKind.ObjectKeyword);
-      expect(typeToSimpleKind(parse(`let p: Object;`).type)).to.equal(SyntaxKind.ObjectKeyword);
-      expect(typeToSimpleKind(parse(`let p: PolymerElement;`).type)).to.equal(SyntaxKind.ObjectKeyword);
-      expect(typeToSimpleKind(parse(`let p: ENUM;`).type)).to.equal(SyntaxKind.ObjectKeyword);
-    });
-    it('should ignore all transparent types and convert them to Unknown type', () => {
-      expect(typeToSimpleKind(parse(`let p: null;`).type)).to.equal(SyntaxKind.Unknown);
-      expect(typeToSimpleKind(parse(`let p: undefined;`).type)).to.equal(SyntaxKind.Unknown);
-      expect(typeToSimpleKind(parse(`let p: any;`).type)).to.equal(SyntaxKind.Unknown);
-      expect(typeToSimpleKind(parse(`let p: void;`).type)).to.equal(SyntaxKind.Unknown);
-      expect(typeToSimpleKind(parse(`let p: never;`).type)).to.equal(SyntaxKind.Unknown);
-    });
-    it('should parse literal types', () => {
-      expect(typeToSimpleKind(parse(`let p: boolean[];`).type)).to.equal(SyntaxKind.ArrayType);
-      expect(typeToSimpleKind(parse(`let p: [ boolean ];`).type)).to.equal(SyntaxKind.ArrayType);
-      expect(typeToSimpleKind(parse(`let p: [ string, number ];`).type)).to.equal(SyntaxKind.ArrayType);
-
-      expect(typeToSimpleKind(parse(`let p: 'test';`).type)).to.equal(SyntaxKind.StringKeyword);
-      expect(typeToSimpleKind(parse(`let p: { a: boolean, b: string };`).type)).to.equal(SyntaxKind.ObjectKeyword);
-      expect(typeToSimpleKind(parse(`let p: () => string;`).type)).to.equal(SyntaxKind.ObjectKeyword);
-    });
-  });
-  describe('::parseUnionOrIntersectionType()', () => {
+  describe('parseUnionOrIntersectionType()', () => {
     it('should parse unions with same types', () => {
       expect(parseUnionOrIntersectionType(parse(`let p: string | string;`).type as UnionOrIntersectionTypeNode))
         .to.equal(SyntaxKind.StringKeyword);
@@ -328,7 +290,7 @@ describe('parsers', () => {
         .to.equal(SyntaxKind.ObjectKeyword);
     });
   });
-  describe('::parseExpressionType()', () => {
+  describe('parseExpressionType()', () => {
     it('should understand simple numeral expressions', () => {
       expect(parseExpression(parse('let p = 5 + 5;').initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
@@ -396,7 +358,7 @@ describe('parsers', () => {
         .to.equal(SyntaxKind.StringKeyword);
     });
   });
-  describe('::parseDeclarationType()', () => {
+  describe('parseDeclarationType()', () => {
     it('should direct unions and intersections to `parseUnionOrIntersectionType` function', () => {
       expect(parseDeclarationType(parse(`let p: 'test1' | 'test2';`))).to.equal(SyntaxKind.StringKeyword);
       expect(parseDeclarationType(parse(`let p: string | null;`))).to.equal(SyntaxKind.StringKeyword);
@@ -405,7 +367,7 @@ describe('parsers', () => {
       expect(parseDeclarationType(parse(`let p: Date & Object;`))).to.equal(SyntaxKind.ObjectKeyword);
     });
   });
-  describe('::parseDeclarationInitializer()', () => {
+  describe('parseDeclarationInitializer()', () => {
     it('should return no value and type Unknown if there is no initializer', () => {
       expect(parseDeclarationInitializer(parse('let p;'))).to.deep.equal({
         type: SyntaxKind.Unknown
@@ -482,7 +444,45 @@ describe('parsers', () => {
         .to.equal('function () { return (window && window.opener); }');
     });
   });
-  describe('::getTypeAndValue()', () => {
+  describe('getFinalType()', () => {
+    it('should return type of node or type of literal (if node is literal)', () => {
+      expect(getFinalType(parse(`let x: string`).type).kind).to.equal(SyntaxKind.StringKeyword);
+      expect(getFinalType(parse(`let x: 'test'`).type).kind).to.equal(SyntaxKind.StringLiteral);
+      expect(getFinalType(parse(`let x: 10`).type).kind).to.equal(SyntaxKind.NumericLiteral);
+    });
+  });
+  describe('getSimpleKind()', () => {
+    it('should parse simple types', () => {
+      expect(getSimpleKind(parse(`let p;`).type)).to.equal(SyntaxKind.Unknown);
+      expect(getSimpleKind(parse(`let p: string;`).type)).to.equal(SyntaxKind.StringKeyword);
+      expect(getSimpleKind(parse(`let p: number;`).type)).to.equal(SyntaxKind.NumberKeyword);
+      expect(getSimpleKind(parse(`let p: boolean;`).type)).to.equal(SyntaxKind.BooleanKeyword);
+      expect(getSimpleKind(parse(`let p: Array<boolean>;`).type)).to.equal(SyntaxKind.ArrayType);
+    });
+    it('should convert all TypeReferences to ObjectKeyword', () => {
+      expect(getSimpleKind(parse(`let p: Date;`).type)).to.equal(SyntaxKind.ObjectKeyword);
+      expect(getSimpleKind(parse(`let p: Object;`).type)).to.equal(SyntaxKind.ObjectKeyword);
+      expect(getSimpleKind(parse(`let p: PolymerElement;`).type)).to.equal(SyntaxKind.ObjectKeyword);
+      expect(getSimpleKind(parse(`let p: ENUM;`).type)).to.equal(SyntaxKind.ObjectKeyword);
+    });
+    it('should ignore all transparent types and convert them to Unknown type', () => {
+      expect(getSimpleKind(parse(`let p: null;`).type)).to.equal(SyntaxKind.Unknown);
+      expect(getSimpleKind(parse(`let p: undefined;`).type)).to.equal(SyntaxKind.Unknown);
+      expect(getSimpleKind(parse(`let p: any;`).type)).to.equal(SyntaxKind.Unknown);
+      expect(getSimpleKind(parse(`let p: void;`).type)).to.equal(SyntaxKind.Unknown);
+      expect(getSimpleKind(parse(`let p: never;`).type)).to.equal(SyntaxKind.Unknown);
+    });
+    it('should parse literal types', () => {
+      expect(getSimpleKind(parse(`let p: boolean[];`).type)).to.equal(SyntaxKind.ArrayType);
+      expect(getSimpleKind(parse(`let p: [ boolean ];`).type)).to.equal(SyntaxKind.ArrayType);
+      expect(getSimpleKind(parse(`let p: [ string, number ];`).type)).to.equal(SyntaxKind.ArrayType);
+
+      expect(getSimpleKind(parse(`let p: 'test';`).type)).to.equal(SyntaxKind.StringKeyword);
+      expect(getSimpleKind(parse(`let p: { a: boolean, b: string };`).type)).to.equal(SyntaxKind.ObjectKeyword);
+      expect(getSimpleKind(parse(`let p: () => string;`).type)).to.equal(SyntaxKind.ObjectKeyword);
+    });
+  });
+  describe('getTypeAndValue()', () => {
     it('should prefer implicit type over deducted one', () => {
       expect(getTypeAndValue(parse('let p: number = null;')))
         .to.deep.equal({ type: SyntaxKind.NumberKeyword, value: null, isDate: false });
@@ -500,7 +500,7 @@ describe('parsers', () => {
 //     return createSourceFile('', src, ScriptTarget.ES2015, true).statements[ 0 ] as ClassDeclaration;
 //   }
 //
-//   describe('::buildPropertyObject()', () => {
+//   describe('buildPropertyObject()', () => {
 //     it('should parse class correctly and build valid property objects', () => {
 //       let parsed = parseClass(`class Test {
 //       public readonly t1: string = document.title;

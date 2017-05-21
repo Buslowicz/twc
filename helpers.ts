@@ -1,6 +1,6 @@
 import {
-  BinaryExpression, CallExpression, ClassElement, FunctionExpression, Identifier, LiteralTypeNode, Node,
-  PrefixUnaryExpression, SyntaxKind
+  BinaryExpression, CallExpression, ClassElement, FunctionExpression, Identifier, Node, PrefixUnaryExpression,
+  SyntaxKind
 } from 'typescript';
 
 export interface ParsedDecorator {
@@ -101,7 +101,6 @@ export const isSetter = ({ kind }: ClassElement): boolean => kind === SyntaxKind
 export const notSetter = ({ kind }: ClassElement): boolean => kind !== SyntaxKind.SetAccessor;
 export const isTransparent = ({ kind }: Node): boolean => transparentTypes.indexOf(kind) !== -1;
 export const notTransparent = ({ kind }: Node): boolean => transparentTypes.indexOf(kind) === -1;
-export const toFinalType = (type: Node): Node => 'literal' in type ? (type as LiteralTypeNode).literal : type;
 export const wrapValue = (valueText: string): () => any => {
   const wrapper = new Function(`return ${valueText};`) as () => any;
   wrapper.toString = () => Function.prototype.toString.call(wrapper).replace('anonymous', '');
