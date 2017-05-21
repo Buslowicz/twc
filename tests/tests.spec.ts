@@ -4,28 +4,26 @@ import {
   BinaryExpression, CallExpression, ClassDeclaration, createSourceFile, FunctionExpression, Identifier,
   PrefixUnaryExpression, PropertyDeclaration, ScriptTarget, SyntaxKind, UnionOrIntersectionTypeNode, VariableStatement
 } from 'typescript';
+import { Component, Method } from '../builder';
 import {
-  getDecorators, getFunction, hasDecorator, hasModifier, isBinaryExpression, isCallExpression, isGetter, isIdentifier,
-  isMethod, isPrefixUnaryExpression, isPrivate, isProperty, isPublic, isSetter, isStatic, isTransparent, notGetter,
-  notMethod, notPrivate, notProperty, notPublic, notSetter, notStatic, notTransparent, wrapValue
+  getDecorators, hasDecorator, hasModifier, isBinaryExpression, isCallExpression, isGetter, isIdentifier, isMethod,
+  isPrefixUnaryExpression, isPrivate, isProperty, isPublic, isSetter, isStatic, isTransparent, notGetter, notMethod,
+  notPrivate, notProperty, notPublic, notSetter, notStatic, notTransparent, wrapValue
 } from '../helpers';
-// import { PolymerProperty, PolymerElement } from '../builder';
 // import { hasDecorator, hasModifier, isProperty, notPrivate, notStatic } from '../helpers';
 import {
   getFinalType, getSimpleKind, getTypeAndValue, parseDeclarationInitializer, parseDeclarationType, parseExpression,
   parseUnionOrIntersectionType
 } from '../parsers';
 
+function parse(src) {
+  const statement: VariableStatement = createSourceFile('', src, ScriptTarget.ES2015, true).statements[ 0 ] as any;
+  return statement.declarationList.declarations[ 0 ] as any as PropertyDeclaration;
+}
+function parseClass(src) {
+  return createSourceFile('', src, ScriptTarget.ES2015, true).statements[ 0 ] as ClassDeclaration;
+}
 describe('helpers', () => {
-  function parse(src) {
-    const statement: VariableStatement = createSourceFile('', src, ScriptTarget.ES2015, true).statements[ 0 ] as any;
-    return statement.declarationList.declarations[ 0 ] as any as PropertyDeclaration;
-  }
-
-  function parseClass(src) {
-    return createSourceFile('', src, ScriptTarget.ES2015, true).statements[ 0 ] as ClassDeclaration;
-  }
-
   describe('isBinaryExpression()', () => {
     it('should check if expression is a binary expression', () => {
       const expr = parse('let p = 5 * 5;').initializer;
@@ -91,18 +89,17 @@ describe('helpers', () => {
       expect(hasDecorator(parseClass(`class T { @a p; }`).members[ 0 ], 'b')).to.be.false;
     });
   });
-  describe('getFunction()', () => {
+  describe('Method()', () => {
     const functionExpression = parse(`let x = function(a, b) { return a + b; }`).initializer as FunctionExpression;
     it('should parse a function expression and return a function', () => {
-      expect(getFunction(functionExpression).toString()).to.equal(`function(a,b) {\nreturn a + b;\n}`);
-      expect(getFunction(functionExpression)(5, 10)).to.equal(15);
+      expect(new Method(functionExpression).toString()).to.equal(`function(a, b) { return a + b; }`);
     });
     it('should return a function when provided returned expression as a string', () => {
-      expect(getFunction('10 * 20').toString()).to.equal(`function() {\nreturn 10 * 20;\n}`);
+      expect(new Method('10 * 20').toString()).to.equal(`function() { return 10 * 20; }`);
     });
     it('should name a function if name was provided', () => {
-      expect(getFunction(functionExpression, 'testFun').toString()).to.equal(`testFun(a,b) {\nreturn a + b;\n}`);
-      expect(getFunction(functionExpression, 'testFun').name).to.equal('testFun');
+      expect(new Method(functionExpression, 'testFun').toString()).to.equal(`testFun(a, b) { return a + b; }`);
+      expect(new Method(functionExpression, 'testFun').name).to.equal('testFun');
     });
   });
   describe('getDecorators()', () => {
@@ -249,11 +246,6 @@ describe('helpers', () => {
   });
 });
 describe('parsers', () => {
-  function parse(src) {
-    const statement: VariableStatement = createSourceFile('', src, ScriptTarget.ES2015, true).statements[ 0 ] as any;
-    return statement.declarationList.declarations[ 0 ] as any as PropertyDeclaration;
-  }
-
   describe('parseUnionOrIntersectionType()', () => {
     it('should parse unions with same types', () => {
       expect(parseUnionOrIntersectionType(parse(`let p: string | string;`).type as UnionOrIntersectionTypeNode))
@@ -290,7 +282,7 @@ describe('parsers', () => {
         .to.equal(SyntaxKind.ObjectKeyword);
     });
   });
-  describe('parseExpressionType()', () => {
+  describe('parseExpression()', () => {
     it('should understand simple numeral expressions', () => {
       expect(parseExpression(parse('let p = 5 + 5;').initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
@@ -495,204 +487,204 @@ describe('parsers', () => {
     });
   });
 });
-// describe('builders', () => {
-//   function parseClass(src) {
-//     return createSourceFile('', src, ScriptTarget.ES2015, true).statements[ 0 ] as ClassDeclaration;
-//   }
-//
-//   describe('buildPropertyObject()', () => {
-//     it('should parse class correctly and build valid property objects', () => {
-//       let parsed = parseClass(`class Test {
-//       public readonly t1: string = document.title;
-//       t2 = "test";
-//       t3: string;
-//       private helper: string;
-//       /** Some test property */
-//       test1: Date = Date.now();
-//       test2: Date = new Date();
-//       @attr @test('true') attr: string = null;
-//       @compute("compute", ["test1", "test2"]) computed1: string;
-//       @compute(function(t1: string, t2: string) { return t1 + t2; }, ["test1", 'test2']) computed2: string;
-//     }`);
-//       expect(getTypeAndValue(parsed.members[ 0 ] as PropertyDeclaration))
-//         .to.include({ type: SyntaxKind.StringKeyword }).and.include.keys('value');
-//
-//       expect(hasModifier(parsed.members[ 0 ], SyntaxKind.ReadonlyKeyword)).to.be.true;
-//       expect(hasModifier(parsed.members[ 2 ], SyntaxKind.PublicKeyword)).to.be.false;
-//       expect(hasDecorator(parsed.members[ 6 ], 'attr')).to.be.true;
-//       expect(hasDecorator(parsed.members[ 6 ], 'notify')).to.be.false;
-//       expect(hasDecorator(parsed.members[ 7 ], 'compute')).to.be.true;
-//       expect(hasDecorator(parsed.members[ 8 ], 'compute')).to.be.true;
-//
-//       let properties = parsed.members
-//         .filter(isProperty)
-//         .filter(notPrivate)
-//         .filter(notStatic)
-//         .map(buildPropertyObject);
-//
-//       expect(properties).to.have.length(8);
-//       expect(properties.map((prop) => prop.config.toString())).to.deep.equal([
-//         't1: { type: String, value: function () {\nreturn document.title;\n}, readOnly: true }',
-//         't2: { type: String, value: "test" }',
-//         't3: String',
-//         '/** Some test property */\ntest1: { type: Date, value: function () {\nreturn Date.now();\n} }',
-//         'test2: { type: Date, value: function () {\nreturn new Date();\n} }',
-//         'attr: { type: String, reflectToAttribute: true }',
-//         'computed1: { type: String, computed: "compute(test1, test2)" }',
-//         'computed2: { type: String, computed: "_computed2Computed(test1, test2)" }'
-//       ]);
-//       expect(properties
-//         .map((prop) => prop
-//           .extras
-//           .methods
-//           .map((method) => method.toString())
-//         )
-//         .reduce((all, curr) => all.concat(curr), [])
-//       ).to.deep.equal([
-//         `_computed2Computed(t1,t2) {\nreturn t1 + t2;\n}`
-//       ]);
-//       parsed = parseClass(`
-// @component("input-math")
-// @template("<input>")
-// export class InputMath extends Polymer.Element {
-//   static HISTORY_SIZE: number = 20;
-//
-//   static SYMBOLS_BASIC: ICmd[] = [
-//     { cmd: "\\sqrt", name: "√" },
-//     { cmd: "\\nthroot", name: "√", className: "n-sup" },
-//     { cmd: "\\int", name: "∫" },
-//     { cmd: "^", name: "n", className: "sup" },
-//     { cmd: "_", name: "n", className: "sub" },
-//     { cmd: "\\rightarrow", name: "→" },
-//     { cmd: "\\infty", name: "∞" },
-//     { cmd: "\\neq", name: "≠" },
-//     { cmd: "\\degree", name: "°" },
-//     { cmd: "\\div", name: "÷" }
-//   ];
-//
-//   static SYMBOLS_GREEK: ICmd[] = [
-//     { cmd: "\\lambda", name: "λ" },
-//     { cmd: "\\pi", name: "π" },
-//     { cmd: "\\mu", name: "μ" },
-//     { cmd: "\\sum", name: "Σ" },
-//     { cmd: "\\alpha", name: "α" },
-//     { cmd: "\\beta", name: "β" },
-//     { cmd: "\\gamma", name: "γ" },
-//     { cmd: "\\delta", name: "ᵟ", className: "big" },
-//     { cmd: "\\Delta", name: "Δ" }
-//   ];
-//
-//   static SYMBOLS_PHYSICS: ICmd[] = [
-//     { cmd: "\\ohm", name: "Ω" },
-//     { cmd: "\\phi", name: "ᶲ", className: "big" }
-//   ];
-//
-//   testValue: "yep"|"nope";
-//
-//   @attr value: string|null = "";
-//
-//   @notify symbols: ICmd[][] = [
-//     InputMath.SYMBOLS_BASIC,
-//     InputMath.SYMBOLS_GREEK
-//   ];
-//
-//   showSymbols: string = "";
-//
-//   private _history: string[];
-//   private _mathField: MathQuill.EditableField;
-//   private _observerLocked: boolean = false;
-//   private _freezeHistory: boolean = false;
-//   private _editor: HTMLElement = document.createElement("div");
-//
-//   constructor() {
-//     super();
-//     var editor: HTMLElement = this._editor;
-//     editor.id = "editor";
-//     editor.classList.add("input-math");
-//     this[ "_mathField" ] = MathQuill.getInterface(2).MathField(editor, {
-//       spaceBehavesLikeTab: true,
-//       handlers: {
-//         edit: this._updateValue.bind(this)
-//       }
-//     });
-//   }
-//
-//   ready(): void {
-//     this.insertBefore(this._editor, this.$.controls);
-//   }
-//
-//   cmd(ev: PolymerEvent): void {
-//     this._mathField.cmd(ev.model.item.cmd).focus();
-//   }
-//
-//   undo(): void {
-//     if (this._history && this._history.length > 0) {
-//       this._freezeHistory = true;
-//       this.value = this._history.pop();
-//       this._freezeHistory = false;
-//     }
-//   }
-//
-//   @observe("value")
-//   valueChanged(value: string, prevValue: string): Array<{ test: boolean }> {
-//     this._updateHistory(prevValue);
-//
-//     if (this._observerLocked) {
-//       return;
-//     }
-//
-//     this._mathField.select().write(value);
-//     if (this._mathField.latex() === "") {
-//       this.undo();
-//     }
-//   }
-//
-//   @observe("showSymbols")
-//   symbolsChanged(symbols: string): void {
-//     if (symbols) {
-//       this.symbols = symbols.split(",").map(groupName => {
-//         return InputMath[ "SYMBOLS_" + groupName.toUpperCase() ] || [];
-//       });
-//     }
-//   }
-//
-//   @listen("keydown")
-//   keyShortcuts(ev: KeyboardEvent): void {
-//     if (ev.ctrlKey && ev.keyCode === 90) {
-//       this.undo();
-//     }
-//   }
-//
-//   _updateValue(test: { a: () => void, b: any }): void {
-//     console.log(test);
-//     this._observerLocked = true;
-//     this.value = this._mathField.latex();
-//     this._observerLocked = false;
-//   }
-//
-//   private _updateHistory(prevValue: string): void {
-//     if (!this._history) {
-//       this._history = [];
-//     }
-//
-//     if (this._freezeHistory || prevValue == null) {
-//       return;
-//     }
-//
-//     this._history.push(prevValue);
-//     if (this._history.length > InputMath.HISTORY_SIZE) {
-//       this._history.shift();
-//     }
-//   }
-// }`);
-//
-//       properties = parsed.members
-//         .filter(isProperty)
-//         .filter(notPrivate)
-//         .filter(notStatic)
-//         .map(buildPropertyObject);
-//
-//       expect(properties).to.have.length(4);
-//     });
-//   });
-// });
+describe('builders', () => {
+  describe('buildPropertyObject()', () => {
+    it('should parse class correctly and build valid property objects', () => {
+      let element = new Component(parseClass(`class Test {
+      public readonly t1: string = document.title;
+      t2 = "test";
+      t3: string;
+      private helper: string;
+      /** Some test property */
+      test1: Date = Date.now();
+      test2: Date = new Date();
+      @attr @test('true') attr: string = null;
+      @compute("compute", ["test1", "test2"]) computed1: string;
+      @compute(function(t1: string, t2: string) { return t1 + t2; }, ["test1", 'test2']) computed2: string;
+
+      testFun() { return 10; }
+    }`));
+
+      expect(element[ 'properties' ].size).to.equal(8);
+      expect(element[ 'methods' ].size).to.equal(2);
+
+      expect(Array.from(element[ 'properties' ].values()).map((prop) => prop.toString())).to.deep.equal([
+        't1: { type: String, value: function () {\nreturn document.title;\n}, readOnly: true }',
+        't2: { type: String, value: "test" }',
+        't3: String',
+        '/** Some test property */\ntest1: { type: Date, value: function () {\nreturn Date.now();\n} }',
+        'test2: { type: Date, value: function () {\nreturn new Date();\n} }',
+        'attr: { type: String, reflectToAttribute: true }',
+        'computed1: { type: String, computed: "compute(test1, test2)" }',
+        'computed2: { type: String, computed: "_computed2Computed(test1, test2)" }'
+      ]);
+      expect(Array.from(element[ 'methods' ].values()).map((method) => method.toString())).to.deep.equal([
+        `_computed2Computed(t1: string, t2: string) { return t1 + t2; }`,
+        `testFun() { return 10; }`
+      ]);
+      element = new Component(parseClass(`
+      @component("input-math")
+      @template("&lt;input&gt;")
+      export class InputMath extends Polymer.Element {
+        static HISTORY_SIZE: number = 20;
+
+        static SYMBOLS_BASIC: ICmd[] = [
+          { cmd: "\\sqrt", name: "√" },
+          { cmd: "\\nthroot", name: "√", className: "n-sup" },
+          { cmd: "\\int", name: "∫" },
+          { cmd: "^", name: "n", className: "sup" },
+          { cmd: "_", name: "n", className: "sub" },
+          { cmd: "\\rightarrow", name: "→" },
+          { cmd: "\\infty", name: "∞" },
+          { cmd: "\\neq", name: "≠" },
+          { cmd: "\\degree", name: "°" },
+          { cmd: "\\div", name: "÷" }
+        ];
+
+        static SYMBOLS_GREEK: ICmd[] = [
+          { cmd: "\\lambda", name: "λ" },
+          { cmd: "\\pi", name: "π" },
+          { cmd: "\\mu", name: "μ" },
+          { cmd: "\\sum", name: "Σ" },
+          { cmd: "\\alpha", name: "α" },
+          { cmd: "\\beta", name: "β" },
+          { cmd: "\\gamma", name: "γ" },
+          { cmd: "\\delta", name: "ᵟ", className: "big" },
+          { cmd: "\\Delta", name: "Δ" }
+        ];
+
+        static SYMBOLS_PHYSICS: ICmd[] = [
+          { cmd: "\\ohm", name: "Ω" },
+          { cmd: "\\phi", name: "ᶲ", className: "big" }
+        ];
+
+        testValue: "yep"|"nope";
+
+        @attr value: string|null = "";
+
+        @notify symbols: ICmd[][] = [
+          InputMath.SYMBOLS_BASIC,
+          InputMath.SYMBOLS_GREEK
+        ];
+
+        showSymbols: string = "";
+
+        private _history: string[];
+        private _mathField: MathQuill.EditableField;
+        private _observerLocked: boolean = false;
+        private _freezeHistory: boolean = false;
+        private _editor: HTMLElement = document.createElement("div");
+
+        constructor() {
+          super();
+          var editor: HTMLElement = this._editor;
+          editor.id = "editor";
+          editor.classList.add("input-math");
+          this[ "_mathField" ] = MathQuill.getInterface(2).MathField(editor, {
+            spaceBehavesLikeTab: true,
+            handlers: {
+              edit: this._updateValue.bind(this)
+            }
+          });
+        }
+
+        ready(): void {
+          this.insertBefore(this._editor, this.$.controls);
+        }
+
+        cmd(ev: PolymerEvent): void {
+          this._mathField.cmd(ev.model.item.cmd).focus();
+        }
+
+        undo(): void {
+          if (this._history && this._history.length > 0) {
+            this._freezeHistory = true;
+            this.value = this._history.pop();
+            this._freezeHistory = false;
+          }
+        }
+
+        @observe("value")
+        valueChanged(value: string, prevValue: string): Array<{ test: boolean }> {
+          this._updateHistory(prevValue);
+
+          if (this._observerLocked) {
+            return;
+          }
+
+          this._mathField.select().write(value);
+          if (this._mathField.latex() === "") {
+            this.undo();
+          }
+        }
+
+        @observe("showSymbols")
+        symbolsChanged(symbols: string): void {
+          if (symbols) {
+            this.symbols = symbols.split(",").map(groupName => {
+              return InputMath[ "SYMBOLS_" + groupName.toUpperCase() ] || [];
+            });
+          }
+        }
+
+        @listen("keydown")
+        keyShortcuts(ev: KeyboardEvent): void {
+          if (ev.ctrlKey && ev.keyCode === 90) {
+            this.undo();
+          }
+        }
+
+        @observe("testValue", "symbols")
+        _updateValue(test: { a: () => void, b: any }): void {
+          console.log(test);
+          this._observerLocked = true;
+          this.value = this._mathField.latex();
+          this._observerLocked = false;
+        }
+
+        private _updateHistory(prevValue: string): void {
+          if (!this._history) {
+            this._history = [];
+          }
+
+          if (this._freezeHistory || prevValue == null) {
+            return;
+          }
+
+          this._history.push(prevValue);
+          if (this._history.length > InputMath.HISTORY_SIZE) {
+            this._history.shift();
+          }
+        }
+      }`));
+
+      expect(element[ 'properties' ].size).to.equal(4);
+      expect(element[ 'methods' ].size).to.equal(9);
+
+      expect(Array.from(element[ 'properties' ].values()).map((prop) => prop.toString())).to.deep.equal([
+        'testValue: String',
+        'value: { type: String, value: "", reflectToAttribute: true, observer: "valueChanged" }',
+        'symbols: { type: Array, value: function () {\nreturn [\n          InputMath.SYMBOLS_BASIC,\n          ' +
+        'InputMath.SYMBOLS_GREEK\n        ];\n}, notify: true }',
+        'showSymbols: { type: String, value: "", observer: "symbolsChanged" }'
+      ]);
+
+      //noinspection TsLint
+      expect(Array.from(element[ 'methods' ].values()).map((method) => method.toString())).to.deep.equal([
+        'constructor() {\n          super();\n          var editor: HTMLElement = this._editor;\n          editor.id = "editor";\n          editor.classList.add("input-math");\n          this[ "_mathField" ] = MathQuill.getInterface(2).MathField(editor, {\n            spaceBehavesLikeTab: true,\n            handlers: {\n              edit: this._updateValue.bind(this)\n            }\n          });\n        }',
+        'ready() {\n          this.insertBefore(this._editor, this.$.controls);\n        }',
+        'cmd(ev: PolymerEvent) {\n          this._mathField.cmd(ev.model.item.cmd).focus();\n        }',
+        'undo() {\n          if (this._history && this._history.length > 0) {\n            this._freezeHistory = true;\n            this.value = this._history.pop();\n            this._freezeHistory = false;\n          }\n        }',
+        'valueChanged(value: string, prevValue: string) {\n          this._updateHistory(prevValue);\n\n          if (this._observerLocked) {\n            return;\n          }\n\n          this._mathField.select().write(value);\n          if (this._mathField.latex() === "") {\n            this.undo();\n          }\n        }',
+        'symbolsChanged(symbols: string) {\n          if (symbols) {\n            this.symbols = symbols.split(",").map(groupName => {\n              return InputMath[ "SYMBOLS_" + groupName.toUpperCase() ] || [];\n            });\n          }\n        }',
+        'keyShortcuts(ev: KeyboardEvent) {\n          if (ev.ctrlKey && ev.keyCode === 90) {\n            this.undo();\n          }\n        }',
+        '_updateValue(test: { a: () => void, b: any }) {\n          console.log(test);\n          this._observerLocked = true;\n          this.value = this._mathField.latex();\n          this._observerLocked = false;\n        }',
+        '_updateHistory(prevValue: string) {\n          if (!this._history) {\n            this._history = [];\n          }\n\n          if (this._freezeHistory || prevValue == null) {\n            return;\n          }\n\n          this._history.push(prevValue);\n          if (this._history.length > InputMath.HISTORY_SIZE) {\n            this._history.shift();\n          }\n        }'
+      ]);
+
+      expect(element['observers']).to.deep.equal([
+        '_updateValue(testValue, symbols)'
+      ]);
+    });
+  });
+});

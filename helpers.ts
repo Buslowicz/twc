@@ -1,7 +1,10 @@
 import {
-  BinaryExpression, CallExpression, ClassElement, FunctionExpression, Identifier, Node, PrefixUnaryExpression,
-  SyntaxKind
+  BinaryExpression, Block, CallExpression, ClassElement, FunctionExpression,
+  GetAccessorDeclaration,
+  Identifier,
+  MethodDeclaration, Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SyntaxKind
 } from 'typescript';
+import { Method } from './builder';
 
 export interface ParsedDecorator {
   name: string;
@@ -20,6 +23,7 @@ export const isBinaryExpression = (expression): expression is BinaryExpression =
 export const isPrefixUnaryExpression = (expression): expression is PrefixUnaryExpression => 'operator' in expression;
 export const isCallExpression = (expression): expression is CallExpression => 'arguments' in expression;
 export const isIdentifier = (expression): expression is Identifier => 'originalKeywordKind' in expression;
+export const isBlock = (expression): expression is Block => expression.kind === SyntaxKind.Block;
 
 export const hasModifier = ({ modifiers }: ClassElement, mod: SyntaxKind): boolean => {
   return modifiers ? modifiers.some(({ kind }) => kind === mod) : false;
@@ -35,25 +39,6 @@ export const hasDecorator = (declaration: ClassElement | Array<ParsedDecorator>,
   return false;
 };
 
-export const getFunction = (declaration: FunctionExpression | string, name = 'function'): ((...args) => any) => {
-  let fun;
-  if (typeof declaration === 'string') {
-    fun = new Function(`return ${declaration};`);
-  } else if (declaration.body.kind === SyntaxKind.Block) {
-    fun = new Function(
-      ...declaration.parameters.map((param) => param.name.getText()),
-      declaration.body.getText().slice(1, -1).trim()
-    );
-  } else {
-    fun = new Function(`return ${declaration.body.getText()};`);
-  }
-  Object.defineProperty(fun, 'name', {value: name});
-  fun.toString = () => Function.prototype.toString.call(fun)
-    .replace(/\n\/\*`?`?\*\/\)/, ')')
-    .replace('function anonymous', name);
-
-  return fun;
-};
 export const getDecorators = (declaration: ClassElement): Array<ParsedDecorator> => {
   if (declaration.decorators) {
     return declaration.decorators.map(({ expression }) => {
@@ -64,7 +49,7 @@ export const getDecorators = (declaration: ClassElement): Array<ParsedDecorator>
             switch (arg.kind) {
               case SyntaxKind.ArrowFunction:
               case SyntaxKind.FunctionExpression:
-                return getFunction(arg as FunctionExpression, `_${declaration.name.getText()}Computed`);
+                return new Method(arg as FunctionExpression, `_${declaration.name.getText()}Computed`);
               default:
                 return new Function(`return ${arg.getText()}`)();
             }
@@ -87,18 +72,30 @@ export const isPublic = (element: ClassElement): boolean => hasModifier(element,
 export const notPublic = (element: ClassElement): boolean => !hasModifier(element, SyntaxKind.PublicKeyword);
 export const isStatic = (element: ClassElement): boolean => hasModifier(element, SyntaxKind.StaticKeyword);
 export const notStatic = (element: ClassElement): boolean => !hasModifier(element, SyntaxKind.StaticKeyword);
-export const isProperty = ({ kind }: ClassElement): boolean => kind === SyntaxKind.PropertyDeclaration;
-export const notProperty = ({ kind }: ClassElement): boolean => kind !== SyntaxKind.PropertyDeclaration;
-export const isMethod = ({ kind }: ClassElement): boolean => {
-  return [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructor ].indexOf(kind) !== -1;
+export const isProperty = (element: ClassElement): element is PropertyDeclaration => {
+  return element.kind === SyntaxKind.PropertyDeclaration;
 };
-export const notMethod = ({ kind }: ClassElement): boolean => {
-  return [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructor ].indexOf(kind) === -1;
+export const notProperty = (element: ClassElement): boolean => {
+  return element.kind !== SyntaxKind.PropertyDeclaration;
 };
-export const isGetter = ({ kind }: ClassElement): boolean => kind === SyntaxKind.GetAccessor;
-export const notGetter = ({ kind }: ClassElement): boolean => kind !== SyntaxKind.GetAccessor;
-export const isSetter = ({ kind }: ClassElement): boolean => kind === SyntaxKind.SetAccessor;
-export const notSetter = ({ kind }: ClassElement): boolean => kind !== SyntaxKind.SetAccessor;
+export const isMethod = (element: ClassElement): element is MethodDeclaration => {
+  return [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructor ].indexOf(element.kind) !== -1;
+};
+export const notMethod = (element: ClassElement): boolean => {
+  return [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructor ].indexOf(element.kind) === -1;
+};
+export const isGetter = (element: ClassElement): element is GetAccessorDeclaration => {
+  return element.kind === SyntaxKind.GetAccessor;
+};
+export const notGetter = (element: ClassElement): boolean => {
+  return element.kind !== SyntaxKind.GetAccessor;
+};
+export const isSetter = (element: ClassElement): element is SetAccessorDeclaration => {
+  return element.kind === SyntaxKind.SetAccessor;
+};
+export const notSetter = (element: ClassElement): boolean => {
+  return element.kind !== SyntaxKind.SetAccessor;
+};
 export const isTransparent = ({ kind }: Node): boolean => transparentTypes.indexOf(kind) !== -1;
 export const notTransparent = ({ kind }: Node): boolean => transparentTypes.indexOf(kind) === -1;
 export const wrapValue = (valueText: string): () => any => {
