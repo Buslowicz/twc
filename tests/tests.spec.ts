@@ -4,7 +4,7 @@ import {
   BinaryExpression, CallExpression, ClassDeclaration, createSourceFile, Identifier, MethodDeclaration,
   PrefixUnaryExpression, PropertyDeclaration, ScriptTarget, SyntaxKind, UnionOrIntersectionTypeNode, VariableStatement
 } from 'typescript';
-import { Component, Method } from '../builder';
+import { Component, Method, Property } from '../builder';
 import {
   getDecorators, hasDecorator, hasModifier, isBinaryExpression, isCallExpression, isGetter, isIdentifier, isMethod,
   isPrefixUnaryExpression, isPrivate, isProperty, isPublic, isSetter, isStatic, isTransparent, notGetter, notMethod,
@@ -87,19 +87,6 @@ describe('helpers', () => {
       expect(hasDecorator(parseClass(`class T { @a() p; }`).members[ 0 ], 'a')).to.be.true;
       expect(hasDecorator(parseClass(`class T { @a() p; }`).members[ 0 ], 'b')).to.be.false;
       expect(hasDecorator(parseClass(`class T { @a p; }`).members[ 0 ], 'b')).to.be.false;
-    });
-  });
-  describe('Method()', () => {
-    const functionExpr = parse(`let x = function(a, b) { return a + b; }`).initializer as any as MethodDeclaration;
-    it('should parse a function expression and return a function', () => {
-      expect(new Method(functionExpr).toString()).to.equal(`function(a, b) { return a + b; }`);
-    });
-    // it('should return a function when provided returned expression as a string', () => {
-    //   expect(new Method('10 * 20').toString()).to.equal(`function() { return 10 * 20; }`);
-    // });
-    it('should name a function if name was provided', () => {
-      expect(new Method(functionExpr, 'testFun').toString()).to.equal(`testFun(a, b) { return a + b; }`);
-      expect(new Method(functionExpr, 'testFun').name).to.equal('testFun');
     });
   });
   describe('getDecorators()', () => {
@@ -488,8 +475,71 @@ describe('parsers', () => {
   });
 });
 describe('builders', () => {
-  describe('buildPropertyObject()', () => {
-    it('should parse class correctly and build valid property objects', () => {
+  describe('Method()', () => {
+    const method = parse(`let x = function(a, b) { return a + b; }`).initializer as any as MethodDeclaration;
+    it('should parse a function expression and return a function', () => {
+      expect(new Method(method).toString()).to.equal(`function(a, b) { return a + b; }`);
+    });
+    // it('should return a function when provided returned expression as a string', () => {
+    //   expect(new Method('10 * 20').toString()).to.equal(`function() { return 10 * 20; }`);
+    // });
+    it('should name a function if name was provided', () => {
+      expect(new Method(method, 'testFun').toString()).to.equal(`testFun(a, b) { return a + b; }`);
+      expect(new Method(method, 'testFun').name).to.equal('testFun');
+    });
+  });
+  describe('Property()', () => {
+    it('should parse properties', () => {
+      const classDeclaration = parseClass(`class Test {
+      public readonly t1: string = document.title;
+      t2 = "test";
+      t3: string;
+      private helper: string;
+      /** Some test property */
+      test1: Date = Date.now();
+      test2: Date = new Date();
+      @attr @test('true') attr: string = null;
+      @compute("compute", ["test1", "test2"]) computed1: string;
+      @compute(function(t1: string, t2: string) { return t1 + t2; }, ["test1", 'test2']) computed2: string;
+    }`);
+
+      expect(classDeclaration
+        .members
+        .filter(isProperty)
+        .filter(notPrivate)
+        .filter(notStatic)
+        .map((property: PropertyDeclaration) => new Property(property, property.name.getText()))
+        .map((property) => property.toString())
+      ).to.deep.equal([
+        't1: { type: String, value: function () {\nreturn document.title;\n}, readOnly: true }',
+        't2: { type: String, value: "test" }',
+        't3: String',
+        '/** Some test property */\ntest1: { type: Date, value: function () {\nreturn Date.now();\n} }',
+        'test2: { type: Date, value: function () {\nreturn new Date();\n} }',
+        'attr: { type: String }',
+        'computed1: String',
+        'computed2: String'
+      ]);
+    });
+  });
+  describe('Component()', () => {
+    it('should save the class name', () => {
+      expect(new Component(parseClass(`class Test {}`)).name).to.equal('Test');
+    });
+    it('should save super class', () => {
+      expect(new Component(parseClass(`class Test extends X(Y(Z)) implements A, B {}`)).heritage).to.equal('X(Y(Z))');
+    });
+    it('should use render method to get the template', () => {
+      expect(new Component(parseClass(`class Test {
+        name: string;
+        lastName: string;
+
+        render() {
+          return \`<h1>\${this.lastName}</h1> <h2>\${this.name}</h2>\`;
+        }
+      }`)).template).to.equal('<h1>{{lastName}}</h1> <h2>{{name}}</h2>');
+    });
+    it('should parse class correctly and build valid properties and methods', () => {
       let element = new Component(parseClass(`class Test {
       public readonly t1: string = document.title;
       t2 = "test";

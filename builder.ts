@@ -1,5 +1,6 @@
 import {
-  ClassDeclaration, FunctionExpression, JSDoc, MethodDeclaration, PropertyDeclaration, SyntaxKind
+  ClassDeclaration, ExpressionStatement, FunctionExpression, JSDoc, MethodDeclaration, PropertyDeclaration, SyntaxKind,
+  TemplateExpression
 } from 'typescript';
 import {
   getDecorators, getText, hasModifier, isBlock, isMethod, isProperty, isStatic, notPrivate, notStatic, ParsedDecorator
@@ -64,13 +65,13 @@ export class Property {
   public jsDoc?: Array<JSDoc>;
   public decorators: Array<ParsedDecorator>;
 
-  constructor(property: PropertyDeclaration, public readonly name: string) {
-    const { type, value, isDate } = getTypeAndValue(property);
-    this.readOnly = hasModifier(property, SyntaxKind.ReadonlyKeyword);
-    this.decorators = getDecorators(property);
+  constructor(public readonly declaration: PropertyDeclaration, public readonly name: string) {
+    const { type, value, isDate } = getTypeAndValue(declaration);
+    this.readOnly = hasModifier(declaration, SyntaxKind.ReadonlyKeyword);
+    this.decorators = getDecorators(declaration);
 
     Object.assign(this, {
-      jsDoc: property[ 'jsDoc' ] as Array<JSDoc>,
+      jsDoc: declaration[ 'jsDoc' ] as Array<JSDoc>,
       type: isDate ? Date : typeMap[ type || SyntaxKind.ObjectKeyword ],
       value
     });
@@ -144,14 +145,14 @@ export class Method {
   private statements: Array<string> = [];
   private arguments: Array<string> = [];
 
-  constructor(src: MethodDeclaration | FunctionExpression, public readonly name = 'function') {
-    this.decorators = getDecorators(src as any);
+  constructor(public readonly declaration: MethodDeclaration | FunctionExpression, public readonly name = 'function') {
+    this.decorators = getDecorators(declaration as any);
 
-    if (isBlock(src.body)) {
-      this.statements = src.body.statements.map(getText);
-      this.arguments = src.parameters.map(getText);
+    if (isBlock(declaration.body)) {
+      this.statements = declaration.body.statements.map(getText);
+      this.arguments = declaration.parameters.map(getText);
     } else {
-      this.statements = [ `return ${(src.body as MethodDeclaration).getText()};` ];
+      this.statements = [ `return ${(declaration.body as MethodDeclaration).getText()};` ];
     }
   }
 
@@ -161,13 +162,27 @@ export class Method {
 }
 
 export class Component {
-  private properties: Map<string, Property> = new Map();
-  private methods: Map<string, Method> = new Map();
-  private observers: Array<string> = [];
-  private staticProperties: Map<string, Property> = new Map();
-  private staticMethods: Map<string, Method> = new Map();
+  public name: string;
+  public heritage: string;
+
+  public template: string;
+  // public styles: Array<string>;
+  // public behaviors: Array<string>;
+
+  public properties: Map<string, Property> = new Map();
+  public methods: Map<string, Method> = new Map();
+  public observers: Array<string> = [];
+  public staticProperties: Map<string, Property> = new Map();
+  public staticMethods: Map<string, Method> = new Map();
 
   constructor(private source: ClassDeclaration) {
+    this.name = source.name.getText();
+
+    this.heritage = source.heritageClauses ? source
+      .heritageClauses
+      .filter(({ token }) => token === SyntaxKind.ExtendsKeyword)
+      .reduce((a, c) => c, null).getText().slice(8) : null;
+
     this.source
       .members
       .filter(isProperty)
@@ -198,6 +213,22 @@ export class Component {
       .filter(isStatic)
       .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : 'constructor'))
       .forEach((method: Method) => this.staticMethods.set(method.name, method));
+
+    if (this.methods.has('render')) {
+      this.template = this.methods.get('render')
+        .declaration.body.statements
+        .map((statement: ExpressionStatement) => {
+          const tpl = statement.expression as TemplateExpression;
+          return `${tpl.head.text}${
+            tpl
+              .templateSpans
+              .map((span) => `{{${span.expression.getText().replace('this.', '')}}}${span.literal.text}`)
+              .join('')
+            }`;
+        })
+        .join('');
+      this.methods.delete('render');
+    }
   }
 
   private decorate(member: Property | Method, decorators: Array<ParsedDecorator>): Property | Method {
