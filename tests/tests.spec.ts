@@ -1,14 +1,14 @@
 /* tslint:disable:no-unused-expression */
 import { expect } from 'chai';
 import {
-  BinaryExpression, CallExpression, ClassDeclaration, createSourceFile, FunctionExpression, Identifier,
+  BinaryExpression, CallExpression, ClassDeclaration, createSourceFile, Identifier, MethodDeclaration,
   PrefixUnaryExpression, PropertyDeclaration, ScriptTarget, SyntaxKind, UnionOrIntersectionTypeNode, VariableStatement
 } from 'typescript';
 import { Component, Method } from '../builder';
 import {
   getDecorators, hasDecorator, hasModifier, isBinaryExpression, isCallExpression, isGetter, isIdentifier, isMethod,
   isPrefixUnaryExpression, isPrivate, isProperty, isPublic, isSetter, isStatic, isTransparent, notGetter, notMethod,
-  notPrivate, notProperty, notPublic, notSetter, notStatic, notTransparent, wrapValue
+  notPrivate, notProperty, notPublic, notSetter, notStatic, notTransparent, toString, wrapValue
 } from '../helpers';
 // import { hasDecorator, hasModifier, isProperty, notPrivate, notStatic } from '../helpers';
 import {
@@ -90,16 +90,16 @@ describe('helpers', () => {
     });
   });
   describe('Method()', () => {
-    const functionExpression = parse(`let x = function(a, b) { return a + b; }`).initializer as FunctionExpression;
+    const functionExpr = parse(`let x = function(a, b) { return a + b; }`).initializer as any as MethodDeclaration;
     it('should parse a function expression and return a function', () => {
-      expect(new Method(functionExpression).toString()).to.equal(`function(a, b) { return a + b; }`);
+      expect(new Method(functionExpr).toString()).to.equal(`function(a, b) { return a + b; }`);
     });
-    it('should return a function when provided returned expression as a string', () => {
-      expect(new Method('10 * 20').toString()).to.equal(`function() { return 10 * 20; }`);
-    });
+    // it('should return a function when provided returned expression as a string', () => {
+    //   expect(new Method('10 * 20').toString()).to.equal(`function() { return 10 * 20; }`);
+    // });
     it('should name a function if name was provided', () => {
-      expect(new Method(functionExpression, 'testFun').toString()).to.equal(`testFun(a, b) { return a + b; }`);
-      expect(new Method(functionExpression, 'testFun').name).to.equal('testFun');
+      expect(new Method(functionExpr, 'testFun').toString()).to.equal(`testFun(a, b) { return a + b; }`);
+      expect(new Method(functionExpr, 'testFun').name).to.equal('testFun');
     });
   });
   describe('getDecorators()', () => {
@@ -508,7 +508,7 @@ describe('builders', () => {
       expect(element[ 'properties' ].size).to.equal(8);
       expect(element[ 'methods' ].size).to.equal(2);
 
-      expect(Array.from(element[ 'properties' ].values()).map((prop) => prop.toString())).to.deep.equal([
+      expect(Array.from(element[ 'properties' ].values()).map(toString)).to.deep.equal([
         't1: { type: String, value: function () {\nreturn document.title;\n}, readOnly: true }',
         't2: { type: String, value: "test" }',
         't3: String',
@@ -518,7 +518,7 @@ describe('builders', () => {
         'computed1: { type: String, computed: "compute(test1, test2)" }',
         'computed2: { type: String, computed: "_computed2Computed(test1, test2)" }'
       ]);
-      expect(Array.from(element[ 'methods' ].values()).map((method) => method.toString())).to.deep.equal([
+      expect(Array.from(element[ 'methods' ].values()).map(toString)).to.deep.equal([
         `_computed2Computed(t1: string, t2: string) { return t1 + t2; }`,
         `testFun() { return 10; }`
       ]);
@@ -661,7 +661,7 @@ describe('builders', () => {
       expect(element[ 'properties' ].size).to.equal(4);
       expect(element[ 'methods' ].size).to.equal(9);
 
-      expect(Array.from(element[ 'properties' ].values()).map((prop) => prop.toString())).to.deep.equal([
+      expect(Array.from(element[ 'properties' ].values()).map(toString)).to.deep.equal([
         'testValue: String',
         'value: { type: String, value: "", reflectToAttribute: true, observer: "valueChanged" }',
         'symbols: { type: Array, value: function () {\nreturn [\n          InputMath.SYMBOLS_BASIC,\n          ' +
@@ -670,19 +670,19 @@ describe('builders', () => {
       ]);
 
       //noinspection TsLint
-      expect(Array.from(element[ 'methods' ].values()).map((method) => method.toString())).to.deep.equal([
-        'constructor() {\n          super();\n          var editor: HTMLElement = this._editor;\n          editor.id = "editor";\n          editor.classList.add("input-math");\n          this[ "_mathField" ] = MathQuill.getInterface(2).MathField(editor, {\n            spaceBehavesLikeTab: true,\n            handlers: {\n              edit: this._updateValue.bind(this)\n            }\n          });\n        }',
-        'ready() {\n          this.insertBefore(this._editor, this.$.controls);\n        }',
-        'cmd(ev: PolymerEvent) {\n          this._mathField.cmd(ev.model.item.cmd).focus();\n        }',
-        'undo() {\n          if (this._history && this._history.length > 0) {\n            this._freezeHistory = true;\n            this.value = this._history.pop();\n            this._freezeHistory = false;\n          }\n        }',
-        'valueChanged(value: string, prevValue: string) {\n          this._updateHistory(prevValue);\n\n          if (this._observerLocked) {\n            return;\n          }\n\n          this._mathField.select().write(value);\n          if (this._mathField.latex() === "") {\n            this.undo();\n          }\n        }',
-        'symbolsChanged(symbols: string) {\n          if (symbols) {\n            this.symbols = symbols.split(",").map(groupName => {\n              return InputMath[ "SYMBOLS_" + groupName.toUpperCase() ] || [];\n            });\n          }\n        }',
-        'keyShortcuts(ev: KeyboardEvent) {\n          if (ev.ctrlKey && ev.keyCode === 90) {\n            this.undo();\n          }\n        }',
-        '_updateValue(test: { a: () => void, b: any }) {\n          console.log(test);\n          this._observerLocked = true;\n          this.value = this._mathField.latex();\n          this._observerLocked = false;\n        }',
-        '_updateHistory(prevValue: string) {\n          if (!this._history) {\n            this._history = [];\n          }\n\n          if (this._freezeHistory || prevValue == null) {\n            return;\n          }\n\n          this._history.push(prevValue);\n          if (this._history.length > InputMath.HISTORY_SIZE) {\n            this._history.shift();\n          }\n        }'
+      expect(Array.from(element[ 'methods' ].values()).map(toString)).to.deep.equal([
+        "constructor() { super();\nvar editor: HTMLElement = this._editor;\neditor.id = \"editor\";\neditor.classList.add(\"input-math\");\nthis[ \"_mathField\" ] = MathQuill.getInterface(2).MathField(editor, {\n            spaceBehavesLikeTab: true,\n            handlers: {\n              edit: this._updateValue.bind(this)\n            }\n          }); }",
+        "ready() { this.insertBefore(this._editor, this.$.controls); }",
+        "cmd(ev: PolymerEvent) { this._mathField.cmd(ev.model.item.cmd).focus(); }",
+        "undo() { if (this._history && this._history.length > 0) {\n            this._freezeHistory = true;\n            this.value = this._history.pop();\n            this._freezeHistory = false;\n          } }",
+        "valueChanged(value: string, prevValue: string) { this._updateHistory(prevValue);\nif (this._observerLocked) {\n            return;\n          }\nthis._mathField.select().write(value);\nif (this._mathField.latex() === \"\") {\n            this.undo();\n          } }",
+        "symbolsChanged(symbols: string) { if (symbols) {\n            this.symbols = symbols.split(\",\").map(groupName => {\n              return InputMath[ \"SYMBOLS_\" + groupName.toUpperCase() ] || [];\n            });\n          } }",
+        "keyShortcuts(ev: KeyboardEvent) { if (ev.ctrlKey && ev.keyCode === 90) {\n            this.undo();\n          } }",
+        "_updateValue(test: { a: () => void, b: any }) { console.log(test);\nthis._observerLocked = true;\nthis.value = this._mathField.latex();\nthis._observerLocked = false; }",
+        "_updateHistory(prevValue: string) { if (!this._history) {\n            this._history = [];\n          }\nif (this._freezeHistory || prevValue == null) {\n            return;\n          }\nthis._history.push(prevValue);\nif (this._history.length > InputMath.HISTORY_SIZE) {\n            this._history.shift();\n          } }"
       ]);
 
-      expect(element['observers']).to.deep.equal([
+      expect(element[ 'observers' ]).to.deep.equal([
         '_updateValue(testValue, symbols)'
       ]);
     });

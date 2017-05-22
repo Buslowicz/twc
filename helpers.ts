@@ -1,7 +1,5 @@
 import {
-  BinaryExpression, Block, CallExpression, ClassElement, FunctionExpression,
-  GetAccessorDeclaration,
-  Identifier,
+  BinaryExpression, Block, CallExpression, ClassElement, FunctionExpression, GetAccessorDeclaration, Identifier,
   MethodDeclaration, Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SyntaxKind
 } from 'typescript';
 import { Method } from './builder';
@@ -103,3 +101,5 @@ export const wrapValue = (valueText: string): () => any => {
   wrapper.toString = () => Function.prototype.toString.call(wrapper).replace('anonymous', '');
   return wrapper;
 };
+export const toString = (object: any): string => object.toString();
+export const getText = (node: Node): string => node.getText();

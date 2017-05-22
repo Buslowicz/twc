@@ -1,8 +1,8 @@
 import {
-  ClassDeclaration, FunctionLikeDeclaration, JSDoc, MethodDeclaration, PropertyDeclaration, SyntaxKind
+  ClassDeclaration, FunctionExpression, JSDoc, MethodDeclaration, PropertyDeclaration, SyntaxKind
 } from 'typescript';
 import {
-  getDecorators, hasModifier, isBlock, isMethod, isProperty, notPrivate, notStatic, ParsedDecorator
+  getDecorators, getText, hasModifier, isBlock, isMethod, isProperty, notPrivate, notStatic, ParsedDecorator
 } from './helpers';
 import { getTypeAndValue, ValidValue } from './parsers';
 
@@ -141,21 +141,22 @@ export class Property {
 
 export class Method {
   public decorators: Array<ParsedDecorator>;
-  private src: string;
+  private statements: Array<string> = [];
+  private arguments: Array<string> = [];
 
-  constructor(src: FunctionLikeDeclaration | string, public readonly name = 'function') {
-    if (typeof src === 'string') {
-      this.src = `${name}() { return ${src}; }`;
-    } else if (isBlock(src.body)) {
-      this.src = `${name}(${src.parameters.map((param) => param.getText()).join(', ')}) ${src.body.getText()}`;
-    } else {
-      this.src = `${name}() { return ${src.body.getText()}; }`;
-    }
+  constructor(src: MethodDeclaration | FunctionExpression, public readonly name = 'function') {
     this.decorators = getDecorators(src as any);
+
+    if (isBlock(src.body)) {
+      this.statements = src.body.statements.map(getText);
+      this.arguments = src.parameters.map(getText);
+    } else {
+      this.statements = [ `return ${(src.body as MethodDeclaration).getText()};` ];
+    }
   }
 
   public toString() {
-    return this.src;
+    return `${this.name}(${this.arguments.join(', ')}) { ${this.statements.join('\n')} }`;
   }
 }
 
