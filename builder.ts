@@ -2,7 +2,7 @@ import {
   ClassDeclaration, FunctionExpression, JSDoc, MethodDeclaration, PropertyDeclaration, SyntaxKind
 } from 'typescript';
 import {
-  getDecorators, getText, hasModifier, isBlock, isMethod, isProperty, notPrivate, notStatic, ParsedDecorator
+  getDecorators, getText, hasModifier, isBlock, isMethod, isProperty, isStatic, notPrivate, notStatic, ParsedDecorator
 } from './helpers';
 import { getTypeAndValue, ValidValue } from './parsers';
 
@@ -164,8 +164,8 @@ export class Component {
   private properties: Map<string, Property> = new Map();
   private methods: Map<string, Method> = new Map();
   private observers: Array<string> = [];
-  // private staticProperties: Map<string, Property> = new Map();
-  // private staticMethods: Map<string, Method> = new Map();
+  private staticProperties: Map<string, Property> = new Map();
+  private staticMethods: Map<string, Method> = new Map();
 
   constructor(private source: ClassDeclaration) {
     this.source
@@ -179,11 +179,25 @@ export class Component {
 
     this.source
       .members
+      .filter(isProperty)
+      .filter(isStatic)
+      .map((property: PropertyDeclaration) => new Property(property, property.name.getText()))
+      .forEach((property: Property) => this.staticProperties.set(property.name, property));
+
+    this.source
+      .members
       .filter(isMethod)
       .filter(notStatic)
       .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : 'constructor'))
       .map((method) => this.decorate(method, method.decorators))
       .forEach((method: Method) => this.methods.set(method.name, method));
+
+    this.source
+      .members
+      .filter(isMethod)
+      .filter(isStatic)
+      .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : 'constructor'))
+      .forEach((method: Method) => this.staticMethods.set(method.name, method));
   }
 
   private decorate(member: Property | Method, decorators: Array<ParsedDecorator>): Property | Method {

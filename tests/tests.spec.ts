@@ -530,26 +530,11 @@ describe('builders', () => {
 
         static SYMBOLS_BASIC: ICmd[] = [
           { cmd: "\\sqrt", name: "√" },
-          { cmd: "\\nthroot", name: "√", className: "n-sup" },
-          { cmd: "\\int", name: "∫" },
-          { cmd: "^", name: "n", className: "sup" },
-          { cmd: "_", name: "n", className: "sub" },
-          { cmd: "\\rightarrow", name: "→" },
-          { cmd: "\\infty", name: "∞" },
-          { cmd: "\\neq", name: "≠" },
-          { cmd: "\\degree", name: "°" },
           { cmd: "\\div", name: "÷" }
         ];
 
         static SYMBOLS_GREEK: ICmd[] = [
-          { cmd: "\\lambda", name: "λ" },
-          { cmd: "\\pi", name: "π" },
-          { cmd: "\\mu", name: "μ" },
-          { cmd: "\\sum", name: "Σ" },
-          { cmd: "\\alpha", name: "α" },
-          { cmd: "\\beta", name: "β" },
           { cmd: "\\gamma", name: "γ" },
-          { cmd: "\\delta", name: "ᵟ", className: "big" },
           { cmd: "\\Delta", name: "Δ" }
         ];
 
@@ -557,6 +542,10 @@ describe('builders', () => {
           { cmd: "\\ohm", name: "Ω" },
           { cmd: "\\phi", name: "ᶲ", className: "big" }
         ];
+
+        static testMe() {
+          return true;
+        }
 
         testValue: "yep"|"nope";
 
@@ -671,16 +660,31 @@ describe('builders', () => {
 
       //noinspection TsLint
       expect(Array.from(element[ 'methods' ].values()).map(toString)).to.deep.equal([
-        "constructor() { super();\nvar editor: HTMLElement = this._editor;\neditor.id = \"editor\";\neditor.classList.add(\"input-math\");\nthis[ \"_mathField\" ] = MathQuill.getInterface(2).MathField(editor, {\n            spaceBehavesLikeTab: true,\n            handlers: {\n              edit: this._updateValue.bind(this)\n            }\n          }); }",
-        "ready() { this.insertBefore(this._editor, this.$.controls); }",
-        "cmd(ev: PolymerEvent) { this._mathField.cmd(ev.model.item.cmd).focus(); }",
-        "undo() { if (this._history && this._history.length > 0) {\n            this._freezeHistory = true;\n            this.value = this._history.pop();\n            this._freezeHistory = false;\n          } }",
-        "valueChanged(value: string, prevValue: string) { this._updateHistory(prevValue);\nif (this._observerLocked) {\n            return;\n          }\nthis._mathField.select().write(value);\nif (this._mathField.latex() === \"\") {\n            this.undo();\n          } }",
-        "symbolsChanged(symbols: string) { if (symbols) {\n            this.symbols = symbols.split(\",\").map(groupName => {\n              return InputMath[ \"SYMBOLS_\" + groupName.toUpperCase() ] || [];\n            });\n          } }",
-        "keyShortcuts(ev: KeyboardEvent) { if (ev.ctrlKey && ev.keyCode === 90) {\n            this.undo();\n          } }",
-        "_updateValue(test: { a: () => void, b: any }) { console.log(test);\nthis._observerLocked = true;\nthis.value = this._mathField.latex();\nthis._observerLocked = false; }",
-        "_updateHistory(prevValue: string) { if (!this._history) {\n            this._history = [];\n          }\nif (this._freezeHistory || prevValue == null) {\n            return;\n          }\nthis._history.push(prevValue);\nif (this._history.length > InputMath.HISTORY_SIZE) {\n            this._history.shift();\n          } }"
+        'constructor() { super();\nvar editor: HTMLElement = this._editor;\neditor.id = "editor";\neditor.classList.add("input-math");\nthis[ "_mathField" ] = MathQuill.getInterface(2).MathField(editor, {\n            spaceBehavesLikeTab: true,\n            handlers: {\n              edit: this._updateValue.bind(this)\n            }\n          }); }',
+        'ready() { this.insertBefore(this._editor, this.$.controls); }',
+        'cmd(ev: PolymerEvent) { this._mathField.cmd(ev.model.item.cmd).focus(); }',
+        'undo() { if (this._history && this._history.length > 0) {\n            this._freezeHistory = true;\n            this.value = this._history.pop();\n            this._freezeHistory = false;\n          } }',
+        'valueChanged(value: string, prevValue: string) { this._updateHistory(prevValue);\nif (this._observerLocked) {\n            return;\n          }\nthis._mathField.select().write(value);\nif (this._mathField.latex() === "") {\n            this.undo();\n          } }',
+        'symbolsChanged(symbols: string) { if (symbols) {\n            this.symbols = symbols.split(",").map(groupName => {\n              return InputMath[ "SYMBOLS_" + groupName.toUpperCase() ] || [];\n            });\n          } }',
+        'keyShortcuts(ev: KeyboardEvent) { if (ev.ctrlKey && ev.keyCode === 90) {\n            this.undo();\n          } }',
+        '_updateValue(test: { a: () => void, b: any }) { console.log(test);\nthis._observerLocked = true;\nthis.value = this._mathField.latex();\nthis._observerLocked = false; }',
+        '_updateHistory(prevValue: string) { if (!this._history) {\n            this._history = [];\n          }\nif (this._freezeHistory || prevValue == null) {\n            return;\n          }\nthis._history.push(prevValue);\nif (this._history.length > InputMath.HISTORY_SIZE) {\n            this._history.shift();\n          } }'
       ]);
+
+      //noinspection TsLint
+      const stat = Array.from(element[ 'staticProperties' ].values()).map(({ name, value }) => ({ name, value }));
+      expect(stat.map(({ name }) => name)).to.deep.equal([
+        'HISTORY_SIZE', 'SYMBOLS_BASIC', 'SYMBOLS_GREEK', 'SYMBOLS_PHYSICS'
+      ]);
+      expect(stat.map(({ value }) => typeof value === 'function' ? value() : value)).to.deep.equal([
+        20,
+        [ { cmd: 'sqrt', name: '√' }, { cmd: 'div', name: '÷' } ],
+        [ { cmd: 'gamma', name: 'γ' }, { cmd: 'Delta', name: 'Δ' } ],
+        [ { cmd: 'ohm', name: 'Ω' }, { cmd: 'phi', name: 'ᶲ', className: 'big' } ]
+      ]);
+
+      expect(Array.from(element[ 'staticMethods' ].values()).map(({ name, statements }) => ({ name, statements })))
+        .to.deep.equal([ { name: 'testMe', statements: [ 'return true;' ] } ]);
 
       expect(element[ 'observers' ]).to.deep.equal([
         '_updateValue(testValue, symbols)'
