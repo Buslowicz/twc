@@ -180,7 +180,7 @@ export class Component {
 
   public template: string | Link;
   public styles: Array<{ type: 'shared' | 'inline', style: string } | Link> = [];
-  // public behaviors: Array<string>;
+  public behaviors: Array<string> = [];
 
   public properties: Map<string, Property> = new Map();
   public methods: Map<string, Method> = new Map();
