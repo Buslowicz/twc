@@ -1,5 +1,7 @@
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import {
-  BinaryExpression, Block, CallExpression, ClassElement, ExpressionStatement, FunctionExpression,
+  BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, ExpressionStatement, FunctionExpression,
   GetAccessorDeclaration, Identifier,
   MethodDeclaration, Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SyntaxKind
 } from 'typescript';
@@ -18,7 +20,15 @@ export const transparentTypes = [
   SyntaxKind.UndefinedKeyword
 ];
 
-export const getDecorators = (declaration: ClassElement): Array<ParsedDecorator> => {
+export class Link {
+  constructor(public uri: string) {}
+
+  public getContents(base: string) {
+    return readFileSync(resolve(base, this.uri)).toString();
+  }
+}
+
+export const getDecorators = (declaration: ClassElement | ClassDeclaration): Array<ParsedDecorator> => {
   if (!declaration.decorators) {
     return [];
   }

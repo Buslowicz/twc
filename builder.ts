@@ -3,7 +3,7 @@ import {
   TemplateExpression
 } from 'typescript';
 import {
-  getDecorators, getText, hasModifier, isBlock, isMethod, isProperty, isStatic, notPrivate, notStatic, ParsedDecorator
+  getDecorators, getText, hasModifier, isBlock, isMethod, isProperty, isStatic, Link, notPrivate, notStatic, ParsedDecorator
 } from './helpers';
 import { getTypeAndValue, ValidValue } from './parsers';
 
@@ -51,7 +51,20 @@ const decoratorsMap = {
     properties: [ { name: args[ 0 ], observer: `"${method.name}"` } ]
   } : {
     observers: [ `${method.name}(${args.join(', ')})` ]
-  }
+  },
+  style: (component: Component, ...styles: Array<string>) => component.styles = styles.map((style) => {
+    let type;
+    if (style.endsWith('.css')) {
+      return new Link(style);
+    } else if (/^[\w\d]+(-[\w\d]+)+$/.test(style)) {
+      type = 'shared';
+    } else {
+      type = 'inline';
+    }
+    return { style, type };
+  }),
+  // todo: add remote template imports (solve cwd issue)
+  template: (component: Component, template: string) => component.template = template.endsWith('.html') ? new Link(template) : template
 };
 
 export class Property {
@@ -165,8 +178,8 @@ export class Component {
   public name: string;
   public heritage: string;
 
-  public template: string;
-  // public styles: Array<string>;
+  public template: string | Link;
+  public styles: Array<{ type: 'shared' | 'inline', style: string } | Link> = [];
   // public behaviors: Array<string>;
 
   public properties: Map<string, Property> = new Map();
@@ -174,6 +187,8 @@ export class Component {
   public observers: Array<string> = [];
   public staticProperties: Map<string, Property> = new Map();
   public staticMethods: Map<string, Method> = new Map();
+
+  private decorators: Array<ParsedDecorator>;
 
   constructor(private source: ClassDeclaration) {
     this.name = source.name.getText();
@@ -214,8 +229,11 @@ export class Component {
       .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : 'constructor'))
       .forEach((method: Method) => this.staticMethods.set(method.name, method));
 
-    if (this.methods.has('render')) {
-      this.template = this.methods.get('render')
+    this.decorators = getDecorators(this.source);
+    this.decorate(this, this.decorators);
+
+    if (this.methods.has('template')) {
+      this.template = this.methods.get('template')
         .declaration.body.statements
         .map((statement: ExpressionStatement) => {
           const tpl = statement.expression as TemplateExpression;
@@ -227,11 +245,12 @@ export class Component {
             }`;
         })
         .join('');
-      this.methods.delete('render');
+
+      this.methods.delete('template');
     }
   }
 
-  private decorate(member: Property | Method, decorators: Array<ParsedDecorator>): Property | Method {
+  private decorate(member: Property | Method | Component, decorators: Array<ParsedDecorator>): Property | Method | Component {
     decorators.forEach((decor) => {
       if (decor.name in decoratorsMap) {
         const { methods = [], properties = [], observers = [] } = decoratorsMap[ decor.name ](

@@ -529,12 +529,12 @@ describe('builders', () => {
     it('should save super class', () => {
       expect(new Component(parseClass(`class Test extends X(Y(Z)) implements A, B {}`)).heritage).to.equal('X(Y(Z))');
     });
-    it('should use render method to get the template', () => {
+    it('should use template method to get the template', () => {
       expect(new Component(parseClass(`class Test {
         name: string;
         lastName: string;
 
-        render() {
+        template() {
           return \`<h1>\${this.lastName}</h1> <h2>\${this.name}</h2>\`;
         }
       }`)).template).to.equal('<h1>{{lastName}}</h1> <h2>{{name}}</h2>');
@@ -738,6 +738,29 @@ describe('builders', () => {
 
       expect(element[ 'observers' ]).to.deep.equal([
         '_updateValue(testValue, symbols)'
+      ]);
+    });
+    it('should decorate class', () => {
+      expect(new Component(parseClass(`@template('<h1>{{name}}</h1>') class Test {}`)).template).to.equal('<h1>{{name}}</h1>');
+      expect(new Component(parseClass(`@template('template.html') class Test {}`)).template).to.deep.equal({ uri: 'template.html' });
+
+      expect(new Component(parseClass(`@style('custom-style') class Test {}`)).styles).to.deep.equal([
+        { type: 'shared', style: 'custom-style' }
+      ]);
+
+      expect(new Component(parseClass(`@style('external-style.css') class Test {}`)).styles).to.deep.equal([
+        { uri: 'external-style.css' }
+      ]);
+
+      expect(new Component(parseClass(`@style(':host { display: block }') class Test {}`)).styles).to.deep.equal([
+        { type: 'inline', style: ':host { display: block }' }
+      ]);
+
+      expect(new Component(parseClass(`@style('external-style.css', 'custom-style', ':host { display: block }') class Test {}`)).styles)
+        .to.deep.equal([
+        { uri: 'external-style.css' },
+        { type: 'shared', style: 'custom-style' },
+        { type: 'inline', style: ':host { display: block }' }
       ]);
     });
   });
