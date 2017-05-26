@@ -878,6 +878,10 @@ describe('decorators', () => {
       const { observers: [ observer ] } = decoratorsMap.observe(method);
       expect(observer).to.equal('observerMethod(prop1, prop2)');
     });
+    it('should add observer to observers array if path is provided instead of property name', () => {
+      const { observers: [ observer ] } = decoratorsMap.observe({ name: 'observerMethod' } as Method, 'prop.deep');
+      expect(observer).to.equal('observerMethod(prop.deep)');
+    });
   });
   describe('@style()', () => {
     it('should set styles to an array of size equal to number of provided declarations', () => {

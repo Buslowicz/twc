@@ -51,11 +51,10 @@ export const decoratorsMap = {
     if (args.length === 0) {
       args = method.argumentsNoType;
     }
-    return args.length === 1 ? {
-      properties: [ { name: args[ 0 ], observer: `"${method.name}"` } ]
-    } : {
-      observers: [ `${method.name}(${args.join(', ')})` ]
-    };
+    if (args.length === 1 && !args[ 0 ].includes('.')) {
+      return { properties: [ { name: args[ 0 ], observer: `"${method.name}"` } ] };
+    }
+    return { observers: [ `${method.name}(${args.join(', ')})` ] };
   },
   style: (component: Component, ...styles: Array<string>) => component.styles = styles.map((style) => {
     let type;
