@@ -872,6 +872,12 @@ describe('decorators', () => {
       const { observers: [ observer ] } = decoratorsMap.observe({ name: 'observerMethod' } as Method, 'prop1', 'prop2');
       expect(observer).to.equal('observerMethod(prop1, prop2)');
     });
+    it('should use arguments names if no properties were provided', () => {
+      const functionDeclaration = parseDeclaration('let x = function(prop1: string, prop2: string) { return prop1 + prop2; }').initializer;
+      const method = new Method(functionDeclaration as any, 'observerMethod');
+      const { observers: [ observer ] } = decoratorsMap.observe(method);
+      expect(observer).to.equal('observerMethod(prop1, prop2)');
+    });
   });
   describe('@style()', () => {
     it('should set styles to an array of size equal to number of provided declarations', () => {

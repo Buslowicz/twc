@@ -48,6 +48,9 @@ export const decoratorsMap = {
   },
   notify: (property: Property) => property.notify = true,
   observe: (method: Method, ...args): { properties?: Array<{ name: string, observer: string }>, observers?: Array<string> } => {
+    if (args.length === 0) {
+      args = method.argumentsNoType;
+    }
     return args.length === 1 ? {
       properties: [ { name: args[ 0 ], observer: `"${method.name}"` } ]
     } : {
@@ -157,8 +160,22 @@ export class Property {
 
 export class Method {
   public decorators: Array<ParsedDecorator>;
+
+  public get arguments(): Array<string> {
+    if (!this.declaration.parameters) {
+      return [];
+    }
+    return this.declaration.parameters.map(getText);
+  }
+
+  public get argumentsNoType(): Array<string> {
+    if (!this.declaration.parameters) {
+      return [];
+    }
+    return this.declaration.parameters.map((param) => param.name.getText());
+  }
+
   private statements: Array<string> = [];
-  private arguments: Array<string> = [];
 
   constructor(public readonly declaration: MethodDeclaration | FunctionExpression, public readonly name = 'function') {
     this.decorators = getDecorators(declaration as any);
@@ -168,8 +185,6 @@ export class Method {
     } else {
       this.statements = [ `return ${(declaration.body as MethodDeclaration).getText()};` ];
     }
-
-    this.arguments = declaration.parameters.map(getText);
   }
 
   public toString() {
