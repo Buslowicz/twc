@@ -1,7 +1,8 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import {
-  BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, ExpressionStatement, FunctionExpression, GetAccessorDeclaration,
+  BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, Expression, ExpressionStatement, FunctionExpression,
+  GetAccessorDeclaration,
   HeritageClause, Identifier, MethodDeclaration, Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SyntaxKind
 } from 'typescript';
 import { Method } from './builder';
@@ -27,6 +28,26 @@ export class Link {
   }
 }
 
+export class Ref {
+  constructor(public ref: Identifier) {}
+
+  public getReference(statements: Map<string, any>) {
+    return statements.get(this.ref.getText());
+  }
+
+  public toString() {
+    return this.ref.getText();
+  }
+}
+
+export class ReferencedExpression {
+  constructor(public expr: Expression) {}
+
+  public toString() {
+    return this.expr.getText();
+  }
+}
+
 export const getDecorators = (declaration: ClassElement | ClassDeclaration): Array<ParsedDecorator> => {
   if (!declaration.decorators) {
     return [];
@@ -39,8 +60,14 @@ export const getDecorators = (declaration: ClassElement | ClassDeclaration): Arr
           case SyntaxKind.ArrowFunction:
           case SyntaxKind.FunctionExpression:
             return new Method(arg as FunctionExpression, `_${declaration.name.getText()}Computed`);
+          case SyntaxKind.Identifier:
+            return new Ref(arg as Identifier);
           default:
-            return new Function(`return ${arg.getText()}`)();
+            try {
+              return new Function(`return ${arg.getText()}`)();
+            } catch (err) {
+              return new ReferencedExpression(arg);
+            }
         }
       });
       return { arguments: args, name };

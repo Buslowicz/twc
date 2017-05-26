@@ -8,7 +8,9 @@ import { Component, decoratorsMap, Method, Property } from '../builder';
 import {
   flatExtends, flattenArray, getDecorators, getText, hasDecorator, hasModifier, inheritsFrom, isBinaryExpression, isBlock, isCallExpression,
   isExtendsDeclaration, isGetter, isIdentifier, isMethod, isPrefixUnaryExpression, isPrivate, isProperty, isPublic, isSetter, isStatic,
-  isTransparent, Link, notGetter, notMethod, notPrivate, notProperty, notPublic, notSetter, notStatic, notTransparent, toProperty, toString,
+  isTransparent, Link, notGetter, notMethod, notPrivate, notProperty, notPublic, notSetter, notStatic, notTransparent, Ref,
+  ReferencedExpression, toProperty,
+  toString,
   wrapValue
 } from '../helpers';
 // import { hasDecorator, hasModifier, isProperty, notPrivate, notStatic } from '../helpers';
@@ -43,6 +45,17 @@ describe('helpers', () => {
       expect(method).to.be.instanceof(Method);
       expect(method.name).to.equal('_pComputed');
       expect(method.toString()).to.equal('_pComputed(a: string, b: number) { return a.repeat(b); }');
+    });
+    it('should handle passing object references as a decorator argument', () => {
+      const ref = getDecorators(parseClass(`class T { @a(someRef) p; }`).members[ 0 ])[ 0 ].arguments[ 0 ];
+      expect(ref).to.be.instanceof(Ref);
+      expect(ref.ref.getText()).to.equal('someRef');
+      expect(ref.toString()).to.equal('someRef');
+    });
+    it('should handle expressions with references as a decorator argument', () => {
+      const expr = getDecorators(parseClass(`class T { @a({ name: nameRef, value: valueRef }) p; }`).members[ 0 ])[ 0 ].arguments[ 0 ];
+      expect(expr).to.be.instanceof(ReferencedExpression);
+      expect(expr.toString()).to.equal('{ name: nameRef, value: valueRef }');
     });
   });
   describe('flatExtends', () => {
