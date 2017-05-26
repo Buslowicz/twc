@@ -862,6 +862,11 @@ describe('decorators', () => {
       expect(method.name).to.equal('computed');
       expect(method.toString()).to.equal('computed(a, b) { return a + b; }');
     });
+    it('should use arguments names if no properties were provided', () => {
+      const prop = {} as Property;
+      decoratorsMap.compute(prop, new Method(parse('(a, b) => a + b)') as any, 'computed'));
+      expect(prop.computed).to.equal('"computed(a, b)"');
+    });
   });
   describe('@observe()', () => {
     it('should return an array containing object with `name` of property and method name as `observer` if observing single prop', () => {

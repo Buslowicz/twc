@@ -37,7 +37,10 @@ export const typeMap = {
 
 export const decoratorsMap = {
   attr: (property: Property) => property.reflectToAttribute = true,
-  compute: (property: Property, ref: string | Method, args: Array<string>) => {
+  compute: (property: Property, ref: string | Method, args: Array<string> = []) => {
+    if (args.length === 0 && typeof ref !== 'string') {
+      args = ref.argumentsNoType;
+    }
     if (typeof ref === 'string') {
       property.computed = `"${ref}(${args.join(', ')})"`;
       return { methods: [] };
