@@ -35,9 +35,9 @@ export const typeMap = {
   [SyntaxKind.ArrayType]: Array
 };
 
-const decoratorsMap = {
+export const decoratorsMap = {
   attr: (property: Property) => property.reflectToAttribute = true,
-  compute: (property: Property, ref: string | ((...args) => any), args: Array<string>) => {
+  compute: (property: Property, ref: string | Method, args: Array<string>) => {
     if (typeof ref === 'string') {
       property.computed = `"${ref}(${args.join(', ')})"`;
       return { methods: [] };
@@ -47,10 +47,12 @@ const decoratorsMap = {
     }
   },
   notify: (property: Property) => property.notify = true,
-  observe: (method: Method, ...args) => args.length === 1 ? {
-    properties: [ { name: args[ 0 ], observer: `"${method.name}"` } ]
-  } : {
-    observers: [ `${method.name}(${args.join(', ')})` ]
+  observe: (method: Method, ...args): { properties?: Array<{ name: string, observer: string }>, observers?: Array<string> } => {
+    return args.length === 1 ? {
+      properties: [ { name: args[ 0 ], observer: `"${method.name}"` } ]
+    } : {
+      observers: [ `${method.name}(${args.join(', ')})` ]
+    };
   },
   style: (component: Component, ...styles: Array<string>) => component.styles = styles.map((style) => {
     let type;
@@ -163,10 +165,11 @@ export class Method {
 
     if (isBlock(declaration.body)) {
       this.statements = declaration.body.statements.map(getText);
-      this.arguments = declaration.parameters.map(getText);
     } else {
       this.statements = [ `return ${(declaration.body as MethodDeclaration).getText()};` ];
     }
+
+    this.arguments = declaration.parameters.map(getText);
   }
 
   public toString() {
@@ -233,6 +236,7 @@ export class Component {
     this.decorate(this, this.decorators);
 
     if (this.methods.has('template')) {
+      // todo: improve and test
       this.template = this.methods.get('template')
         .declaration.body.statements
         .map((statement: ExpressionStatement) => {

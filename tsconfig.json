@@ -14,7 +14,10 @@
     "pretty": true,
     "sourceMap": false,
     "strictNullChecks": false,
-    "target": "es6"
+    "target": "es6",
+    "lib": [
+      "es7"
+    ]
   },
   "include": [
     "node_modules/twc/types/polymer.annotations.d.ts",

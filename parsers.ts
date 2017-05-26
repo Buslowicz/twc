@@ -58,9 +58,9 @@ export function parseExpression(expr: Expression): SyntaxKind {
   ];
 
   if (isBinaryExpression(expr)) {
-    if (numberOperators.indexOf(expr.operatorToken.kind) !== -1) {
+    if (numberOperators.includes(expr.operatorToken.kind)) {
       return SyntaxKind.NumberKeyword;
-    } else if (booleanOperators.indexOf(expr.operatorToken.kind) !== -1) {
+    } else if (booleanOperators.includes(expr.operatorToken.kind)) {
       return SyntaxKind.BooleanKeyword;
     } else if (expr.operatorToken.kind === SyntaxKind.PlusToken) {
       const leftType = parseExpression(expr.left);
@@ -100,7 +100,7 @@ export function parseDeclarationInitializer({ initializer }: PropertyDeclaration
     const valueText = initializer.getText();
     return {
       type,
-      value: [ SyntaxKind.ObjectKeyword, SyntaxKind.ArrayType ].indexOf(type) !== -1 ? wrapValue(valueText) : valueText
+      value: [ SyntaxKind.ObjectKeyword, SyntaxKind.ArrayType ].includes(type) ? wrapValue(valueText) : valueText
     };
   }
 

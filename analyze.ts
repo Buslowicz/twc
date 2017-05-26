@@ -1,19 +1,20 @@
 import { readFileSync } from 'fs';
 import {
-  ClassDeclaration, createSourceFile, EnumDeclaration, FunctionDeclaration, ImportDeclaration, InterfaceDeclaration,
-  ModuleDeclaration, ScriptTarget, SourceFile, SyntaxKind, TypeAliasDeclaration, VariableStatement
+  ClassDeclaration, createSourceFile, EnumDeclaration, FunctionDeclaration, ImportDeclaration, InterfaceDeclaration, ModuleDeclaration,
+  ScriptTarget, SourceFile, SyntaxKind, TypeAliasDeclaration, VariableStatement
 } from 'typescript';
-import { getTypeAndValue } from './parsers';
+import { Component } from './builder';
+// import { getTypeAndValue } from './parsers';
 
 const fileName = 'complex.ts';
 const content = readFileSync(fileName).toString();
 const source: SourceFile = createSourceFile(fileName, content, ScriptTarget.ES2015, false);
 
-const isProperty = (member) => member.kind === SyntaxKind.PropertyDeclaration;
+// const isProperty = (member) => member.kind === SyntaxKind.PropertyDeclaration;
 
-function buildPropertyDeclaration(member) {
-  return getTypeAndValue(member);
-}
+// function buildPropertyDeclaration(member) {
+//   return getTypeAndValue(member);
+// }
 
 function parseImport(importDeclaration: ImportDeclaration) {
   const path = importDeclaration.moduleSpecifier.getText().slice(1, -1);
@@ -30,31 +31,7 @@ function parseInterface(interfaceDeclaration: InterfaceDeclaration) {
   console.log('interface: ', interfaceDeclaration.name.getText());
 }
 function parseClass(classDeclaration: ClassDeclaration) {
-  /*
-   render() {
-   tpl = classDeclaration.members
-   .filter((member) => member.kind === SyntaxKind.MethodDeclaration)[7]
-   .body.statements[0].expression;
-
-   return tpl.head.text + tpl
-   .templateSpans
-   .map(span => `{{${span.expression.getFullText().replace("this.","")}}}${span.literal.text}`)
-   .join("");
-   }
-   */
-  console.log('class: ', classDeclaration.name.getText());
-  console.log(`${(classDeclaration[ 'jsDoc' ] || []).map((doc) => `${doc.getFullText()}\n`).join('\n') }Polymer({
-  ${[
-    `is: "${classDeclaration.name.getText()}"`,
-    `properties: {${
-      classDeclaration.members
-        .filter(isProperty)
-        .map((member) => `
-          ${member.name.getText()}: ${buildPropertyDeclaration(member)}`)
-      }
-      }`
-  ].join(',\n')}
-});`);
+  return new Component(classDeclaration);
 }
 function parseModule(moduleDeclaration: ModuleDeclaration) {
   console.log('module: ', moduleDeclaration.name.getText());
@@ -73,23 +50,53 @@ function parseEnum(enumDeclaration: EnumDeclaration) {
 }
 
 /* tslint:disable:variable-name */
-const SyntaxHandler = {
-  [SyntaxKind.ImportDeclaration]: parseImport,
-  [SyntaxKind.InterfaceDeclaration]: parseInterface,
-  [SyntaxKind.ClassDeclaration]: parseClass,
-  [SyntaxKind.ModuleDeclaration]: parseModule,
-  [SyntaxKind.TypeAliasDeclaration]: parseType,
-  [SyntaxKind.VariableStatement]: parseVariable,
-  [SyntaxKind.FunctionDeclaration]: parseFunction,
-  [SyntaxKind.EnumDeclaration]: parseEnum
-};
+// const SyntaxHandler = {
+//   [SyntaxKind.ImportDeclaration]: parseImport,
+//   [SyntaxKind.InterfaceDeclaration]: parseInterface,
+//   [SyntaxKind.ClassDeclaration]: parseClass,
+//   [SyntaxKind.ModuleDeclaration]: parseModule,
+//   [SyntaxKind.TypeAliasDeclaration]: parseType,
+//   [SyntaxKind.VariableStatement]: parseVariable,
+//   [SyntaxKind.FunctionDeclaration]: parseFunction,
+//   [SyntaxKind.EnumDeclaration]: parseEnum
+// };
+
+// const statements = new Map<string, any>();
 
 source.statements.forEach((statement) => {
-  if (statement.kind in SyntaxHandler) {
-    SyntaxHandler[ statement.kind ].call(null, statement);
-  } else {
-    console.log('??????? ', SyntaxKind[ statement.kind ]);
+  switch (statement.kind) {
+    case SyntaxKind.ImportDeclaration:
+      parseImport(statement as ImportDeclaration);
+      break;
+    case SyntaxKind.InterfaceDeclaration:
+      parseInterface(statement as InterfaceDeclaration);
+      break;
+    case SyntaxKind.ClassDeclaration:
+      parseClass(statement as ClassDeclaration);
+      break;
+    case SyntaxKind.ModuleDeclaration:
+      parseModule(statement as ModuleDeclaration);
+      break;
+    case SyntaxKind.TypeAliasDeclaration:
+      parseType(statement as TypeAliasDeclaration);
+      break;
+    case SyntaxKind.VariableStatement:
+      parseVariable(statement as VariableStatement);
+      break;
+    case SyntaxKind.FunctionDeclaration:
+      parseFunction(statement as FunctionDeclaration);
+      break;
+    case SyntaxKind.EnumDeclaration:
+      parseEnum(statement as EnumDeclaration);
+      break;
+    default:
+      console.log('??????? ', SyntaxKind[ statement.kind ]);
   }
+  // if (statement.kind in SyntaxHandler) {
+  //   SyntaxHandler[ statement.kind ].call(null, statement);
+  // } else {
+  //   console.log('??????? ', SyntaxKind[ statement.kind ]);
+  // }
 });
 
 process.exit(0);
