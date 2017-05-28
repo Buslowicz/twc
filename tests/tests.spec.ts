@@ -1,27 +1,24 @@
 /* tslint:disable:no-unused-expression */
 import { expect } from 'chai';
 import {
-  BinaryExpression, Block, CallExpression, ClassDeclaration, createSourceFile, ExpressionStatement, Identifier, MethodDeclaration,
-  PrefixUnaryExpression, PropertyDeclaration, ScriptTarget, SyntaxKind, UnionOrIntersectionTypeNode, VariableStatement
+  BinaryExpression, Block, CallExpression, ClassDeclaration, createSourceFile, ExpressionStatement, Identifier, ImportDeclaration,
+  MethodDeclaration, NamedImports, NamespaceImport, PrefixUnaryExpression, PropertyDeclaration, ScriptTarget, SyntaxKind,
+  UnionOrIntersectionTypeNode, VariableStatement
 } from 'typescript';
 import { Component, decoratorsMap, Method, Property } from '../builder';
 import {
   flatExtends, flattenArray, getDecorators, getText, hasDecorator, hasModifier, inheritsFrom, isBinaryExpression, isBlock, isCallExpression,
-  isExtendsDeclaration, isGetter, isIdentifier, isMethod, isPrefixUnaryExpression, isPrivate, isProperty, isPublic, isSetter, isStatic,
-  isTransparent, Link, notGetter, notMethod, notPrivate, notProperty, notPublic, notSetter, notStatic, notTransparent, Ref,
-  ReferencedExpression, toProperty,
-  toString,
-  wrapValue
+  isExtendsDeclaration, isGetter, isIdentifier, isMethod, isNamedImports, isNamespaceImport, isPrefixUnaryExpression, isPrivate, isProperty,
+  isPublic, isSetter, isStatic, isTransparent, Link, notGetter, notMethod, notPrivate, notProperty, notPublic, notSetter, notStatic,
+  notTransparent, Ref, ReferencedExpression, toProperty, toString, wrapValue
 } from '../helpers';
-// import { hasDecorator, hasModifier, isProperty, notPrivate, notStatic } from '../helpers';
 import {
   getFinalType, getSimpleKind, getTypeAndValue, parseDeclarationInitializer, parseDeclarationType, parseExpression,
   parseUnionOrIntersectionType
 } from '../parsers';
 
-function parse(src) {
-  const statement = createSourceFile('', src, ScriptTarget.ES2015, true).statements[ 0 ] as ExpressionStatement;
-  return statement.expression as any;
+function parse<T>(src) {
+  return createSourceFile('', src, ScriptTarget.ES2015, true).statements[ 0 ] as any as T;
 }
 function parseDeclaration(src) {
   const statement: VariableStatement = createSourceFile('', src, ScriptTarget.ES2015, true).statements[ 0 ] as any;
@@ -99,6 +96,30 @@ describe('helpers', () => {
       expect(hasDecorator(parseClass(`class T { @a() p; }`).members[ 0 ], 'a')).to.be.true;
       expect(hasDecorator(parseClass(`class T { @a() p; }`).members[ 0 ], 'b')).to.be.false;
       expect(hasDecorator(parseClass(`class T { @a p; }`).members[ 0 ], 'b')).to.be.false;
+    });
+  });
+  describe('isNamespaceImport()', () => {
+    it('should check if expression is namespace import', () => {
+      const expr = parse<ImportDeclaration>('import * as test from "module";');
+      if (isNamespaceImport(expr.importClause.namedBindings)) {
+        const nsImport: NamespaceImport = expr.importClause.namedBindings;
+        expect(nsImport).to.not.be.null;
+        expect(nsImport).to.contain.keys('name');
+      } else {
+        expect(expr.importClause.namedBindings).to.equal('NamespaceImport');
+      }
+    });
+  });
+  describe('isNamedImports()', () => {
+    it('should check if expression is named imports', () => {
+      const expr = parse<ImportDeclaration>('import { test } from "module";');
+      if (isNamedImports(expr.importClause.namedBindings)) {
+        const namedImports: NamedImports = expr.importClause.namedBindings;
+        expect(namedImports).to.not.be.null;
+        expect(namedImports).to.contain.keys('elements');
+      } else {
+        expect(expr.importClause.namedBindings).to.equal('NamedImports');
+      }
     });
   });
   describe('isBinaryExpression()', () => {
@@ -852,19 +873,22 @@ describe('decorators', () => {
     });
     it('should set a `computed` to be a name of provided function and arguments (if provided a function)', () => {
       const prop = {} as Property;
-      decoratorsMap.compute(prop, new Method(parse('(a, b) => a + b)') as any, 'computed'), [ 'a', 'b' ]);
+      const expression = parse<ExpressionStatement>('(a, b) => a + b)').expression as any;
+      decoratorsMap.compute(prop, new Method(expression, 'computed'), [ 'a', 'b' ]);
       expect(prop.computed).to.equal('"computed(a, b)"');
     });
     it('should return an array containing method declaration if provided a function as ', () => {
       const prop = {} as Property;
-      const [ method ] = decoratorsMap.compute(prop, new Method(parse('(a, b) => a + b)') as any, 'computed'), [ 'a', 'b' ]).methods;
+      const expression = parse<ExpressionStatement>('(a, b) => a + b)').expression as any;
+      const [ method ] = decoratorsMap.compute(prop, new Method(expression, 'computed'), [ 'a', 'b' ]).methods;
       expect(method).to.be.instanceof(Method);
       expect(method.name).to.equal('computed');
       expect(method.toString()).to.equal('computed(a, b) { return a + b; }');
     });
     it('should use arguments names if no properties were provided', () => {
       const prop = {} as Property;
-      decoratorsMap.compute(prop, new Method(parse('(a, b) => a + b)') as any, 'computed'));
+      const expression = parse<ExpressionStatement>('(a, b) => a + b)').expression as any;
+      decoratorsMap.compute(prop, new Method(expression, 'computed'));
       expect(prop.computed).to.equal('"computed(a, b)"');
     });
   });

@@ -1,9 +1,9 @@
 import {
-  ClassDeclaration, ExpressionStatement, FunctionExpression, JSDoc, MethodDeclaration, PropertyDeclaration, SyntaxKind,
-  TemplateExpression
+  ClassDeclaration, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, JSDoc, MethodDeclaration, NamespaceImport,
+  PropertyDeclaration, SyntaxKind, TemplateExpression
 } from 'typescript';
 import {
-  getDecorators, getText, hasModifier, isBlock, isMethod, isProperty, isStatic, Link, notPrivate, notStatic, ParsedDecorator
+  getDecorators, getText, hasModifier, isBlock, isMethod, isNamedImports, isProperty, isStatic, Link, notPrivate, notStatic, ParsedDecorator
 } from './helpers';
 import { getTypeAndValue, ValidValue } from './parsers';
 
@@ -73,6 +73,34 @@ export const decoratorsMap = {
   // todo: add remote template imports (solve cwd issue)
   template: (component: Component, template: string) => component.template = template.endsWith('.html') ? new Link(template) : template
 };
+
+export class ImportedNode {
+  public get identifier() {
+    return this.bindings.name.getText();
+  }
+  public get fullIdentifier() {
+    return this.bindings.name.getText();
+  }
+  constructor(private bindings: ImportSpecifier | NamespaceImport) {}
+}
+
+export class Import {
+  public module: string;
+  public imports: Array<ImportedNode> = [];
+
+  constructor(public declaration: ImportDeclaration) {
+    this.module = declaration.moduleSpecifier.getText();
+    if (declaration.importClause) {
+      const namedBindings = declaration.importClause.namedBindings;
+
+      if (isNamedImports(namedBindings)) {
+        this.imports = namedBindings.elements.map((binding) => new ImportedNode(binding));
+      } else {
+        this.imports = [ new ImportedNode(namedBindings) ];
+      }
+    }
+  }
+}
 
 export class Property {
   public type: Constructor<ValidValue>;

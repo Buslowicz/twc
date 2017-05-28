@@ -1,37 +1,14 @@
+import { expect } from 'chai';
 import { readFileSync } from 'fs';
 import {
   ClassDeclaration, createSourceFile, EnumDeclaration, FunctionDeclaration, ImportDeclaration, InterfaceDeclaration, ModuleDeclaration,
   ScriptTarget, SourceFile, SyntaxKind, TypeAliasDeclaration, VariableStatement
 } from 'typescript';
-import { Component } from './builder';
-// import { getTypeAndValue } from './parsers';
+import { Component, Import } from './builder';
+import { inheritsFrom } from './helpers';
 
-const fileName = 'complex.ts';
-const content = readFileSync(fileName).toString();
-const source: SourceFile = createSourceFile(fileName, content, ScriptTarget.ES2015, false);
-
-// const isProperty = (member) => member.kind === SyntaxKind.PropertyDeclaration;
-
-// function buildPropertyDeclaration(member) {
-//   return getTypeAndValue(member);
-// }
-
-function parseImport(importDeclaration: ImportDeclaration) {
-  const path = importDeclaration.moduleSpecifier.getText().slice(1, -1);
-  const mod = path.match(/(?:(bower|npm):)?([^#]+)(?:#([\w$]+))?/);
-  const ext = (mod[ 2 ].match(/\.(html|js)$/) || [])[ 1 ];
-  const ns = mod[ 3 ] ? ` using ${mod[ 3 ]} namespace` : '';
-  const repo = mod[ 1 ] ? ` from ${mod[ 1 ]} repo` : '';
-  console.log(`${ext ? `${ext} ` : ''}importing ${mod[ 2 ]}${repo}${ns}`);
-  if (importDeclaration.importClause) {
-    console.log('---', importDeclaration.importClause.namedBindings.getText());
-  }
-}
 function parseInterface(interfaceDeclaration: InterfaceDeclaration) {
   console.log('interface: ', interfaceDeclaration.name.getText());
-}
-function parseClass(classDeclaration: ClassDeclaration) {
-  return new Component(classDeclaration);
 }
 function parseModule(moduleDeclaration: ModuleDeclaration) {
   console.log('module: ', moduleDeclaration.name.getText());
@@ -49,54 +26,68 @@ function parseEnum(enumDeclaration: EnumDeclaration) {
   console.log('Enum: ', enumDeclaration.name.getText());
 }
 
-/* tslint:disable:variable-name */
-// const SyntaxHandler = {
-//   [SyntaxKind.ImportDeclaration]: parseImport,
-//   [SyntaxKind.InterfaceDeclaration]: parseInterface,
-//   [SyntaxKind.ClassDeclaration]: parseClass,
-//   [SyntaxKind.ModuleDeclaration]: parseModule,
-//   [SyntaxKind.TypeAliasDeclaration]: parseType,
-//   [SyntaxKind.VariableStatement]: parseVariable,
-//   [SyntaxKind.FunctionDeclaration]: parseFunction,
-//   [SyntaxKind.EnumDeclaration]: parseEnum
-// };
+function parseStatements(source: SourceFile) {
+  const statements = [];
+  const variables = new Map<string, any>();
 
-// const statements = new Map<string, any>();
+  source.statements.forEach((statement) => {
+    switch (statement.kind) {
+      case SyntaxKind.ImportDeclaration:
+        const declaration = new Import(statement as ImportDeclaration);
+        statements.push(statement);
+        declaration.imports.forEach((imp) => variables.set(imp.fullIdentifier, imp));
+        break;
+      case SyntaxKind.InterfaceDeclaration:
+        statements.push(statement);
+        parseInterface(statement as InterfaceDeclaration);
+        break;
+      case SyntaxKind.ClassDeclaration:
+        if (inheritsFrom(statement as ClassDeclaration, 'Polymer.Element')) {
+          const component = new Component(statement as ClassDeclaration);
+          statements.push(component);
+          variables.set(component.name, component);
+        } else {
+          statements.push(statement);
+        }
+        break;
+      case SyntaxKind.ModuleDeclaration:
+        statements.push(statement);
+        parseModule(statement as ModuleDeclaration);
+        break;
+      case SyntaxKind.TypeAliasDeclaration:
+        statements.push(statement);
+        parseType(statement as TypeAliasDeclaration);
+        break;
+      case SyntaxKind.VariableStatement:
+        statements.push(statement);
+        parseVariable(statement as VariableStatement);
+        break;
+      case SyntaxKind.FunctionDeclaration:
+        statements.push(statement);
+        parseFunction(statement as FunctionDeclaration);
+        break;
+      case SyntaxKind.EnumDeclaration:
+        statements.push(statement);
+        parseEnum(statement as EnumDeclaration);
+        break;
+      default:
+        statements.push(statement);
+        console.log('??????? ', SyntaxKind[ statement.kind ]);
+    }
+  });
+  return { statements, variables };
+}
 
-source.statements.forEach((statement) => {
-  switch (statement.kind) {
-    case SyntaxKind.ImportDeclaration:
-      parseImport(statement as ImportDeclaration);
-      break;
-    case SyntaxKind.InterfaceDeclaration:
-      parseInterface(statement as InterfaceDeclaration);
-      break;
-    case SyntaxKind.ClassDeclaration:
-      parseClass(statement as ClassDeclaration);
-      break;
-    case SyntaxKind.ModuleDeclaration:
-      parseModule(statement as ModuleDeclaration);
-      break;
-    case SyntaxKind.TypeAliasDeclaration:
-      parseType(statement as TypeAliasDeclaration);
-      break;
-    case SyntaxKind.VariableStatement:
-      parseVariable(statement as VariableStatement);
-      break;
-    case SyntaxKind.FunctionDeclaration:
-      parseFunction(statement as FunctionDeclaration);
-      break;
-    case SyntaxKind.EnumDeclaration:
-      parseEnum(statement as EnumDeclaration);
-      break;
-    default:
-      console.log('??????? ', SyntaxKind[ statement.kind ]);
-  }
-  // if (statement.kind in SyntaxHandler) {
-  //   SyntaxHandler[ statement.kind ].call(null, statement);
-  // } else {
-  //   console.log('??????? ', SyntaxKind[ statement.kind ]);
-  // }
+describe('analyzer', () => {
+  it('should analyze the source file and build the proper output', () => {
+    const fileName = 'complex.ts';
+    const content = readFileSync(fileName).toString();
+    const source: SourceFile = createSourceFile(fileName, content, ScriptTarget.ES2015, true);
+
+    const { statements, variables } = parseStatements(source);
+
+    console.log({ statements, variables });
+
+    expect(Array.from(statements)).to.have.lengthOf(1);
+  });
 });
-
-process.exit(0);

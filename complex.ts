@@ -1,6 +1,7 @@
-import { test } from 'bower:esp/esp.html';
+import { test as T1, test2 } from 'bower:esp/esp.html';
+import * as esp2 from 'bower:esp/esp2.html';
 import { Templatizer } from 'bower:polymer/polymer.html#Polymer';
-import { attr, behavior, computed, notify, observe, style, template } from 'twc/polymer';
+import { attr, behavior, compute, notify, observe, style } from 'twc/polymer';
 import './assets/test';
 
 namespace Polymer {
@@ -13,13 +14,21 @@ let A = '20';
 
 export const CONST = true;
 
+declare const window: any;
+
 declare const CONST2 = 'types';
 
 declare const enum ENUM { A, B, C }
 
 type primitive = string | number | boolean | null | undefined;
 
-function testFun(slot) {
+interface CustomEvent {
+  detail: any;
+}
+
+A = '25';
+
+function testFun(slot, orientation = 'X') {
   let transform: primitive;
   const { width, height } = slot.itemSize;
   if (orientation === 'X') {
@@ -58,8 +67,10 @@ const myBehavior = {
 
 /* tslint:disable:array-type */
 class X {
-  public unionTest1: boolean | number | string | null | undefined | object | never | void | any | Date | 'test' | 5 | { a: string } | [ number, string, boolean ] | Array<any>;
-  public unionTest2: boolean & number & string & null & undefined & object & never & void & any & Date & 'test' & 5 & { a: string } & [ number, string, boolean ] & Array<any>;
+  public unionTest1: boolean | number | string | null | undefined | object | never | void | any | Date | 'test' | 5 | { a: string }
+    | [ number, string, boolean ] | Array<any>;
+  public unionTest2: boolean & number & string & null & undefined & object & never & void & any & Date & 'test' & 5 & { a: string }
+    & [ number, string, boolean ] & Array<any>;
   public empty;
   public st1: string;
   public st2 = 'test';
@@ -88,7 +99,9 @@ class X {
   public ar5 = new Array(10);
   public tp1: [ string, number ];
   public tp2: [ string, number ] = [ 'a', 10 ];
-  public obj: Object;
+  //noinspection TsLint
+  public obj1: Object;
+  public obj2: object;
   public nul: null;
   public und: undefined;
   public any: any;
@@ -100,6 +113,7 @@ class X {
 
   public un1: string | null;
   public un2: string | number;
+  //noinspection TsLint
   public un3: Date & Object;
 
   public fn1: () => string;
@@ -115,10 +129,7 @@ export interface ElementName extends Polymer.TheBehavior, Templatizer {}
  *
  * @demo test.html
  */
-@template('template.element-name.html')
-@style('h1 {color: red;}')
-@style('style.css')
-@style('shared-style')
+@style('h1 {color: red;}', 'style.css', 'shared-style')
 @behavior(myBehavior)
 export class ElementName extends Polymer.Element {
   /**
@@ -127,6 +138,8 @@ export class ElementName extends Polymer.Element {
   public static staticTest(test: string, test2: { a: boolean, b: any }, test3?: number) {
     console.log('static');
   }
+
+  @compute((st1, st2) => st1 + st2) public computedProp: string;
 
   /**
    * A greetings list
@@ -148,24 +161,18 @@ export class ElementName extends Polymer.Element {
     console.log('greetings:', greetings);
   }
 
-  @computed('test')
-  public computedProp(val: string) {
-    console.log(val);
-    return val + '!';
-  }
-
-  @computed
-  public computedPropAuto(test: string) {
-    console.log('test:', test);
-    return test + '!';
+  @observe
+  public observerAutoMulti(greetings: Array<string>, profile: object) {
+    console.log('greetings:', greetings, profile);
   }
 
   public externalDependency() {
     testFun({ CONST2, ENUM: ENUM.A, A });
-    return test;
+    console.log(esp2);
+    return T1 + test2;
   }
 
-  public testFun(slot) {
+  public testFun(slot, orientation = 'X') {
     let transform: primitive | X;
     const { width, height } = slot.itemSize;
     if (orientation === 'X') {
@@ -176,9 +183,14 @@ export class ElementName extends Polymer.Element {
     return { transform, 'width.px': width, 'height.px': height };
   }
 
-  public render() {
+  public template() {
     return `
-      <h1>${this.test}</h1>
+      <dom-if if="${this.test}">
+        <h1>${this.test}</h1>
+      </dom-if>
+      <dom-if if="${!this.test}">
+        <h1>Yo</h1>
+      </dom-if>
       <p>${this.testFun({})}</p>
     `;
   }

@@ -2,8 +2,8 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import {
   BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, Expression, ExpressionStatement, FunctionExpression,
-  GetAccessorDeclaration,
-  HeritageClause, Identifier, MethodDeclaration, Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SyntaxKind
+  GetAccessorDeclaration, HeritageClause, Identifier, MethodDeclaration, NamedImports, NamespaceImport, Node, PrefixUnaryExpression,
+  PropertyDeclaration, SetAccessorDeclaration, SyntaxKind
 } from 'typescript';
 import { Method } from './builder';
 
@@ -112,6 +112,8 @@ export const hasDecorator = (declaration: ClassElement, decoratorName: string): 
   });
 };
 
+export const isNamespaceImport = (expression: Node): expression is NamespaceImport => expression.kind === SyntaxKind.NamespaceImport;
+export const isNamedImports = (expression: Node): expression is NamedImports => expression.kind === SyntaxKind.NamedImports;
 export const isBinaryExpression = (expression: Node): expression is BinaryExpression => 'operatorToken' in expression;
 export const isExpressionStatement = (expression: Node): expression is ExpressionStatement => 'expression' in expression;
 export const isPrefixUnaryExpression = (expression: Node): expression is PrefixUnaryExpression => 'operator' in expression;
