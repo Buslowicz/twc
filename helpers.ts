@@ -1,9 +1,10 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import {
-  BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, Expression, ExpressionStatement, FunctionExpression,
-  GetAccessorDeclaration, HeritageClause, Identifier, MethodDeclaration, NamedImports, NamespaceImport, Node, PrefixUnaryExpression,
-  PropertyDeclaration, SetAccessorDeclaration, SyntaxKind
+  BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, EnumDeclaration, Expression, ExpressionStatement,
+  FunctionDeclaration, FunctionExpression, GetAccessorDeclaration, HeritageClause, Identifier, ImportDeclaration, InterfaceDeclaration,
+  MethodDeclaration, ModuleDeclaration, NamedImports, NamespaceImport, Node, PrefixUnaryExpression, PropertyDeclaration,
+  SetAccessorDeclaration, Statement, SyntaxKind, TypeAliasDeclaration, VariableStatement
 } from 'typescript';
 import { Method } from './builder';
 
@@ -19,6 +20,8 @@ export const transparentTypes = [
   SyntaxKind.NullKeyword,
   SyntaxKind.UndefinedKeyword
 ];
+
+export const methodKinds = [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructor ];
 
 export class Link {
   constructor(public uri: string) {}
@@ -84,9 +87,9 @@ export const flatExtends = (expression: Node) => {
   }
 };
 
-export const inheritsFrom = (declaration: ClassDeclaration, name: string) => {
+export const getFlatHeritage = (declaration: ClassDeclaration | InterfaceDeclaration) => {
   if (!declaration.heritageClauses) {
-    return false;
+    return [];
   }
 
   return declaration
@@ -96,8 +99,17 @@ export const inheritsFrom = (declaration: ClassDeclaration, name: string) => {
     .reduce(flattenArray, [])
     .map(toProperty('expression'))
     .map(flatExtends)
-    .reduce(flattenArray, [])
-    .includes(name);
+    .reduce(flattenArray, []);
+};
+
+export const inheritsFrom = (declaration: ClassDeclaration | InterfaceDeclaration, ...names: Array<string>) => {
+  if (!declaration.heritageClauses) {
+    return false;
+  }
+
+  const types = getFlatHeritage(declaration);
+
+  return names.some((name) => types.includes(name));
 };
 
 export const hasModifier = (declaration: ClassElement, mod: SyntaxKind): boolean => {
@@ -111,6 +123,15 @@ export const hasDecorator = (declaration: ClassElement, decoratorName: string): 
     return (isExpressionStatement(expression) ? expression.expression : expression).getText() === decoratorName;
   });
 };
+
+export const isImportDeclaration = (st: Statement): st is ImportDeclaration => st.kind === SyntaxKind.ImportDeclaration;
+export const isInterfaceDeclaration = (st: Statement): st is InterfaceDeclaration => st.kind === SyntaxKind.InterfaceDeclaration;
+export const isClassDeclaration = (st: Statement): st is ClassDeclaration => st.kind === SyntaxKind.ClassDeclaration;
+export const isModuleDeclaration = (st: Statement): st is ModuleDeclaration => st.kind === SyntaxKind.ModuleDeclaration;
+export const isTypeAliasDeclaration = (st: Statement): st is TypeAliasDeclaration => st.kind === SyntaxKind.TypeAliasDeclaration;
+export const isVariableStatement = (st: Statement): st is VariableStatement => st.kind === SyntaxKind.VariableStatement;
+export const isFunctionDeclaration = (st: Statement): st is FunctionDeclaration => st.kind === SyntaxKind.FunctionDeclaration;
+export const isEnumDeclaration = (st: Statement): st is EnumDeclaration => st.kind === SyntaxKind.EnumDeclaration;
 
 export const isNamespaceImport = (expression: Node): expression is NamespaceImport => expression.kind === SyntaxKind.NamespaceImport;
 export const isNamedImports = (expression: Node): expression is NamedImports => expression.kind === SyntaxKind.NamedImports;
@@ -126,9 +147,7 @@ export const isPrivate = (el: ClassElement): boolean => hasModifier(el, SyntaxKi
 export const isPublic = (el: ClassElement): boolean => hasModifier(el, SyntaxKind.PublicKeyword);
 export const isStatic = (el: ClassElement): boolean => hasModifier(el, SyntaxKind.StaticKeyword);
 export const isProperty = (el: ClassElement): el is PropertyDeclaration => el.kind === SyntaxKind.PropertyDeclaration;
-export const isMethod = (el: ClassElement): el is MethodDeclaration => {
-  return [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructor ].includes(el.kind);
-};
+export const isMethod = (el: ClassElement): el is MethodDeclaration => methodKinds.includes(el.kind);
 export const isGetter = (el: ClassElement): el is GetAccessorDeclaration => el.kind === SyntaxKind.GetAccessor;
 export const isSetter = (el: ClassElement): el is SetAccessorDeclaration => el.kind === SyntaxKind.SetAccessor;
 export const isTransparent = (el: Node): boolean => transparentTypes.includes(el.kind);
@@ -137,7 +156,7 @@ export const notPrivate = (el: ClassElement): boolean => !hasModifier(el, Syntax
 export const notPublic = (el: ClassElement): boolean => !hasModifier(el, SyntaxKind.PublicKeyword);
 export const notStatic = (el: ClassElement): boolean => !hasModifier(el, SyntaxKind.StaticKeyword);
 export const notProperty = (el: ClassElement): boolean => el.kind !== SyntaxKind.PropertyDeclaration;
-export const notMethod = (el: ClassElement): boolean => ![ SyntaxKind.MethodDeclaration, SyntaxKind.Constructor ].includes(el.kind);
+export const notMethod = (el: ClassElement): boolean => !methodKinds.includes(el.kind);
 export const notGetter = (el: ClassElement): boolean => el.kind !== SyntaxKind.GetAccessor;
 export const notSetter = (el: ClassElement): boolean => el.kind !== SyntaxKind.SetAccessor;
 export const notTransparent = (el: Node): boolean => !transparentTypes.includes(el.kind);

@@ -1,11 +1,11 @@
 import {
-  ClassDeclaration, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, JSDoc, MethodDeclaration, NamespaceImport,
-  PropertyDeclaration, SyntaxKind, TemplateExpression
+  ClassDeclaration, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, JSDoc,
+  MethodDeclaration, NamespaceImport, PropertyDeclaration, PropertySignature, SyntaxKind, TemplateExpression, TypeLiteralNode
 } from 'typescript';
 import {
   getDecorators, getText, hasModifier, isBlock, isMethod, isNamedImports, isProperty, isStatic, Link, notPrivate, notStatic, ParsedDecorator
 } from './helpers';
-import { getTypeAndValue, ValidValue } from './parsers';
+import { getTypeAndValue, parseDeclarationType, ValidValue } from './parsers';
 
 export interface PolymerPropertyConfig {
   type: SyntaxKind;
@@ -78,9 +78,11 @@ export class ImportedNode {
   public get identifier() {
     return this.bindings.name.getText();
   }
+
   public get fullIdentifier() {
     return this.bindings.name.getText();
   }
+
   constructor(private bindings: ImportSpecifier | NamespaceImport) {}
 }
 
@@ -100,6 +102,27 @@ export class Import {
       }
     }
   }
+}
+
+export class RegisteredEvent {
+  public get name(): string {
+    return this.declaration.name.getText();
+  }
+
+  public get description(): string {
+    return this.declaration[ 'jsDoc' ].getText();
+  }
+
+  public get params(): Array<{ type: ValidValue, name: string, description?: string }> {
+    const property = this.declaration.members.find((member) => member.name.getText() === 'detail') as PropertySignature;
+    return (property.type as TypeLiteralNode).members.map((member) => ({
+      description: member[ 'jsDoc' ] ? member[ 'jsDoc' ].getText() : null,
+      name: member.name.getText(),
+      type: parseDeclarationType(member as any)
+    }));
+  }
+
+  constructor(private declaration: InterfaceDeclaration) {}
 }
 
 export class Property {
@@ -229,6 +252,7 @@ export class Component {
   public template: string | Link;
   public styles: Array<{ type: 'shared' | 'inline', style: string } | Link> = [];
   public behaviors: Array<string> = [];
+  public events: Array<RegisteredEvent> = [];
 
   public properties: Map<string, Property> = new Map();
   public methods: Map<string, Method> = new Map();
