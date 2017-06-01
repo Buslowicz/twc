@@ -1,7 +1,8 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import {
-  BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, EnumDeclaration, Expression, ExpressionStatement,
+  BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, EnumDeclaration, ExportAssignment, ExportDeclaration, Expression,
+  ExpressionStatement,
   FunctionDeclaration, FunctionExpression, GetAccessorDeclaration, HeritageClause, Identifier, ImportDeclaration, InterfaceDeclaration,
   MethodDeclaration, ModuleDeclaration, NamedImports, NamespaceImport, Node, PrefixUnaryExpression, PropertyDeclaration,
   SetAccessorDeclaration, Statement, SyntaxKind, TypeAliasDeclaration, VariableStatement
@@ -132,6 +133,8 @@ export const isTypeAliasDeclaration = (st: Statement): st is TypeAliasDeclaratio
 export const isVariableStatement = (st: Statement): st is VariableStatement => st.kind === SyntaxKind.VariableStatement;
 export const isFunctionDeclaration = (st: Statement): st is FunctionDeclaration => st.kind === SyntaxKind.FunctionDeclaration;
 export const isEnumDeclaration = (st: Statement): st is EnumDeclaration => st.kind === SyntaxKind.EnumDeclaration;
+export const isExportDeclaration = (st: Statement): st is ExportDeclaration => st.kind === SyntaxKind.ExportDeclaration;
+export const isExportAssignment = (st: Statement): st is ExportAssignment => st.kind === SyntaxKind.ExportAssignment;
 
 export const isNamespaceImport = (expression: Node): expression is NamespaceImport => expression.kind === SyntaxKind.NamespaceImport;
 export const isNamedImports = (expression: Node): expression is NamedImports => expression.kind === SyntaxKind.NamedImports;
@@ -170,4 +173,17 @@ export const wrapValue = (valueText: string): () => any => {
   const wrapper = new Function(`return ${valueText};`) as () => any;
   wrapper.toString = () => Function.prototype.toString.call(wrapper).replace('anonymous', '');
   return wrapper;
+};
+
+export const reindent = (chunks: TemplateStringsArray | string, ...params: Array<string>) => {
+  const str = typeof chunks === 'string' ? chunks : chunks[0] + chunks.slice(1).map((chunk, i) => params[i] + chunk).join('');
+  const tab = str.match(/^(\s*?\n)?([\t ]+)\S/);
+  return tab ? str.replace(new RegExp(`^${tab[2]}`, 'gm'), '') : str;
+};
+
+export const indent = (tab: string) => {
+  return (chunks: TemplateStringsArray, ...params: Array<string>) => {
+    const str = reindent(chunks[0] + chunks.slice(1).map((chunk, i) => params[i] + chunk).join(''));
+    return str.replace(/^(.)/gm, `${tab}$1`);
+  };
 };

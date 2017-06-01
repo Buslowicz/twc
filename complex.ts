@@ -195,3 +195,9 @@ export class ElementName extends Polymer.Element {
     `;
   }
 }
+
+export default X;
+
+export function testing() {
+  return true;
+}

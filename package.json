@@ -19,6 +19,7 @@
     "command-line-args": "^3.0.5",
     "command-line-usage": "^4.0.0",
     "find-up": "^2.1.0",
+    "lodash": "^4.17.4",
     "typescript": "^2.2.2"
   },
   "devDependencies": {

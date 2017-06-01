@@ -1,6 +1,8 @@
+import { kebabCase } from 'lodash';
 import {
   ClassDeclaration, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, JSDoc,
-  MethodDeclaration, NamespaceImport, PropertyDeclaration, PropertySignature, SyntaxKind, TemplateExpression, TypeLiteralNode
+  MethodDeclaration, ModuleKind, NamespaceImport, PropertyDeclaration, PropertySignature, Statement, SyntaxKind, TemplateExpression,
+  transpileModule, TypeLiteralNode, TypeNode
 } from 'typescript';
 import {
   getDecorators, getText, hasModifier, isBlock, isMethod, isNamedImports, isProperty, isStatic, Link, notPrivate, notStatic, ParsedDecorator
@@ -60,15 +62,11 @@ export const decoratorsMap = {
     return { observers: [ `${method.name}(${args.join(', ')})` ] };
   },
   style: (component: Component, ...styles: Array<string>) => component.styles = styles.map((style) => {
-    let type;
     if (style.endsWith('.css')) {
-      return new Link(style);
-    } else if (/^[\w\d]+(-[\w\d]+)+$/.test(style)) {
-      type = 'shared';
+      return new Style(new Link(style));
     } else {
-      type = 'inline';
+      return new Style(style, /^[\w\d]+(-[\w\d]+)+$/.test(style));
     }
-    return { style, type };
   }),
   // todo: add remote template imports (solve cwd issue)
   template: (component: Component, template: string) => component.template = template.endsWith('.html') ? new Link(template) : template
@@ -83,7 +81,22 @@ export class ImportedNode {
     return this.bindings.name.getText();
   }
 
-  constructor(private bindings: ImportSpecifier | NamespaceImport) {}
+  constructor(private bindings: ImportSpecifier | NamespaceImport, public importClause: Import) {}
+}
+
+export class Style {
+  constructor(private style: string | Link, private isShared = false) {}
+
+  public toHTML(): string {
+    // todo: set baseURI
+    let style = '';
+    if (!this.isShared && typeof this.style === 'string') {
+      style = this.style;
+    } else if (this.style instanceof Link) {
+      style = this.style.uri; // getContents('');
+    }
+    return `<style${this.isShared ? ` include="${this.style}"` : ''}>${style}</style>`;
+  }
 }
 
 export class Import {
@@ -96,11 +109,15 @@ export class Import {
       const namedBindings = declaration.importClause.namedBindings;
 
       if (isNamedImports(namedBindings)) {
-        this.imports = namedBindings.elements.map((binding) => new ImportedNode(binding));
+        this.imports = namedBindings.elements.map((binding) => new ImportedNode(binding, this));
       } else {
-        this.imports = [ new ImportedNode(namedBindings) ];
+        this.imports = [ new ImportedNode(namedBindings, this) ];
       }
     }
+  }
+
+  public toHTML(): string {
+    return `<link rel="import" href=${this.module}>`;
   }
 }
 
@@ -110,19 +127,37 @@ export class RegisteredEvent {
   }
 
   public get description(): string {
-    return this.declaration[ 'jsDoc' ].getText();
+    const jsDoc = this.declaration[ 'jsDoc' ];
+    return jsDoc ? jsDoc.map((doc) => doc.comment).join('\n') : null;
   }
 
-  public get params(): Array<{ type: ValidValue, name: string, description?: string }> {
+  public get params(): Array<{ type: ValidValue, rawType: TypeNode, name: string, description?: string }> {
     const property = this.declaration.members.find((member) => member.name.getText() === 'detail') as PropertySignature;
     return (property.type as TypeLiteralNode).members.map((member) => ({
-      description: member[ 'jsDoc' ] ? member[ 'jsDoc' ].getText() : null,
+      description: member[ 'jsDoc' ] ? member[ 'jsDoc' ].map((doc) => doc.comment).join('\n') : null,
       name: member.name.getText(),
+      rawType: member[ 'type' ],
       type: parseDeclarationType(member as any)
     }));
   }
 
   constructor(private declaration: InterfaceDeclaration) {}
+
+  public toString() {
+    return [
+      '/**',
+      ...(this.description ? [
+        ` * ${this.description}`,
+        ` *`
+      ] : []),
+      ` * @event ${kebabCase(this.name)}`,
+      ...this.params.map(({ rawType, name, description }) => {
+        const type = rawType.getText().replace(/\s+/g, ' ').replace(/(.+?:.+?);/g, '$1,');
+        return ` * @param {${type}} ${name}${description ? ` ${description}` : ''}`;
+      }),
+      ' */\n'
+    ].join('\n');
+  }
 }
 
 export class Property {
@@ -250,7 +285,7 @@ export class Component {
   public heritage: string;
 
   public template: string | Link;
-  public styles: Array<{ type: 'shared' | 'inline', style: string } | Link> = [];
+  public styles: Array<Style> = [];
   public behaviors: Array<string> = [];
   public events: Array<RegisteredEvent> = [];
 
@@ -348,5 +383,64 @@ export class Component {
       }
     });
     return member;
+  }
+}
+
+export namespace Targets {
+  export function polymer1(statements: Array<Statement | Component | Import>) {
+    const component = statements.find((statement) => statement instanceof Component) as Component;
+    const statementIndex = statements.indexOf(component);
+
+    const printImports = () => statements
+      .filter((statement) => statement instanceof Import)
+      .map((statement: Import) => statement.toHTML())
+      .join('\n');
+
+    const printProperties = () => component.properties.size > 0 ? `properties: {\n${
+      Array.from(component.properties.values(), (prop) => prop.toString()).join(',\n')
+      }\n}` : '';
+
+    const printObservers = () => component.observers.length > 0 ? `observers: [\n${
+      component.observers.map((observer) => `"${observer}"`).join(',\n')
+      }\n]` : '';
+
+    const printBehaviors = () => component.behaviors.length > 0 ? `behaviors: [\n${
+      component.behaviors.map((behavior) => `"${behavior}"`).join(',\n')
+      }\n]` : '';
+
+    const printStatements = (from: number, to?: number): string => statements
+      .slice(from, to)
+      .filter((statement) => !(statement instanceof Import || statement instanceof Component))
+      .map((statement: Statement) => statement.getText().replace(/^(export (default )?)/, ''))
+      .join('\n');
+
+    const printScript = () => `
+      ${printStatements(0, statementIndex)}
+      const ${component.name} = Polymer({\n${
+      component.events.map((event) => event.toString()).join('\n')
+      }${[
+      `is: "${kebabCase(component.name)}"`,
+      printProperties(),
+      printObservers(),
+      printBehaviors()
+    ].filter((chunk) => !!chunk).join(',\n')}
+      });
+      ${printStatements(statementIndex)}
+    `;
+
+    const printDomModule = () => `
+      <dom-module is="${component.name}">
+        <template>
+          ${component.styles.map((style) => style.toHTML()).join('\n')}
+          ${component.template.toString()}
+        </template>
+        <script>
+          ${transpileModule(printScript(), { compilerOptions: { module: ModuleKind.ES2015 } }).outputText}
+        </script>
+      </dom-module>`;
+
+    return `
+      ${printImports()}${printDomModule()}
+    `;
   }
 }

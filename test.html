@@ -1,0 +1,102 @@
+
+<link rel="import" href='bower:esp/esp.html'>
+<link rel="import" href='bower:esp/esp2.html'>
+<link rel="import" href='bower:polymer/polymer.html#Polymer'>
+<link rel="import" href='twc/polymer'>
+<link rel="import" href='./assets/test'>
+<dom-module is="ElementName">
+  <template>
+    <style>h1 {color: red;}</style>
+    <style>style.css</style>
+    <style include="shared-style"></style>
+
+    <dom-if if="{{test}}">
+      <h1>{{test}}</h1>
+    </dom-if>
+    <dom-if if="{{!test}}">
+      <h1>Yo</h1>
+    </dom-if>
+    <p>{{testFun({})}}</p>
+
+  </template>
+  <script>
+    var A = '20';
+    var CONST = true;
+    A = '25';
+    function testFun(slot, orientation) {
+      if (orientation === void 0) { orientation = 'X'; }
+      var transform;
+      var _a = slot.itemSize, width = _a.width, height = _a.height;
+      if (orientation === 'X') {
+        transform = "translate(" + slot.index * width + "px, " + slot.col * height + "px)";
+      }
+      else {
+        transform = "translate(" + slot.col * width + "px, " + slot.index * height + "px)";
+      }
+      return { transform: transform, 'width.px': width, 'height.px': height };
+    }
+    var myBehavior = {
+      test: function () {
+        console.log('behavior test');
+      }
+    };
+    var X = (function () {
+      function X() {
+        this.st2 = 'test';
+        this.st3 = 'test' + 'test';
+        this.st4 = "" + 25;
+        this.st5 = "test";
+        this.st6 = null;
+        this.nm2 = 10;
+        this.nm3 = 5 * 5 * 5;
+        this.nm4 = 5 * window.innerWidth;
+        this.nm5 = 5 * window.innerWidth;
+        this.bo2 = true;
+        this.bo3 = (window && window.opener);
+        this.dt2 = new Date();
+        this.lt2 = { a: true, b: 'test' };
+        this.ar4 = [1, 2, 3];
+        this.ar5 = new Array(10);
+        this.tp2 = ['a', 10];
+        this.en2 = ENUM.A;
+        this.fn2 = function () { return 'test'; };
+      }
+      return X;
+    }());
+    var ElementName = Polymer({
+      /**
+       * @event profile-change-event
+       * @param {any} newProfile New profile.
+       */
+      /**
+       * Fires whenever ** .. yo!
+       *
+       * @event some-event
+       * @param {{ property: boolean }} deep
+       * @param {string} name New name
+       */
+      is: "element-name",
+      properties: {
+        computedProp: { type: String, computed: "_computedPropComputed(st1, st2)" },
+        /**
+         * A greetings list
+         */
+        greetings: { type: Array, reflectToAttribute: true, observer: "observerAuto" },
+        test: { type: String, value: 'tester', readOnly: true },
+        profile: { type: Object, notify: true }
+      },
+      observers: [
+        "observer(profile.prop)",
+        "observerAutoMulti(greetings, profile)"
+      ],
+      behaviors: [
+        "Polymer.TheBehavior",
+        "Templatizer"
+      ]
+    });
+    function testing() {
+      return true;
+    }
+
+  </script>
+</dom-module>

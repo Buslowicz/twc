@@ -1,8 +1,10 @@
 import { expect } from 'chai';
 import { readFileSync } from 'fs';
 import { ClassDeclaration, createSourceFile, ScriptTarget, SourceFile } from 'typescript';
-import { Component, Import, RegisteredEvent } from './builder';
-import { getFlatHeritage, inheritsFrom, isClassDeclaration, isImportDeclaration, isInterfaceDeclaration } from './helpers';
+import { Component, Import, RegisteredEvent, Targets } from './builder';
+import {
+  getFlatHeritage, inheritsFrom, isClassDeclaration, isExportAssignment, isExportDeclaration, isImportDeclaration, isInterfaceDeclaration
+} from './helpers';
 
 function parseStatements(source: SourceFile) {
   const statements = [];
@@ -12,6 +14,8 @@ function parseStatements(source: SourceFile) {
     if (isImportDeclaration(statement)) {
       const declaration = new Import(statement);
       declaration.imports.forEach((imp) => variables.set(imp.fullIdentifier, imp));
+      statements.push(declaration);
+      return;
     } else if (isInterfaceDeclaration(statement)) {
       const name = statement.name.getText();
       if (variables.has(name) && variables.get(name) instanceof Component) {
@@ -30,6 +34,8 @@ function parseStatements(source: SourceFile) {
 
       variables.set(component.name, component);
       statements.push(component);
+      return;
+    } else if (isExportDeclaration(statement) || isExportAssignment(statement)) {
       return;
     }
     statements.push(statement);
@@ -51,7 +57,7 @@ describe('analyzer', () => {
 
     components.forEach((component) => component.events.push(...events));
 
-    console.log({ statements, variables });
+    console.log(Targets.polymer1(statements));
 
     expect(Array.from(statements)).to.have.lengthOf(1);
   });

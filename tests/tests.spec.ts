@@ -921,31 +921,42 @@ describe('decorators', () => {
     it('should set styles to an array containing a Link object with provided uri if css file path is provided', () => {
       const component = {} as Component;
       decoratorsMap.style(component, 'file.css');
-      const [ style ] = component.styles as [ Link ];
+      const [ { style } ] = component.styles;
       expect(style).to.be.instanceof(Link);
-      expect(style.uri).to.equal('file.css');
+      expect((style as Link).uri).to.equal('file.css');
     });
     it('should set styles to an array containing object with provided style and type `inline` if css was provided', () => {
       const component = {} as Component;
       decoratorsMap.style(component, ':host { color: red; }');
-      const [ { style, type } ] = component.styles as [ { type: 'inline', style: string; } ];
+      const [ { style, isShared } ] = component.styles;
       expect(style).to.equal(':host { color: red; }');
-      expect(type).to.equal('inline');
+      expect(isShared).to.equal(false);
     });
     it('should set styles to an array containing object with component name and type `shared` if shared style was provided', () => {
       const component = {} as Component;
       decoratorsMap.style(component, 'my-styles');
-      const [ { style, type } ] = component.styles as [ { type: 'shared', style: string; } ];
+      const [ { style, isShared } ] = component.styles;
       expect(style).to.equal('my-styles');
-      expect(type).to.equal('shared');
+      expect(isShared).to.equal(true);
     });
     it('should set styles to an array of mixed style declarations types', () => {
       const component = {} as Component;
       decoratorsMap.style(component, 'file.css', 'my-styles', ':host { color: red; }');
       expect(component.styles).to.deep.equal([
-        { uri: 'file.css' },
-        { type: 'shared', style: 'my-styles' },
-        { type: 'inline', style: ':host { color: red; }' }
+        {
+          isShared: false,
+          style: {
+            uri: 'file.css'
+          }
+        },
+        {
+          isShared: true,
+          style: 'my-styles'
+        },
+        {
+          isShared: false,
+          style: ':host { color: red; }'
+        }
       ]);
     });
   });
