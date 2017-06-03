@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { ClassDeclaration, createSourceFile, ScriptTarget, SourceFile } from 'typescript';
 import { Component, Import, RegisteredEvent, Targets } from './builder';
 import {
@@ -57,8 +57,8 @@ describe('analyzer', () => {
 
     components.forEach((component) => component.events.push(...events));
 
-    console.log(Targets.polymer1(statements));
+    writeFileSync('test.html', Targets.polymer1(statements, variables));
 
-    expect(Array.from(statements)).to.have.lengthOf(1);
+    expect(Array.from(statements)).to.have.lengthOf(22);
   });
 });

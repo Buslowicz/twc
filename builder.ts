@@ -1,4 +1,5 @@
 import { kebabCase } from 'lodash';
+import { extname } from 'path';
 import {
   ClassDeclaration, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, JSDoc,
   MethodDeclaration, ModuleKind, NamespaceImport, PropertyDeclaration, PropertySignature, Statement, SyntaxKind, TemplateExpression,
@@ -101,10 +102,18 @@ export class Style {
 
 export class Import {
   public module: string;
+  public namespace: string;
   public imports: Array<ImportedNode> = [];
 
+  public get isImportable() {
+    const { module } = this;
+    return [ '.js', '.html', '.css' ].includes(extname(module));
+  }
+
   constructor(public declaration: ImportDeclaration) {
-    this.module = declaration.moduleSpecifier.getText();
+    const { 1: module, 2: namespace = '' } = declaration.moduleSpecifier.getText().replace(/["']$|^["']/g, '').match(/([^#]+)(?:#(.+))?/);
+    this.module = module;
+    this.namespace = namespace;
     if (declaration.importClause) {
       const namedBindings = declaration.importClause.namedBindings;
 
@@ -117,7 +126,16 @@ export class Import {
   }
 
   public toHTML(): string {
-    return `<link rel="import" href=${this.module}>`;
+    switch (extname(this.module)) {
+      case '.html':
+        return `<link rel="import" href="${this.module}">`;
+      case '.js':
+        return `<script src="${this.module}"></script>`;
+      case '.css':
+        return `<link rel="stylesheet" href="${this.module}">`;
+      default:
+        return `<link rel="import" href="${this.module}">`;
+    }
   }
 }
 
@@ -387,12 +405,17 @@ export class Component {
 }
 
 export namespace Targets {
-  export function polymer1(statements: Array<Statement | Component | Import>) {
+  export function polymer1(statements: Array<Statement | Component | Import>, variables: Map<string, ImportedNode | any>) {
     const component = statements.find((statement) => statement instanceof Component) as Component;
     const statementIndex = statements.indexOf(component);
 
+    // const importedVariables = Array.from(variables.values()).filter(([k, v]) => v instanceof ImportedNode);
+    //
+    // console.log(importedVariables);
+
     const printImports = () => statements
       .filter((statement) => statement instanceof Import)
+      .filter((statement: Import) => statement.isImportable)
       .map((statement: Import) => statement.toHTML())
       .join('\n');
 

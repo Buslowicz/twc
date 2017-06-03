@@ -1,12 +1,11 @@
-
-<link rel="import" href='bower:esp/esp.html'>
-<link rel="import" href='bower:esp/esp2.html'>
-<link rel="import" href='bower:polymer/polymer.html#Polymer'>
-<link rel="import" href='twc/polymer'>
-<link rel="import" href='./assets/test'>
+<link rel="import" href="bower:esp/esp.html">
+<link rel="import" href="bower:esp/esp2.html">
+<link rel="import" href="bower:polymer/polymer.html">
 <dom-module is="ElementName">
   <template>
-    <style>h1 {color: red;}</style>
+    <style>h1 {
+      color: red;
+    }</style>
     <style>style.css</style>
     <style include="shared-style"></style>
 
@@ -55,12 +54,13 @@
         this.bo3 = (window && window.opener);
         this.dt2 = new Date();
         this.lt2 = { a: true, b: 'test' };
-        this.ar4 = [1, 2, 3];
+        this.ar4 = [ 1, 2, 3 ];
         this.ar5 = new Array(10);
-        this.tp2 = ['a', 10];
+        this.tp2 = [ 'a', 10 ];
         this.en2 = ENUM.A;
         this.fn2 = function () { return 'test'; };
       }
+
       return X;
     }());
     var ElementName = Polymer({
@@ -100,3 +100,4 @@
 
   </script>
 </dom-module>
+    
