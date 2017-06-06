@@ -1,10 +1,8 @@
 import {
-  BinaryExpression, CallExpression, Expression, LiteralTypeNode, Node, PartiallyEmittedExpression, PropertyDeclaration,
-  SyntaxKind, TypeNode, TypeReferenceNode, UnionOrIntersectionTypeNode
+  BinaryExpression, CallExpression, Expression, LiteralTypeNode, Node, PartiallyEmittedExpression, PropertyDeclaration, SyntaxKind,
+  TypeNode, TypeReferenceNode, UnionOrIntersectionTypeNode
 } from 'typescript';
-import {
-  isBinaryExpression, isIdentifier, isPrefixUnaryExpression, notTransparent, wrapValue
-} from './helpers';
+import { InitializerWrapper, isBinaryExpression, isIdentifier, isPrefixUnaryExpression, notTransparent } from './helpers';
 
 export type ValidValue = string | number | boolean | object | Date | Array<any> | (() => ValidValue);
 
@@ -94,14 +92,12 @@ export function parseDeclarationType({ type }: PropertyDeclaration): SyntaxKind 
   }
 }
 
-/* todo: make type/init a Node reference with .toString() returning actual value */
 export function parseDeclarationInitializer({ initializer }: PropertyDeclaration): TypeAndValue {
   function defaultCase() {
     const type = getSimpleKind(initializer);
-    const valueText = initializer.getText();
     return {
       type,
-      value: [ SyntaxKind.ObjectKeyword, SyntaxKind.ArrayType ].includes(type) ? wrapValue(valueText) : valueText
+      value: [ SyntaxKind.ObjectKeyword, SyntaxKind.ArrayType ].includes(type) ? new InitializerWrapper(initializer) : initializer.getText()
     };
   }
 
@@ -117,27 +113,27 @@ export function parseDeclarationInitializer({ initializer }: PropertyDeclaration
     case SyntaxKind.NumericLiteral:
       return { type: SyntaxKind.NumberKeyword, value: Number(initializer.getText()) };
     case SyntaxKind.TemplateExpression:
-      return { type: SyntaxKind.StringKeyword, value: wrapValue(initializer.getText()) };
+      return { type: SyntaxKind.StringKeyword, value: new InitializerWrapper(initializer) };
     case SyntaxKind.ArrayLiteralExpression:
-      return { type: SyntaxKind.ArrayType, value: wrapValue(initializer.getText()) };
+      return { type: SyntaxKind.ArrayType, value: new InitializerWrapper(initializer) };
     case SyntaxKind.NewExpression:
       switch ((initializer as PartiallyEmittedExpression).expression.getText()) {
         case 'Array':
-          return { type: SyntaxKind.ArrayType, value: wrapValue(initializer.getText()) };
+          return { type: SyntaxKind.ArrayType, value: new InitializerWrapper(initializer) };
         case 'Date':
-          return { type: SyntaxKind.ObjectKeyword, value: wrapValue(initializer.getText()), isDate: true };
+          return { type: SyntaxKind.ObjectKeyword, value: new InitializerWrapper(initializer), isDate: true };
         default:
           return defaultCase();
       }
     case SyntaxKind.BinaryExpression:
-      return { type: parseExpression(initializer as BinaryExpression), value: wrapValue(initializer.getText()) };
+      return { type: parseExpression(initializer as BinaryExpression), value: new InitializerWrapper(initializer) };
     case SyntaxKind.NullKeyword:
       return { type: SyntaxKind.Unknown, value: null };
     case SyntaxKind.UndefinedKeyword:
       return { type: SyntaxKind.Unknown, value: undefined };
     case SyntaxKind.CallExpression:
       if ((initializer as CallExpression).expression.getText().startsWith('Date.')) {
-        return { type: SyntaxKind.ObjectKeyword, value: wrapValue(initializer.getText()), isDate: true };
+        return { type: SyntaxKind.ObjectKeyword, value: new InitializerWrapper(initializer), isDate: true };
       } else {
         return defaultCase();
       }

@@ -2,12 +2,12 @@ import { kebabCase } from 'lodash';
 import { extname } from 'path';
 import {
   ClassDeclaration, ClassElement, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, JSDoc,
-  MethodDeclaration, ModuleKind, NamespaceImport, Node, PropertyDeclaration, PropertySignature, Statement, SyntaxKind, TemplateExpression,
+  MethodDeclaration, ModuleKind, NamespaceImport, PropertyDeclaration, PropertySignature, Statement, SyntaxKind, TemplateExpression,
   transpileModule, TypeLiteralNode, TypeNode
 } from 'typescript';
 import {
-  getDecorators, getText, hasModifier, isBlock, isMethod, isNamedImports, isProperty, isStatic, Link, notPrivate, notStatic,
-  ParsedDecorator, updateImportedRefs
+  getDecorators, getText, hasModifier, InitializerWrapper, isBlock, isMethod, isNamedImports, isProperty, isStatic, Link, notPrivate,
+  notStatic, ParsedDecorator, RefUpdater, updateImportedRefs
 } from './helpers';
 import { getTypeAndValue, parseDeclarationType, ValidValue } from './parsers';
 
@@ -181,9 +181,9 @@ export class RegisteredEvent {
   }
 }
 
-export class Property {
+export class Property extends RefUpdater {
   public type: Constructor<ValidValue>;
-  public value?: ValidValue;
+  public value?: ValidValue | InitializerWrapper;
   public readOnly?: boolean;
   public reflectToAttribute?: boolean;
   public notify?: boolean;
@@ -193,6 +193,7 @@ export class Property {
   public decorators: Array<ParsedDecorator>;
 
   constructor(public readonly declaration: PropertyDeclaration, public readonly name: string) {
+    super();
     const { type, value, isDate } = getTypeAndValue(declaration);
     this.readOnly = hasModifier(declaration, SyntaxKind.ReadonlyKeyword);
     this.decorators = getDecorators(declaration);
@@ -205,6 +206,9 @@ export class Property {
   }
 
   public toString() {
+    if (this.value instanceof InitializerWrapper) {
+      (this.value as InitializerWrapper).provideRefs(this.refs);
+    }
     if (isStatic(this.declaration)) {
       return `${this.getJsDoc()}${this.name} = ${this.value}`;
     }
@@ -229,10 +233,7 @@ export class Property {
   }
 
   private getValue() {
-    if (this.value) {
-      return `value: ${typeof this.value === 'function' ? this.value.toString() : this.value}`;
-    }
-    return undefined;
+    return this.value ? `value: ${this.value}` : undefined;
   }
 
   private getReadOnly() {
@@ -270,7 +271,7 @@ export class Property {
   }
 }
 
-export class Method {
+export class Method extends RefUpdater {
   public get decorators(): Array<ParsedDecorator> {
     return getDecorators(this.declaration as any);
   }
@@ -297,26 +298,13 @@ export class Method {
     }
   }
 
-  private refs: Map<string, ImportedNode>;
-
-  constructor(public readonly declaration: MethodDeclaration | FunctionExpression, public readonly name = 'function') {}
-
-  public provideRefs(variables: Map<string, ImportedNode>): this {
-    this.refs = variables;
-    return this;
+  constructor(public readonly declaration: MethodDeclaration | FunctionExpression, public readonly name = 'function') {
+    super();
   }
 
   public toString() {
     const name = isStatic(this.declaration as ClassElement) ? `${this.name} = function` : this.name;
     return `${name}(${this.arguments.join(', ')}) { ${this.statements.join('\n')} }`;
-  }
-
-  private getText = (statement: Node): string => {
-    if (this.refs) {
-      return updateImportedRefs(statement, this.refs);
-    } else {
-      return statement.getText();
-    }
   }
 }
 
@@ -445,7 +433,7 @@ export namespace Targets {
       .join('\n');
 
     const printProperties = () => component.properties.size > 0 ? `properties: {\n${
-      Array.from(component.properties.values(), (prop) => prop.toString()).join(',\n')
+      Array.from(component.properties.values(), (prop) => `${prop.provideRefs(variables)}`).join(',\n')
       }\n}` : '';
 
     const printObservers = () => component.observers.length > 0 ? `observers: [\n${
@@ -465,17 +453,17 @@ export namespace Targets {
     const printScript = () => `
       ${printStatements(0, statementIndex)}
       const ${component.name} = Polymer({\n${
-      component.events.map((event) => event.toString()).join('\n')
+      component.events.map((event) => `${event}`).join('\n')
       }${[
       `is: "${kebabCase(component.name)}"`,
       printProperties(),
       printObservers(),
       printBehaviors(),
-      ...Array.from(component.methods.values()).map((method) => method.provideRefs(variables).toString())
+      ...Array.from(component.methods.values()).map((method) => `${method.provideRefs(variables)}`)
     ].filter((chunk) => !!chunk).join(',\n')}
       });
       ${ Array.from(component.staticMethods.values()).map((method) => `${component.name}.${method.provideRefs(variables)};`).join('\n') }
-      ${ Array.from(component.staticProperties.values()).map((prop) => `${component.name}.${prop};`).join('\n') }
+      ${ Array.from(component.staticProperties.values()).map((prop) => `${component.name}.${prop.provideRefs(variables)};`).join('\n') }
       ${printStatements(statementIndex)}
     `;
 
@@ -483,7 +471,7 @@ export namespace Targets {
       <dom-module is="${component.name}">
         <template>
           ${component.styles.map((style) => style.toHTML()).join('\n')}
-          ${component.template.toString()}
+          ${component.template}
         </template>
         <script>
           ${transpileModule(printScript(), { compilerOptions: { module: ModuleKind.ES2015 } }).outputText}

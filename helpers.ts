@@ -52,6 +52,37 @@ export class ReferencedExpression {
   }
 }
 
+export abstract class RefUpdater {
+  protected refs?: Map<string, ImportedNode>;
+
+  public provideRefs(variables: Map<string, ImportedNode>): this {
+    this.refs = variables;
+    return this;
+  }
+
+  protected getText = (statement: Node): string => {
+    if (this.refs) {
+      return updateImportedRefs(statement, this.refs);
+    } else {
+      return statement.getText();
+    }
+  }
+}
+
+export class InitializerWrapper extends RefUpdater {
+  constructor(private declaration: Node) {
+    super();
+  }
+
+  public valueOf() {
+    return new Function(`return ${this.getText(this.declaration)};`)();
+  }
+
+  public toString() {
+    return new Function(`return ${this.getText(this.declaration)};`).toString().replace('anonymous', '');
+  }
+}
+
 export const getDecorators = (declaration: ClassElement | ClassDeclaration): Array<ParsedDecorator> => {
   if (!declaration.decorators) {
     return [];
@@ -168,12 +199,6 @@ export const toString = (object: any): string => object.toString();
 export const getText = (node: Node): string => node.getText();
 export const flattenArray = (p: Array<any>, c: any): Array<any> => p.concat(c);
 export const toProperty = (key: string) => (obj: object) => obj[ key ];
-
-export const wrapValue = (valueText: string): () => any => {
-  const wrapper = new Function(`return ${valueText};`) as () => any;
-  wrapper.toString = () => Function.prototype.toString.call(wrapper).replace('anonymous', '');
-  return wrapper;
-};
 
 export const reindent = (chunks: TemplateStringsArray | string, ...params: Array<string>) => {
   const str = typeof chunks === 'string' ? chunks : chunks[ 0 ] + chunks.slice(1).map((chunk, i) => params[ i ] + chunk).join('');

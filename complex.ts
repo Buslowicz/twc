@@ -134,7 +134,7 @@ export interface ElementName extends Polymer.TheBehavior, Templatizer {}
 @style('h1 {color: red;}', 'style.css', 'shared-style')
 @behavior(myBehavior)
 export class ElementName extends Polymer.Element {
-  public static prop = 2;
+  public static prop = test2;
 
   /**
    * Some static method
@@ -150,7 +150,7 @@ export class ElementName extends Polymer.Element {
    */
   @attr public greetings: Array<string>;
   public readonly test: string = 'tester';
-  @notify public profile: any;
+  @notify public profile: any = T1;
 
   /**
    * Observer method

@@ -7,10 +7,11 @@ import {
 } from 'typescript';
 import { Component, decoratorsMap, Method, Property } from '../builder';
 import {
-  flatExtends, flattenArray, getDecorators, getText, hasDecorator, hasModifier, inheritsFrom, isBinaryExpression, isBlock, isCallExpression,
+  flatExtends, flattenArray, getDecorators, getText, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBinaryExpression,
+  isBlock, isCallExpression,
   isExtendsDeclaration, isGetter, isIdentifier, isMethod, isNamedImports, isNamespaceImport, isPrefixUnaryExpression, isPrivate, isProperty,
   isPublic, isSetter, isStatic, isTransparent, Link, notGetter, notMethod, notPrivate, notProperty, notPublic, notSetter, notStatic,
-  notTransparent, Ref, ReferencedExpression, toProperty, toString, wrapValue
+  notTransparent, Ref, ReferencedExpression, toProperty, toString
 } from '../helpers';
 import {
   getFinalType, getSimpleKind, getTypeAndValue, parseDeclarationInitializer, parseDeclarationType, parseExpression,
@@ -333,13 +334,17 @@ describe('helpers', () => {
       expect([ { a: 1 }, { a: 2, b: 3 }, { a: 3, c: 5 } ].map(toProperty('a'))).to.deep.equal([ 1, 2, 3 ]);
     });
   });
-  describe('wrapValue()', () => {
+  describe('InitializerWrapper()', () => {
     it('should wrap a value in a function', () => {
-      expect(wrapValue('10')()).to.equal(10);
-      expect(wrapValue('"test" + "ing"')()).to.equal('testing');
-      expect(wrapValue('[1, 2, 3]')()).to.deep.equal([ 1, 2, 3 ]);
-      expect(wrapValue('[1, 2, 3]')()).to.not.equal(wrapValue('[1, 2, 3]')());
-      expect(wrapValue('[1, 2, 3]')()).to.deep.equal(wrapValue('[1, 2, 3]')());
+      expect(new InitializerWrapper(parseDeclaration(`let x = 10`).initializer).valueOf()).to.equal(10);
+      expect(new InitializerWrapper(parseDeclaration(`let x = "test" + "ing"`).initializer).valueOf()).to.equal('testing');
+      expect(new InitializerWrapper(parseDeclaration(`let x = [1, 2, 3]`).initializer).valueOf()).to.deep.equal([ 1, 2, 3 ]);
+      expect(new InitializerWrapper(parseDeclaration(`let x = [1, 2, 3]`).initializer).valueOf()).to.not.equal(
+        new InitializerWrapper(parseDeclaration(`let x = [1, 2, 3]`).initializer).valueOf()
+      );
+      expect(new InitializerWrapper(parseDeclaration(`let x = [1, 2, 3]`).initializer).valueOf()).to.deep.equal(
+        new InitializerWrapper(parseDeclaration(`let x = [1, 2, 3]`).initializer).valueOf()
+      );
     });
   });
 });
@@ -834,7 +839,7 @@ describe('builders', () => {
       expect(stat.map(({ name }) => name)).to.deep.equal([
         'HISTORY_SIZE', 'SYMBOLS_BASIC', 'SYMBOLS_GREEK', 'SYMBOLS_PHYSICS'
       ]);
-      expect(stat.map(({ value }) => typeof value === 'function' ? value() : value)).to.deep.equal([
+      expect(stat.map(({ value }) => value instanceof InitializerWrapper ? value.valueOf() : value)).to.deep.equal([
         20,
         [ { cmd: 'sqrt', name: '√' }, { cmd: 'div', name: '÷' } ],
         [ { cmd: 'gamma', name: 'γ' }, { cmd: 'Delta', name: 'Δ' } ],
