@@ -1,51 +1,50 @@
-<link rel="import" href="bower:esp/esp.html">
+
+      <link rel="import" href="bower:esp/esp.html">
 <link rel="import" href="bower:esp/esp2.html">
 <link rel="import" href="bower:polymer/polymer.html">
-<dom-module is="ElementName">
-  <template>
-    <style>h1 {
-      color: red;
-    }</style>
-    <style>style.css</style>
-    <style include="shared-style"></style>
-
-    <dom-if if="{{test}}">
-      <h1>{{test}}</h1>
-    </dom-if>
-    <dom-if if="{{!test}}">
-      <h1>Yo</h1>
-    </dom-if>
-    <p>{{testFun({})}}</p>
-
-  </template>
-  <script>
-    var A = '20';
-    var CONST = true;
-    A = '25';
-    console.log(Namespace.test2);
-    function testFun(slot, orientation) {
-      if (orientation === void 0) { orientation = 'X'; }
-      var transform;
-      var _a = slot.itemSize, width = _a.width, height = _a.height;
-      if (orientation === 'X') {
+      <dom-module is="ElementName">
+        <template>
+          <style>h1 {color: red;}</style>
+<style>style.css</style>
+<style include="shared-style"></style>
+          
+      <dom-if if="{{test}}">
+        <h1>{{test}}</h1>
+      </dom-if>
+      <dom-if if="{{!test}}">
+        <h1>Yo</h1>
+      </dom-if>
+      <p>{{testFun({})}}</p>
+    
+        </template>
+        <script>
+          var A = '20';
+var CONST = true;
+A = '25';
+console.log(Namespace.test2);
+function testFun(slot, orientation) {
+    if (orientation === void 0) { orientation = 'X'; }
+    var transform;
+    var _a = slot.itemSize, width = _a.width, height = _a.height;
+    if (orientation === 'X') {
         transform = "translate(" + slot.index * width + "px, " + slot.col * height + "px)";
-      }
-      else {
-        transform = "translate(" + slot.col * width + "px, " + slot.index * height + "px)";
-      }
-      return { transform: transform, 'width.px': width, 'height.px': height };
     }
-    /**
-     * A behavior
-     */
-    var myBehavior = {
-      test: function () {
+    else {
+        transform = "translate(" + slot.col * width + "px, " + slot.index * height + "px)";
+    }
+    return { transform: transform, 'width.px': width, 'height.px': height };
+}
+/**
+ * A behavior
+ */
+var myBehavior = {
+    test: function () {
         console.log('behavior test');
-      }
-    };
-    /* tslint:disable:array-type */
-    var X = (function () {
-      function X() {
+    }
+};
+/* tslint:disable:array-type */
+var X = (function () {
+    function X() {
         this.st2 = 'test';
         this.st3 = 'test' + 'test';
         this.st4 = "" + 25;
@@ -59,77 +58,80 @@
         this.bo3 = (window && window.opener);
         this.dt2 = new Date();
         this.lt2 = { a: true, b: 'test' };
-        this.ar4 = [ 1, 2, 3 ];
+        this.ar4 = [1, 2, 3];
         this.ar5 = new Array(10);
-        this.tp2 = [ 'a', 10 ];
+        this.tp2 = ['a', 10];
         this.en2 = ENUM.A;
         this.fn2 = function () { return 'test'; };
-      }
-
-      return X;
-    }());
-    var ElementName = Polymer({
-      /**
-       * @event profile-change-event
-       * @param {any} newProfile New profile.
-       */
-      /**
-       * Fires whenever ** .. yo!
-       *
-       * @event some-event
-       * @param {{ property: boolean }} deep
-       * @param {string} name New name
-       */
-      is: "element-name",
-      properties: {
+    }
+    return X;
+}());
+var ElementName = Polymer({
+    /**
+     * @event profile-change-event
+     * @param {any} newProfile New profile.
+     */
+    /**
+     * Fires whenever ** .. yo!
+     *
+     * @event some-event
+     * @param {{ property: boolean }} deep
+     * @param {string} name New name
+     */
+    is: "element-name",
+    properties: {
         computedProp: { type: String, computed: "_computedPropComputed(st1, st2)" },
         /**
-         * A greetings list
-         */
+           * A greetings list
+           */
         greetings: { type: Array, reflectToAttribute: true, observer: "observerAuto" },
         test: { type: String, value: 'tester', readOnly: true },
         profile: { type: Object, notify: true }
-      },
-      observers: [
+    },
+    observers: [
         "observer(profile.prop)",
         "observerAutoMulti(greetings, profile)"
-      ],
-      behaviors: [
+    ],
+    behaviors: [
         "Polymer.TheBehavior",
         "Templatizer"
-      ],
-      _computedPropComputed: function (st1, st2) { return st1 + st2; },
-      observer: function (val) {
+    ],
+    _computedPropComputed: function (st1, st2) { return st1 + st2; },
+    observer: function (val) {
         console.log('val:', val);
-      },
-      observerAuto: function (greetings) {
+    },
+    observerAuto: function (greetings) {
         console.log('greetings:', greetings);
-      },
-      observerAutoMulti: function (greetings, profile) {
+    },
+    observerAutoMulti: function (greetings, profile) {
         console.log('greetings:', greetings, profile);
-      },
-      externalDependency: function () {
+    },
+    externalDependency: function () {
         testFun({ CONST2: CONST2, ENUM: ENUM.A, A: A });
         console.log(esp2);
         return Namespace.T1 + Namespace.test2;
-      },
-      testFun: function (slot, orientation) {
+    },
+    testFun: function (slot, orientation) {
         if (orientation === void 0) { orientation = 'X'; }
         var transform;
         var _a = slot.itemSize, width = _a.width, height = _a.height;
         if (orientation === 'X') {
-          transform = "translate(" + slot.index * width + "px, " + slot.col * height + "px)";
+            transform = "translate(" + slot.index * width + "px, " + slot.col * height + "px)";
         }
         else {
-          transform = "translate(" + slot.col * width + "px, " + slot.index * height + "px)";
+            transform = "translate(" + slot.col * width + "px, " + slot.index * height + "px)";
         }
         return { transform: transform, 'width.px': width, 'height.px': height };
-      }
-    });
-    function testing() {
-      return true;
     }
+});
+ElementName.staticTest = function (test, test2, test3) {
+    console.log('static');
+};
+ElementName.prop = 2;
+function testing() {
+    return true;
+}
 
-  </script>
-</dom-module>
+        </script>
+      </dom-module>
     

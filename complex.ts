@@ -134,6 +134,8 @@ export interface ElementName extends Polymer.TheBehavior, Templatizer {}
 @style('h1 {color: red;}', 'style.css', 'shared-style')
 @behavior(myBehavior)
 export class ElementName extends Polymer.Element {
+  public static prop = 2;
+
   /**
    * Some static method
    */

@@ -1,8 +1,8 @@
 import { kebabCase } from 'lodash';
 import { extname } from 'path';
 import {
-  ClassDeclaration, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, JSDoc,
-  MethodDeclaration, ModuleKind, NamespaceImport, PropertyDeclaration, PropertySignature, Statement, SyntaxKind, TemplateExpression,
+  ClassDeclaration, ClassElement, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, JSDoc,
+  MethodDeclaration, ModuleKind, NamespaceImport, Node, PropertyDeclaration, PropertySignature, Statement, SyntaxKind, TemplateExpression,
   transpileModule, TypeLiteralNode, TypeNode
 } from 'typescript';
 import {
@@ -205,6 +205,9 @@ export class Property {
   }
 
   public toString() {
+    if (isStatic(this.declaration)) {
+      return `${this.getJsDoc()}${this.name} = ${this.value}`;
+    }
     return `${this.getJsDoc()}${this.name}: ${
       this.isSimpleConfig() ? this.type.name : `{ ${
         [
@@ -288,27 +291,32 @@ export class Method {
 
   private get statements(): Array<string> {
     if (isBlock(this.declaration.body)) {
-      return this.declaration.body.statements.map(getText);
+      return this.declaration.body.statements.map(this.getText);
     } else {
-      return [ `return ${(this.declaration.body as MethodDeclaration).getText()};` ];
+      return [ `return ${this.getText(this.declaration.body as MethodDeclaration)};` ];
     }
   }
+
+  private refs: Map<string, ImportedNode>;
 
   constructor(public readonly declaration: MethodDeclaration | FunctionExpression, public readonly name = 'function') {}
 
   public provideRefs(variables: Map<string, ImportedNode>): this {
-    const faked = {};
-    const statements = isBlock(this.declaration.body)
-      ? this.declaration.body.statements.map((statement) => updateImportedRefs(statement, variables))
-      : [ `return ${(this.declaration.body as MethodDeclaration).getText()};` ];
-    faked.toString = () => {
-      return `${this.name}(${this.arguments.join(', ')}) { ${statements.join('\n')} }`;
-    };
-    return faked as this;
+    this.refs = variables;
+    return this;
   }
 
   public toString() {
-    return `${this.name}(${this.arguments.join(', ')}) { ${this.statements.join('\n')} }`;
+    const name = isStatic(this.declaration as ClassElement) ? `${this.name} = function` : this.name;
+    return `${name}(${this.arguments.join(', ')}) { ${this.statements.join('\n')} }`;
+  }
+
+  private getText = (statement: Node): string => {
+    if (this.refs) {
+      return updateImportedRefs(statement, this.refs);
+    } else {
+      return statement.getText();
+    }
   }
 }
 
@@ -466,7 +474,8 @@ export namespace Targets {
       ...Array.from(component.methods.values()).map((method) => method.provideRefs(variables).toString())
     ].filter((chunk) => !!chunk).join(',\n')}
       });
-      ${ '' /* todo: print static props/methods */ }
+      ${ Array.from(component.staticMethods.values()).map((method) => `${component.name}.${method.provideRefs(variables)};`).join('\n') }
+      ${ Array.from(component.staticProperties.values()).map((prop) => `${component.name}.${prop};`).join('\n') }
       ${printStatements(statementIndex)}
     `;
 
