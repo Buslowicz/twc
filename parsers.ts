@@ -94,6 +94,7 @@ export function parseDeclarationType({ type }: PropertyDeclaration): SyntaxKind 
   }
 }
 
+/* todo: make type/init a Node reference with .toString() returning actual value */
 export function parseDeclarationInitializer({ initializer }: PropertyDeclaration): TypeAndValue {
   function defaultCase() {
     const type = getSimpleKind(initializer);

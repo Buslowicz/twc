@@ -22,6 +22,7 @@
     var A = '20';
     var CONST = true;
     A = '25';
+    console.log(Namespace.test2);
     function testFun(slot, orientation) {
       if (orientation === void 0) { orientation = 'X'; }
       var transform;
@@ -34,11 +35,15 @@
       }
       return { transform: transform, 'width.px': width, 'height.px': height };
     }
+    /**
+     * A behavior
+     */
     var myBehavior = {
       test: function () {
         console.log('behavior test');
       }
     };
+    /* tslint:disable:array-type */
     var X = (function () {
       function X() {
         this.st2 = 'test';
@@ -92,7 +97,34 @@
       behaviors: [
         "Polymer.TheBehavior",
         "Templatizer"
-      ]
+      ],
+      _computedPropComputed: function (st1, st2) { return st1 + st2; },
+      observer: function (val) {
+        console.log('val:', val);
+      },
+      observerAuto: function (greetings) {
+        console.log('greetings:', greetings);
+      },
+      observerAutoMulti: function (greetings, profile) {
+        console.log('greetings:', greetings, profile);
+      },
+      externalDependency: function () {
+        testFun({ CONST2: CONST2, ENUM: ENUM.A, A: A });
+        console.log(esp2);
+        return Namespace.T1 + Namespace.test2;
+      },
+      testFun: function (slot, orientation) {
+        if (orientation === void 0) { orientation = 'X'; }
+        var transform;
+        var _a = slot.itemSize, width = _a.width, height = _a.height;
+        if (orientation === 'X') {
+          transform = "translate(" + slot.index * width + "px, " + slot.col * height + "px)";
+        }
+        else {
+          transform = "translate(" + slot.col * width + "px, " + slot.index * height + "px)";
+        }
+        return { transform: transform, 'width.px': width, 'height.px': height };
+      }
     });
     function testing() {
       return true;

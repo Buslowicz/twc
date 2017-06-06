@@ -6,7 +6,8 @@ import {
   transpileModule, TypeLiteralNode, TypeNode
 } from 'typescript';
 import {
-  getDecorators, getText, hasModifier, isBlock, isMethod, isNamedImports, isProperty, isStatic, Link, notPrivate, notStatic, ParsedDecorator
+  getDecorators, getText, hasModifier, isBlock, isMethod, isNamedImports, isProperty, isStatic, Link, notPrivate, notStatic,
+  ParsedDecorator, updateImportedRefs
 } from './helpers';
 import { getTypeAndValue, parseDeclarationType, ValidValue } from './parsers';
 
@@ -74,12 +75,14 @@ export const decoratorsMap = {
 };
 
 export class ImportedNode {
+  /** imported member */
   public get identifier() {
     return this.bindings.name.getText();
   }
 
+  /** imported member with namespace */
   public get fullIdentifier() {
-    return this.bindings.name.getText();
+    return `${this.importClause.namespace ? `${this.importClause.namespace}.` : ''}${this.bindings.name.getText()}`;
   }
 
   constructor(private bindings: ImportSpecifier | NamespaceImport, public importClause: Import) {}
@@ -265,7 +268,9 @@ export class Property {
 }
 
 export class Method {
-  public decorators: Array<ParsedDecorator>;
+  public get decorators(): Array<ParsedDecorator> {
+    return getDecorators(this.declaration as any);
+  }
 
   public get arguments(): Array<string> {
     if (!this.declaration.parameters) {
@@ -281,16 +286,25 @@ export class Method {
     return this.declaration.parameters.map((param) => param.name.getText());
   }
 
-  private statements: Array<string> = [];
-
-  constructor(public readonly declaration: MethodDeclaration | FunctionExpression, public readonly name = 'function') {
-    this.decorators = getDecorators(declaration as any);
-
-    if (isBlock(declaration.body)) {
-      this.statements = declaration.body.statements.map(getText);
+  private get statements(): Array<string> {
+    if (isBlock(this.declaration.body)) {
+      return this.declaration.body.statements.map(getText);
     } else {
-      this.statements = [ `return ${(declaration.body as MethodDeclaration).getText()};` ];
+      return [ `return ${(this.declaration.body as MethodDeclaration).getText()};` ];
     }
+  }
+
+  constructor(public readonly declaration: MethodDeclaration | FunctionExpression, public readonly name = 'function') {}
+
+  public provideRefs(variables: Map<string, ImportedNode>): this {
+    const faked = {};
+    const statements = isBlock(this.declaration.body)
+      ? this.declaration.body.statements.map((statement) => updateImportedRefs(statement, variables))
+      : [ `return ${(this.declaration.body as MethodDeclaration).getText()};` ];
+    faked.toString = () => {
+      return `${this.name}(${this.arguments.join(', ')}) { ${statements.join('\n')} }`;
+    };
+    return faked as this;
   }
 
   public toString() {
@@ -298,9 +312,20 @@ export class Method {
   }
 }
 
+/* todo: make class properties to be getters from declaration source */
 export class Component {
-  public name: string;
-  public heritage: string;
+  public get name(): string {
+    return this.source.name.getText();
+  }
+
+  public get heritage(): string {
+    if (!this.source.heritageClauses) {
+      return null;
+    }
+    return this.source.heritageClauses
+      .filter(({ token }) => token === SyntaxKind.ExtendsKeyword)
+      .reduce((a, c) => c, null).getText().slice(8);
+  }
 
   public template: string | Link;
   public styles: Array<Style> = [];
@@ -313,16 +338,11 @@ export class Component {
   public staticProperties: Map<string, Property> = new Map();
   public staticMethods: Map<string, Method> = new Map();
 
-  private decorators: Array<ParsedDecorator>;
+  public get decorators(): Array<ParsedDecorator> {
+    return getDecorators(this.source);
+  }
 
   constructor(private source: ClassDeclaration) {
-    this.name = source.name.getText();
-
-    this.heritage = source.heritageClauses ? source
-      .heritageClauses
-      .filter(({ token }) => token === SyntaxKind.ExtendsKeyword)
-      .reduce((a, c) => c, null).getText().slice(8) : null;
-
     this.source
       .members
       .filter(isProperty)
@@ -354,7 +374,6 @@ export class Component {
       .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : 'constructor'))
       .forEach((method: Method) => this.staticMethods.set(method.name, method));
 
-    this.decorators = getDecorators(this.source);
     this.decorate(this, this.decorators);
 
     if (this.methods.has('template')) {
@@ -409,9 +428,7 @@ export namespace Targets {
     const component = statements.find((statement) => statement instanceof Component) as Component;
     const statementIndex = statements.indexOf(component);
 
-    // const importedVariables = Array.from(variables.values()).filter(([k, v]) => v instanceof ImportedNode);
-    //
-    // console.log(importedVariables);
+    variables = new Map<string, ImportedNode>(Array.from(variables).filter(([ k, v ]) => v instanceof ImportedNode));
 
     const printImports = () => statements
       .filter((statement) => statement instanceof Import)
@@ -434,7 +451,7 @@ export namespace Targets {
     const printStatements = (from: number, to?: number): string => statements
       .slice(from, to)
       .filter((statement) => !(statement instanceof Import || statement instanceof Component))
-      .map((statement: Statement) => statement.getText().replace(/^(export (default )?)/, ''))
+      .map((statement: Statement) => updateImportedRefs(statement, variables).replace(/^(\s*)(export (default )?)/, '$1'))
       .join('\n');
 
     const printScript = () => `
@@ -445,9 +462,11 @@ export namespace Targets {
       `is: "${kebabCase(component.name)}"`,
       printProperties(),
       printObservers(),
-      printBehaviors()
+      printBehaviors(),
+      ...Array.from(component.methods.values()).map((method) => method.provideRefs(variables).toString())
     ].filter((chunk) => !!chunk).join(',\n')}
       });
+      ${ '' /* todo: print static props/methods */ }
       ${printStatements(statementIndex)}
     `;
 

@@ -1,13 +1,13 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import {
-  BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, EnumDeclaration, ExportAssignment, ExportDeclaration, Expression,
-  ExpressionStatement,
-  FunctionDeclaration, FunctionExpression, GetAccessorDeclaration, HeritageClause, Identifier, ImportDeclaration, InterfaceDeclaration,
-  MethodDeclaration, ModuleDeclaration, NamedImports, NamespaceImport, Node, PrefixUnaryExpression, PropertyDeclaration,
-  SetAccessorDeclaration, Statement, SyntaxKind, TypeAliasDeclaration, VariableStatement
+  BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, Declaration, EnumDeclaration, ExportAssignment,
+  ExportDeclaration, Expression,
+  ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression, GetAccessorDeclaration, HeritageClause, Identifier,
+  ImportDeclaration, InterfaceDeclaration, MethodDeclaration, ModuleDeclaration, NamedImports, NamespaceImport, Node, PrefixUnaryExpression,
+  PropertyDeclaration, SetAccessorDeclaration, Statement, SyntaxKind, TypeAliasDeclaration, VariableStatement
 } from 'typescript';
-import { Method } from './builder';
+import { ImportedNode, Method } from './builder';
 
 export interface ParsedDecorator {
   name: string;
@@ -176,14 +176,36 @@ export const wrapValue = (valueText: string): () => any => {
 };
 
 export const reindent = (chunks: TemplateStringsArray | string, ...params: Array<string>) => {
-  const str = typeof chunks === 'string' ? chunks : chunks[0] + chunks.slice(1).map((chunk, i) => params[i] + chunk).join('');
+  const str = typeof chunks === 'string' ? chunks : chunks[ 0 ] + chunks.slice(1).map((chunk, i) => params[ i ] + chunk).join('');
   const tab = str.match(/^(\s*?\n)?([\t ]+)\S/);
-  return tab ? str.replace(new RegExp(`^${tab[2]}`, 'gm'), '') : str;
+  return tab ? str.replace(new RegExp(`^${tab[ 2 ]}`, 'gm'), '') : str;
 };
 
 export const indent = (tab: string) => {
   return (chunks: TemplateStringsArray, ...params: Array<string>) => {
-    const str = reindent(chunks[0] + chunks.slice(1).map((chunk, i) => params[i] + chunk).join(''));
+    const str = reindent(chunks[ 0 ] + chunks.slice(1).map((chunk, i) => params[ i ] + chunk).join(''));
     return str.replace(/^(.)/gm, `${tab}$1`);
   };
+};
+
+export const flattenChildren = (node: Node) => {
+  const list = [ node ];
+  forEachChild(node, (deep) => { list.push(...flattenChildren(deep)); });
+  return list;
+};
+
+export const updateImportedRefs = (src: Node, vars: Map<string, ImportedNode>): string => {
+  return flattenChildren(src)
+    .filter((node: Node) => node.constructor.name === 'IdentifierObject' && (node.parent as Declaration).name !== node)
+    .filter((node) => vars.has(node.getText()))
+    .sort((a, b) => b.pos - a.pos)
+    .reduce((arr, identifier) => {
+      const text = identifier.getText();
+      return [
+        ...arr.slice(0, identifier.pos - src.pos),
+        ...identifier.getFullText().replace(text, vars.get(text).fullIdentifier),
+        ...arr.slice(identifier.end - src.pos)
+      ];
+    }, src.getFullText().split(''))
+    .join('');
 };

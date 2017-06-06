@@ -1,4 +1,4 @@
-import { test as T1, test2 } from 'bower:esp/esp.html';
+import { test as T1, test2 } from 'bower:esp/esp.html#Namespace';
 import * as esp2 from 'bower:esp/esp2.html';
 import { Templatizer } from 'bower:polymer/polymer.html#Polymer';
 import { attr, behavior, compute, notify, observe, style } from 'twc/polymer';
@@ -27,6 +27,8 @@ interface CustomEvent {
 }
 
 A = '25';
+
+console.log(test2);
 
 function testFun(slot, orientation = 'X') {
   let transform: primitive;

@@ -13,7 +13,7 @@ function parseStatements(source: SourceFile) {
   source.statements.forEach((statement) => {
     if (isImportDeclaration(statement)) {
       const declaration = new Import(statement);
-      declaration.imports.forEach((imp) => variables.set(imp.fullIdentifier, imp));
+      declaration.imports.forEach((imp) => variables.set(imp.identifier, imp));
       statements.push(declaration);
       return;
     } else if (isInterfaceDeclaration(statement)) {
@@ -59,6 +59,6 @@ describe('analyzer', () => {
 
     writeFileSync('test.html', Targets.polymer1(statements, variables));
 
-    expect(Array.from(statements)).to.have.lengthOf(22);
+    expect(Array.from(statements)).to.have.lengthOf(23);
   });
 });
