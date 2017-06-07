@@ -2,10 +2,9 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import {
   BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, Declaration, EnumDeclaration, ExportAssignment,
-  ExportDeclaration, Expression,
-  ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression, GetAccessorDeclaration, HeritageClause, Identifier,
-  ImportDeclaration, InterfaceDeclaration, MethodDeclaration, ModuleDeclaration, NamedImports, NamespaceImport, Node, PrefixUnaryExpression,
-  PropertyDeclaration, SetAccessorDeclaration, Statement, SyntaxKind, TypeAliasDeclaration, VariableStatement
+  ExportDeclaration, Expression, ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression, GetAccessorDeclaration,
+  HeritageClause, Identifier, ImportDeclaration, InterfaceDeclaration, MethodDeclaration, ModuleDeclaration, NamedImports, NamespaceImport,
+  Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SyntaxKind, TypeAliasDeclaration, VariableStatement
 } from 'typescript';
 import { ImportedNode, Method } from './builder';
 
@@ -156,16 +155,16 @@ export const hasDecorator = (declaration: ClassElement, decoratorName: string): 
   });
 };
 
-export const isImportDeclaration = (st: Statement): st is ImportDeclaration => st.kind === SyntaxKind.ImportDeclaration;
-export const isInterfaceDeclaration = (st: Statement): st is InterfaceDeclaration => st.kind === SyntaxKind.InterfaceDeclaration;
-export const isClassDeclaration = (st: Statement): st is ClassDeclaration => st.kind === SyntaxKind.ClassDeclaration;
-export const isModuleDeclaration = (st: Statement): st is ModuleDeclaration => st.kind === SyntaxKind.ModuleDeclaration;
-export const isTypeAliasDeclaration = (st: Statement): st is TypeAliasDeclaration => st.kind === SyntaxKind.TypeAliasDeclaration;
-export const isVariableStatement = (st: Statement): st is VariableStatement => st.kind === SyntaxKind.VariableStatement;
-export const isFunctionDeclaration = (st: Statement): st is FunctionDeclaration => st.kind === SyntaxKind.FunctionDeclaration;
-export const isEnumDeclaration = (st: Statement): st is EnumDeclaration => st.kind === SyntaxKind.EnumDeclaration;
-export const isExportDeclaration = (st: Statement): st is ExportDeclaration => st.kind === SyntaxKind.ExportDeclaration;
-export const isExportAssignment = (st: Statement): st is ExportAssignment => st.kind === SyntaxKind.ExportAssignment;
+export const isImportDeclaration = (st: Node): st is ImportDeclaration => st.kind === SyntaxKind.ImportDeclaration;
+export const isInterfaceDeclaration = (st: Node): st is InterfaceDeclaration => st.kind === SyntaxKind.InterfaceDeclaration;
+export const isClassDeclaration = (st: Node): st is ClassDeclaration => st.kind === SyntaxKind.ClassDeclaration;
+export const isModuleDeclaration = (st: Node): st is ModuleDeclaration => st.kind === SyntaxKind.ModuleDeclaration;
+export const isTypeAliasDeclaration = (st: Node): st is TypeAliasDeclaration => st.kind === SyntaxKind.TypeAliasDeclaration;
+export const isVariableStatement = (st: Node): st is VariableStatement => st.kind === SyntaxKind.VariableStatement;
+export const isFunctionDeclaration = (st: Node): st is FunctionDeclaration => st.kind === SyntaxKind.FunctionDeclaration;
+export const isEnumDeclaration = (st: Node): st is EnumDeclaration => st.kind === SyntaxKind.EnumDeclaration;
+export const isExportDeclaration = (st: Node): st is ExportDeclaration => st.kind === SyntaxKind.ExportDeclaration;
+export const isExportAssignment = (st: Node): st is ExportAssignment => st.kind === SyntaxKind.ExportAssignment;
 
 export const isNamespaceImport = (expression: Node): expression is NamespaceImport => expression.kind === SyntaxKind.NamespaceImport;
 export const isNamedImports = (expression: Node): expression is NamedImports => expression.kind === SyntaxKind.NamedImports;

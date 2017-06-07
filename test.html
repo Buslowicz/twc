@@ -1,7 +1,7 @@
 <link rel="import" href="bower:esp/esp.html">
 <link rel="import" href="bower:esp/esp2.html">
 <link rel="import" href="bower:polymer/polymer.html">
-<dom-module is="ElementName">
+<dom-module is="element-name">
   <template>
     <style>h1 {
       color: red;
@@ -43,99 +43,91 @@
         console.log('behavior test');
       }
     };
-    /* tslint:disable:array-type */
-    var X = (function () {
-      function X() {
-        this.st2 = 'test';
-        this.st3 = 'test' + 'test';
-        this.st4 = "" + 25;
-        this.st5 = "test";
-        this.st6 = null;
-        this.nm2 = 10;
-        this.nm3 = 5 * 5 * 5;
-        this.nm4 = 5 * window.innerWidth;
-        this.nm5 = 5 * window.innerWidth;
-        this.bo2 = true;
-        this.bo3 = (window && window.opener);
-        this.dt2 = new Date();
-        this.lt2 = { a: true, b: 'test' };
-        this.ar4 = [ 1, 2, 3 ];
-        this.ar5 = new Array(10);
-        this.tp2 = [ 'a', 10 ];
-        this.en2 = ENUM.A;
-        this.fn2 = function () { return 'test'; };
-      }
+    var Custom;
+    (function (Custom) {
+      /* tslint:disable:array-type */
+      var X = (function () {
+        function X() {
+          this.st2 = 'test';
+          this.st3 = 'test' + 'test';
+          this.st4 = "" + 25;
+          this.st5 = "test";
+          this.st6 = null;
+          this.nm2 = 10;
+          this.nm3 = 5 * 5 * 5;
+          this.nm4 = 5 * window.innerWidth;
+          this.nm5 = 5 * window.innerWidth;
+          this.bo2 = true;
+          this.bo3 = (window && window.opener);
+          this.dt2 = new Date();
+          this.lt2 = { a: true, b: 'test' };
+          this.ar4 = [ 1, 2, 3 ];
+          this.ar5 = new Array(10);
+          this.tp2 = [ 'a', 10 ];
+          this.en2 = ENUM.A;
+          this.fn2 = function () { return 'test'; };
+        }
 
-      return X;
-    }());
-    var ElementName = Polymer({
-      /**
-       * @event profile-change-event
-       * @param {any} newProfile New profile.
-       */
-      /**
-       * Fires whenever ** .. yo!
-       *
-       * @event some-event
-       * @param {{ property: boolean }} deep
-       * @param {string} name New name
-       */
-      is: "element-name",
-      properties: {
-        computedProp: { type: String, computed: "_computedPropComputed(st1, st2)" },
-        /**
-         * A greetings list
-         */
-        greetings: { type: Array, reflectToAttribute: true, observer: "observerAuto" },
-        test: { type: String, value: 'tester', readOnly: true },
-        profile: {
-          type: Object, value: function () {
-            return Namespace.T1;
-          }, notify: true
+        return X;
+      }());
+      Custom.X = X;
+    })(Custom || (Custom = {}));
+    var Custom2;
+    (function (Custom2) {
+      var ElementName = Polymer({
+        is: "element-name",
+        properties: {
+          computedProp: { type: String, computed: "_computedPropComputed(st1, st2)" },
+          /**
+           * A greetings list
+           */
+          greetings: { type: Array, reflectToAttribute: true, observer: "observerAuto" },
+          test: { type: String, value: 'tester', readOnly: true },
+          profile: {
+            type: Object, value: function () {
+              return Namespace.T1;
+            }, notify: true
+          }
+        },
+        observers: [
+          "observer(profile.prop)",
+          "observerAutoMulti(greetings, profile)"
+        ],
+        _computedPropComputed: function (st1, st2) { return st1 + st2; },
+        observer: function (val) {
+          console.log('val:', val);
+        },
+        observerAuto: function (greetings) {
+          console.log('greetings:', greetings);
+        },
+        observerAutoMulti: function (greetings, profile) {
+          console.log('greetings:', greetings, profile);
+        },
+        externalDependency: function () {
+          testFun({ CONST2: CONST2, ENUM: ENUM.A, A: A });
+          console.log(esp2);
+          return Namespace.T1 + Namespace.test2;
+        },
+        testFun: function (slot, orientation) {
+          if (orientation === void 0) { orientation = 'X'; }
+          var transform;
+          var _a = slot.itemSize, width = _a.width, height = _a.height;
+          if (orientation === 'X') {
+            transform = "translate(" + slot.index * width + "px, " + slot.col * height + "px)";
+          }
+          else {
+            transform = "translate(" + slot.col * width + "px, " + slot.index * height + "px)";
+          }
+          return { transform: transform, 'width.px': width, 'height.px': height };
         }
-      },
-      observers: [
-        "observer(profile.prop)",
-        "observerAutoMulti(greetings, profile)"
-      ],
-      behaviors: [
-        "Polymer.TheBehavior",
-        "Templatizer"
-      ],
-      _computedPropComputed: function (st1, st2) { return st1 + st2; },
-      observer: function (val) {
-        console.log('val:', val);
-      },
-      observerAuto: function (greetings) {
-        console.log('greetings:', greetings);
-      },
-      observerAutoMulti: function (greetings, profile) {
-        console.log('greetings:', greetings, profile);
-      },
-      externalDependency: function () {
-        testFun({ CONST2: CONST2, ENUM: ENUM.A, A: A });
-        console.log(esp2);
-        return Namespace.T1 + Namespace.test2;
-      },
-      testFun: function (slot, orientation) {
-        if (orientation === void 0) { orientation = 'X'; }
-        var transform;
-        var _a = slot.itemSize, width = _a.width, height = _a.height;
-        if (orientation === 'X') {
-          transform = "translate(" + slot.index * width + "px, " + slot.col * height + "px)";
-        }
-        else {
-          transform = "translate(" + slot.col * width + "px, " + slot.index * height + "px)";
-        }
-        return { transform: transform, 'width.px': width, 'height.px': height };
-      }
-    });
-    ElementName.staticTest = function (test, test2, test3) {
-      console.log('static');
-    };
-    ElementName.prop = function () {
-      return Namespace.test2;
-    };
+      });
+      ElementName.staticTest = function (test, test2, test3) {
+        console.log('static');
+      };
+      ElementName.prop = function () {
+        return Namespace.test2;
+      };
+    })(Custom2 || (Custom2 = {}));
     function testing() {
       return true;
     }

@@ -2,12 +2,13 @@ import { kebabCase } from 'lodash';
 import { extname } from 'path';
 import {
   ClassDeclaration, ClassElement, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, JSDoc,
-  MethodDeclaration, ModuleKind, NamespaceImport, PropertyDeclaration, PropertySignature, Statement, SyntaxKind, TemplateExpression,
-  transpileModule, TypeLiteralNode, TypeNode
+  MethodDeclaration, ModuleBlock, ModuleDeclaration, ModuleKind, NamespaceImport, PropertyDeclaration, PropertySignature, SourceFile,
+  Statement, SyntaxKind, TemplateExpression, transpileModule, TypeLiteralNode, TypeNode
 } from 'typescript';
 import {
-  getDecorators, getText, hasModifier, InitializerWrapper, isBlock, isMethod, isNamedImports, isProperty, isStatic, Link, notPrivate,
-  notStatic, ParsedDecorator, RefUpdater, updateImportedRefs
+  getDecorators, getFlatHeritage, getText, hasModifier, inheritsFrom, InitializerWrapper, isBlock, isClassDeclaration, isExportAssignment,
+  isExportDeclaration, isImportDeclaration, isInterfaceDeclaration, isMethod, isModuleDeclaration, isNamedImports, isProperty, isStatic,
+  Link, notPrivate, notStatic, ParsedDecorator, RefUpdater, updateImportedRefs
 } from './helpers';
 import { getTypeAndValue, parseDeclarationType, ValidValue } from './parsers';
 
@@ -19,16 +20,6 @@ export interface PolymerPropertyConfig {
   notify?: boolean;
   computed?: string;
   observer?: string;
-}
-
-export interface PropertyObject {
-  config: PolymerPropertyConfig | ValidValue;
-  jsDoc?: string;
-}
-
-export interface ConfigExtras {
-  methods: Array<Method>;
-  properties: Array<Property>;
 }
 
 export const typeMap = {
@@ -85,11 +76,11 @@ export class ImportedNode {
     return `${this.importClause.namespace ? `${this.importClause.namespace}.` : ''}${this.bindings.name.getText()}`;
   }
 
-  constructor(private bindings: ImportSpecifier | NamespaceImport, public importClause: Import) {}
+  constructor(private readonly bindings: ImportSpecifier | NamespaceImport, public readonly importClause: Import) {}
 }
 
 export class Style {
-  constructor(private style: string | Link, private isShared = false) {}
+  constructor(private readonly style: string | Link, private readonly isShared = false) {}
 
   public toHTML(): string {
     // todo: set baseURI
@@ -113,7 +104,7 @@ export class Import {
     return [ '.js', '.html', '.css' ].includes(extname(module));
   }
 
-  constructor(public declaration: ImportDeclaration) {
+  constructor(public readonly declaration: ImportDeclaration) {
     const { 1: module, 2: namespace = '' } = declaration.moduleSpecifier.getText().replace(/["']$|^["']/g, '').match(/([^#]+)(?:#(.+))?/);
     this.module = module;
     this.namespace = namespace;
@@ -162,7 +153,7 @@ export class RegisteredEvent {
     }));
   }
 
-  constructor(private declaration: InterfaceDeclaration) {}
+  constructor(private readonly declaration: InterfaceDeclaration) {}
 
   public toString() {
     return [
@@ -338,7 +329,7 @@ export class Component {
     return getDecorators(this.source);
   }
 
-  constructor(private source: ClassDeclaration) {
+  constructor(private readonly source: ClassDeclaration) {
     this.source
       .members
       .filter(isProperty)
@@ -419,67 +410,147 @@ export class Component {
   }
 }
 
-export namespace Targets {
-  export function polymer1(statements: Array<Statement | Component | Import>, variables: Map<string, ImportedNode | any>) {
-    const component = statements.find((statement) => statement instanceof Component) as Component;
-    const statementIndex = statements.indexOf(component);
+export class Module {
+  public get name() {
+    return isModuleDeclaration(this.source) ? this.source.name.getText() : '';
+  }
 
-    variables = new Map<string, ImportedNode>(Array.from(variables).filter(([ k, v ]) => v instanceof ImportedNode));
-
-    const printImports = () => statements
+  public get imports(): Array<Import> {
+    return this.statements
       .filter((statement) => statement instanceof Import)
-      .filter((statement: Import) => statement.isImportable)
-      .map((statement: Import) => statement.toHTML())
-      .join('\n');
+      .filter((statement: Import) => statement.isImportable) as Array<Import>;
+  }
 
-    const printProperties = () => component.properties.size > 0 ? `properties: {\n${
-      Array.from(component.properties.values(), (prop) => `${prop.provideRefs(variables)}`).join(',\n')
-      }\n}` : '';
+  public get components(): Array<Component> {
+    return Array
+      .from(this.variables.values())
+      .filter((variable) => variable instanceof Component);
+  }
 
-    const printObservers = () => component.observers.length > 0 ? `observers: [\n${
-      component.observers.map((observer) => `"${observer}"`).join(',\n')
-      }\n]` : '';
+  public get events(): Array<RegisteredEvent> {
+    return Array
+      .from(this.variables.values())
+      .filter((variable) => variable instanceof RegisteredEvent);
+  }
 
-    const printBehaviors = () => component.behaviors.length > 0 ? `behaviors: [\n${
-      component.behaviors.map((behavior) => `"${behavior}"`).join(',\n')
-      }\n]` : '';
+  public readonly statements: Array<Statement | Component | Import | Module> = [];
+  public readonly variables: Map<string, ImportedNode | any> = new Map();
 
-    const printStatements = (from: number, to?: number): string => statements
-      .slice(from, to)
-      .filter((statement) => !(statement instanceof Import || statement instanceof Component))
-      .map((statement: Statement) => updateImportedRefs(statement, variables).replace(/^(\s*)(export (default )?)/, '$1'))
+  constructor(private readonly source: SourceFile | ModuleDeclaration,
+              private readonly output: 'polymer1' | 'polymer2',
+              public readonly parent: Module = null) {
+    (isModuleDeclaration(source) ? source.body as ModuleBlock : source).statements.forEach((statement) => {
+      if (isImportDeclaration(statement)) {
+        const declaration = new Import(statement);
+        declaration.imports.forEach((imp) => this.variables.set(imp.identifier, imp));
+        this.statements.push(declaration);
+        return;
+      } else if (isInterfaceDeclaration(statement)) {
+        const name = statement.name.getText();
+        if (this.variables.has(name) && this.variables.get(name) instanceof Component) {
+          this.variables.get(name).behaviors.push(...getFlatHeritage(statement));
+        } else if (inheritsFrom(statement, 'CustomEvent', 'Event')) {
+          this.variables.set(name, new RegisteredEvent(statement));
+        } else {
+          this.variables.set(name, statement);
+        }
+      } else if (isClassDeclaration(statement) && inheritsFrom(statement as ClassDeclaration, 'Polymer.Element')) {
+        const component = new Component(statement as ClassDeclaration);
+
+        if (this.variables.has(component.name) && !(this.variables.get(component.name) instanceof Component)) {
+          component.behaviors.push(...getFlatHeritage(this.variables.get(component.name)));
+        }
+
+        this.variables.set(component.name, component);
+        this.statements.push(component);
+        return;
+      } else if (isModuleDeclaration(statement)) {
+        const module = new Module(statement, this.output, this);
+        this.variables.set(module.name, module);
+        this.statements.push(module);
+        return;
+      } else if (isExportDeclaration(statement) || isExportAssignment(statement)) {
+        return;
+      }
+      this.statements.push(statement);
+    });
+
+    this.components.forEach((component) => component.events.push(...this.events));
+  }
+
+  public toString() {
+    return Targets[ this.output ].call(this);
+  }
+}
+
+export namespace Targets {
+  export function polymer1(this: Module) {
+    const component = this.statements
+      .filter((statement) => statement instanceof Component || statement instanceof Module)
+      .reduce((all, statement) => all.concat(statement instanceof Module ? statement.components : statement), [])
+      .find((statement) => statement instanceof Component) as Component;
+
+    const importedRefs = new Map();
+    const imports = [];
+    for (let node = this; node; node = node.parent) {
+      imports.push(...node.imports);
+      node.imports
+        .map((mod) => mod.imports)
+        .reduce((all, curr) => all.concat(curr), [])
+        .forEach((member) => importedRefs.set(member.identifier, member));
+    }
+
+    const printImports = () => imports.map((statement: Import) => statement.toHTML()).join('\n');
+
+    const printStatements = () => this.statements
+      .filter((statement) => !(statement instanceof Import))
+      .map((statement: Statement) => {
+        if (statement instanceof Module) {
+          return statement.toString();
+        } else if (statement instanceof Component) {
+          return printScript();
+        } else {
+          const updatedStatement = updateImportedRefs(statement, importedRefs);
+          return this.parent ? updatedStatement : updatedStatement.replace(/^(\s*)(export (default )?)/, '$1');
+        }
+      })
       .join('\n');
 
     const printScript = () => `
-      ${printStatements(0, statementIndex)}
       const ${component.name} = Polymer({\n${
       component.events.map((event) => `${event}`).join('\n')
       }${[
       `is: "${kebabCase(component.name)}"`,
-      printProperties(),
-      printObservers(),
-      printBehaviors(),
-      ...Array.from(component.methods.values()).map((method) => `${method.provideRefs(variables)}`)
+      component.properties.size > 0 ? `properties: {
+      ${Array.from(component.properties.values(), (prop) => `${prop.provideRefs(importedRefs)}`).join(',\n')}
+      }` : '',
+      component.observers.length > 0 ? `observers: [
+      ${component.observers.map((observer) => `"${observer}"`).join(',\n')}
+      ]` : '',
+      component.behaviors.length > 0 ? `behaviors: [
+      ${component.behaviors.map((behavior) => `"${behavior}"`).join(',\n')}
+      ]` : '',
+      ...Array.from(component.methods.values()).map((method) => `${method.provideRefs(importedRefs)}`)
     ].filter((chunk) => !!chunk).join(',\n')}
       });
-      ${ Array.from(component.staticMethods.values()).map((method) => `${component.name}.${method.provideRefs(variables)};`).join('\n') }
-      ${ Array.from(component.staticProperties.values()).map((prop) => `${component.name}.${prop.provideRefs(variables)};`).join('\n') }
-      ${printStatements(statementIndex)}
+      ${ Array.from(component.staticMethods.values()).map((method) => `${component.name}.${method.provideRefs(importedRefs)};`).join('\n') }
+      ${ Array.from(component.staticProperties.values()).map((prop) => `${component.name}.${prop.provideRefs(importedRefs)};`).join('\n') }
     `;
 
     const printDomModule = () => `
-      <dom-module is="${component.name}">
-        <template>
+      <dom-module is="${kebabCase(component.name)}">${
+      component.template ?
+        `<template>
           ${component.styles.map((style) => style.toHTML()).join('\n')}
           ${component.template}
-        </template>
+        </template>` : ''}
         <script>
-          ${transpileModule(printScript(), { compilerOptions: { module: ModuleKind.ES2015 } }).outputText}
+          ${transpileModule(printStatements(), { compilerOptions: { module: ModuleKind.ES2015 } }).outputText}
         </script>
       </dom-module>`;
 
     return `
-      ${printImports()}${printDomModule()}
+      ${this.parent ? `namespace ${this.name} {\n${printStatements()}\n}` : printImports() + printDomModule()}
     `;
   }
 }
