@@ -4,6 +4,8 @@ import { Templatizer } from 'bower:polymer/polymer.html#Polymer';
 import { attr, behavior, compute, notify, observe, style } from 'twc/polymer';
 import './assets/test';
 
+declare function CustomElement(cls): void;
+
 namespace Polymer {
   export interface TheBehavior {
     created(): void;
@@ -133,6 +135,7 @@ export namespace Custom2 {
    *
    * @demo test.html
    */
+  @CustomElement
   @style('h1 {color: red;}', 'style.css', 'shared-style')
   @behavior(myBehavior)
   export class ElementName extends Polymer.Element {
@@ -209,6 +212,13 @@ export namespace Custom2 {
       </dom-if>
       <p>${this.testFun({})}</p>
     `;
+    }
+  }
+
+  @CustomElement
+  export class NewElement extends HTMLDivElement {
+    public template() {
+      return `<div>Hello World</div>`;
     }
   }
 }

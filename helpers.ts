@@ -4,7 +4,8 @@ import {
   BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, Declaration, EnumDeclaration, ExportAssignment,
   ExportDeclaration, Expression, ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression, GetAccessorDeclaration,
   HeritageClause, Identifier, ImportDeclaration, InterfaceDeclaration, MethodDeclaration, ModuleDeclaration, NamedImports, NamespaceImport,
-  Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SyntaxKind, TypeAliasDeclaration, VariableStatement
+  Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SyntaxKind, TemplateExpression, TypeAliasDeclaration,
+  VariableStatement
 } from 'typescript';
 import { ImportedNode, Method } from './builder';
 
@@ -146,7 +147,7 @@ export const inheritsFrom = (declaration: ClassDeclaration | InterfaceDeclaratio
 export const hasModifier = (declaration: ClassElement, mod: SyntaxKind): boolean => {
   return declaration.modifiers ? declaration.modifiers.some(({ kind }) => kind === mod) : false;
 };
-export const hasDecorator = (declaration: ClassElement, decoratorName: string): boolean => {
+export const hasDecorator = (declaration: ClassElement | ClassDeclaration, decoratorName: string): boolean => {
   if (!declaration.decorators) {
     return false;
   }
@@ -166,14 +167,15 @@ export const isEnumDeclaration = (st: Node): st is EnumDeclaration => st.kind ==
 export const isExportDeclaration = (st: Node): st is ExportDeclaration => st.kind === SyntaxKind.ExportDeclaration;
 export const isExportAssignment = (st: Node): st is ExportAssignment => st.kind === SyntaxKind.ExportAssignment;
 
-export const isNamespaceImport = (expression: Node): expression is NamespaceImport => expression.kind === SyntaxKind.NamespaceImport;
-export const isNamedImports = (expression: Node): expression is NamedImports => expression.kind === SyntaxKind.NamedImports;
-export const isBinaryExpression = (expression: Node): expression is BinaryExpression => 'operatorToken' in expression;
-export const isExpressionStatement = (expression: Node): expression is ExpressionStatement => 'expression' in expression;
-export const isPrefixUnaryExpression = (expression: Node): expression is PrefixUnaryExpression => 'operator' in expression;
-export const isCallExpression = (expression: Node): expression is CallExpression => 'arguments' in expression;
-export const isIdentifier = (expression: Node): expression is Identifier => 'originalKeywordKind' in expression;
-export const isBlock = (expression: Node): expression is Block => expression.kind === SyntaxKind.Block;
+export const isTemplateExpression = (expr: Node): expr is TemplateExpression => expr.kind === SyntaxKind.TemplateExpression;
+export const isNamespaceImport = (expr: Node): expr is NamespaceImport => expr.kind === SyntaxKind.NamespaceImport;
+export const isNamedImports = (expr: Node): expr is NamedImports => expr.kind === SyntaxKind.NamedImports;
+export const isBinaryExpression = (expr: Node): expr is BinaryExpression => 'operatorToken' in expr;
+export const isExpressionStatement = (expr: Node): expr is ExpressionStatement => 'expression' in expr;
+export const isPrefixUnaryExpression = (expr: Node): expr is PrefixUnaryExpression => 'operator' in expr;
+export const isCallExpression = (expr: Node): expr is CallExpression => 'arguments' in expr;
+export const isIdentifier = (expr: Node): expr is Identifier => 'originalKeywordKind' in expr;
+export const isBlock = (expr: Node): expr is Block => expr.kind === SyntaxKind.Block;
 export const isExtendsDeclaration = (heritage: HeritageClause): boolean => heritage.token === SyntaxKind.ExtendsKeyword;
 
 export const isPrivate = (el: ClassElement): boolean => hasModifier(el, SyntaxKind.PrivateKeyword);
@@ -197,22 +199,28 @@ export const notTransparent = (el: Node): boolean => !transparentTypes.includes(
 export const toString = (object: any): string => object.toString();
 export const getText = (node: Node): string => node.getText();
 export const flattenArray = (p: Array<any>, c: any): Array<any> => p.concat(c);
-export const toProperty = (key: string) => (obj: object) => obj[ key ];
+export const toProperty = (key: string): (obj: any) => any => (obj: object) => obj[ key ];
+export const stripQuotes = (str: string, char?: '`'|'"'|'\''): string => {
+  if (str[0] === str[str.length - 1] && (char && str[0] === char || ['`', '"', '\''].includes(str[0]))) {
+    return str.slice(1, -1);
+  }
+  return str;
+};
 
-export const reindent = (chunks: TemplateStringsArray | string, ...params: Array<string>) => {
+export const reindent = (chunks: TemplateStringsArray | string, ...params: Array<string>): string => {
   const str = typeof chunks === 'string' ? chunks : chunks[ 0 ] + chunks.slice(1).map((chunk, i) => params[ i ] + chunk).join('');
   const tab = str.match(/^(\s*?\n)?([\t ]+)\S/);
   return tab ? str.replace(new RegExp(`^${tab[ 2 ]}`, 'gm'), '') : str;
 };
 
-export const indent = (tab: string) => {
+export const indent = (tab: string): (chunks: TemplateStringsArray, ...params: Array<string>) => string => {
   return (chunks: TemplateStringsArray, ...params: Array<string>) => {
     const str = reindent(chunks[ 0 ] + chunks.slice(1).map((chunk, i) => params[ i ] + chunk).join(''));
     return str.replace(/^(.)/gm, `${tab}$1`);
   };
 };
 
-export const flattenChildren = (node: Node) => {
+export const flattenChildren = (node: Node): Array<Node> => {
   const list = [ node ];
   forEachChild(node, (deep) => { list.push(...flattenChildren(deep)); });
   return list;

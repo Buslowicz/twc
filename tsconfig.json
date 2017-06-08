@@ -16,7 +16,8 @@
     "strictNullChecks": false,
     "target": "es6",
     "lib": [
-      "es7"
+      "es7",
+      "dom"
     ]
   },
   "include": [

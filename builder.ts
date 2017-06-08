@@ -3,12 +3,12 @@ import { extname } from 'path';
 import {
   ClassDeclaration, ClassElement, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, JSDoc,
   MethodDeclaration, ModuleBlock, ModuleDeclaration, ModuleKind, NamespaceImport, PropertyDeclaration, PropertySignature, SourceFile,
-  Statement, SyntaxKind, TemplateExpression, transpileModule, TypeLiteralNode, TypeNode
+  Statement, SyntaxKind, transpileModule, TypeLiteralNode, TypeNode
 } from 'typescript';
 import {
-  getDecorators, getFlatHeritage, getText, hasModifier, inheritsFrom, InitializerWrapper, isBlock, isClassDeclaration, isExportAssignment,
-  isExportDeclaration, isImportDeclaration, isInterfaceDeclaration, isMethod, isModuleDeclaration, isNamedImports, isProperty, isStatic,
-  Link, notPrivate, notStatic, ParsedDecorator, RefUpdater, updateImportedRefs
+  getDecorators, getFlatHeritage, getText, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBlock, isClassDeclaration,
+  isExportAssignment, isExportDeclaration, isImportDeclaration, isInterfaceDeclaration, isMethod, isModuleDeclaration, isNamedImports,
+  isProperty, isStatic, isTemplateExpression, Link, notPrivate, notStatic, ParsedDecorator, RefUpdater, stripQuotes, updateImportedRefs
 } from './helpers';
 import { getTypeAndValue, parseDeclarationType, ValidValue } from './parsers';
 
@@ -368,13 +368,17 @@ export class Component {
       this.template = this.methods.get('template')
         .declaration.body.statements
         .map((statement: ExpressionStatement) => {
-          const tpl = statement.expression as TemplateExpression;
-          return `${tpl.head.text}${
-            tpl
-              .templateSpans
-              .map((span) => `{{${span.expression.getText().replace('this.', '')}}}${span.literal.text}`)
-              .join('')
-            }`;
+          const tpl = statement.expression;
+          if (isTemplateExpression(tpl)) {
+            return `${tpl.head.text}${
+              tpl
+                .templateSpans
+                .map((span) => `{{${span.expression.getText().replace('this.', '')}}}${span.literal.text}`)
+                .join('')
+              }`;
+          } else {
+            return stripQuotes(tpl.getText());
+          }
         })
         .join('');
 
@@ -454,7 +458,7 @@ export class Module {
         } else {
           this.variables.set(name, statement);
         }
-      } else if (isClassDeclaration(statement) && inheritsFrom(statement as ClassDeclaration, 'Polymer.Element')) {
+      } else if (isClassDeclaration(statement) && hasDecorator(statement, 'CustomElement')) {
         const component = new Component(statement as ClassDeclaration);
 
         if (this.variables.has(component.name) && !(this.variables.get(component.name) instanceof Component)) {
@@ -515,7 +519,7 @@ export namespace Targets {
         if (statement instanceof Module) {
           return statement.toString();
         } else if (statement instanceof Component) {
-          return printScript();
+          return printScript(statement);
         } else {
           const updatedStatement = updateImportedRefs(statement, importedRefs);
           return this.parent ? updatedStatement : updatedStatement.replace(/^(\s*)(export (default )?)/, '$1');
@@ -523,27 +527,27 @@ export namespace Targets {
       })
       .join('\n');
 
-    const printScript = () => `
-      const ${component.name} = Polymer({\n${
-      component.events.map((event) => `${event}`).join('\n')
+    const printScript = (comp: Component) => `
+      const ${comp.name} = Polymer({\n${
+      comp.events.map((event) => `${event}`).join('\n')
       }${[
-      `is: "${kebabCase(component.name)}"`,
-      component.properties.size > 0 ? `properties: {
-      ${Array.from(component.properties.values(), (prop) => `${prop.provideRefs(importedRefs)}`).join(',\n')}
+      `is: "${kebabCase(comp.name)}"`,
+      comp.properties.size > 0 ? `properties: {
+      ${Array.from(comp.properties.values(), (prop) => `${prop.provideRefs(importedRefs)}`).join(',\n')}
       }` : '',
-      component.observers.length > 0 ? `observers: [
-      ${component.observers.map((observer) => `"${observer}"`).join(',\n')}
+      comp.observers.length > 0 ? `observers: [
+      ${comp.observers.map((observer) => `"${observer}"`).join(',\n')}
       ]` : '',
-      component.behaviors.length > 0 ? `behaviors: [
-      ${component.behaviors.map((behavior) => `"${behavior}"`).join(',\n')}
+      comp.behaviors.length > 0 ? `behaviors: [
+      ${comp.behaviors.map((behavior) => `"${behavior}"`).join(',\n')}
       ]` : '',
-      ...Array.from(component.methods.values())
+      ...Array.from(comp.methods.values())
         .map((method) => method.name in lifecycleMap ? new Method(method.declaration, lifecycleMap[method.name]) : method)
         .map((method) => `${method.provideRefs(importedRefs)}`)
     ].filter((chunk) => !!chunk).join(',\n')}
       });
-      ${ Array.from(component.staticMethods.values()).map((method) => `${component.name}.${method.provideRefs(importedRefs)};`).join('\n') }
-      ${ Array.from(component.staticProperties.values()).map((prop) => `${component.name}.${prop.provideRefs(importedRefs)};`).join('\n') }
+      ${ Array.from(comp.staticMethods.values()).map((method) => `${comp.name}.${method.provideRefs(importedRefs)};`).join('\n') }
+      ${ Array.from(comp.staticProperties.values()).map((prop) => `${comp.name}.${prop.provideRefs(importedRefs)};`).join('\n') }
     `;
 
     const printDomModule = () => `
