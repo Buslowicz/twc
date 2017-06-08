@@ -94,6 +94,14 @@
           "observerAutoMulti(greetings, profile)"
         ],
         _computedPropComputed: function (st1, st2) { return st1 + st2; },
+        created: function () {
+          _this = _super.call(this) || this;
+          console.log('created');
+        },
+        attached: function () {
+          _super.connectedCallback.call(this);
+          console.log('connected');
+        },
         observer: function (val) {
           console.log('val:', val);
         },

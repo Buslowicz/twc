@@ -485,6 +485,13 @@ export class Module {
 
 export namespace Targets {
   export function polymer1(this: Module) {
+    const lifecycleMap = {
+      attributeChangedCallback: 'attributeChanged',
+      connectedCallback: 'attached',
+      constructor: 'created',
+      disconnectedCallback: 'detached'
+    };
+
     const component = this.statements
       .filter((statement) => statement instanceof Component || statement instanceof Module)
       .reduce((all, statement) => all.concat(statement instanceof Module ? statement.components : statement), [])
@@ -530,7 +537,9 @@ export namespace Targets {
       component.behaviors.length > 0 ? `behaviors: [
       ${component.behaviors.map((behavior) => `"${behavior}"`).join(',\n')}
       ]` : '',
-      ...Array.from(component.methods.values()).map((method) => `${method.provideRefs(importedRefs)}`)
+      ...Array.from(component.methods.values())
+        .map((method) => method.name in lifecycleMap ? new Method(method.declaration, lifecycleMap[method.name]) : method)
+        .map((method) => `${method.provideRefs(importedRefs)}`)
     ].filter((chunk) => !!chunk).join(',\n')}
       });
       ${ Array.from(component.staticMethods.values()).map((method) => `${component.name}.${method.provideRefs(importedRefs)};`).join('\n') }

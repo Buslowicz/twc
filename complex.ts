@@ -154,6 +154,16 @@ export namespace Custom2 {
     public readonly test: string = 'tester';
     @notify public profile: any = T1;
 
+    constructor() {
+      super();
+      console.log('created');
+    }
+
+    public connectedCallback() {
+      super.connectedCallback();
+      console.log('connected');
+    }
+
     /**
      * Observer method
      */
