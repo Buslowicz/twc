@@ -266,7 +266,6 @@ export class Method extends RefUpdater {
   }
 }
 
-/* todo: make class properties to be getters from declaration source */
 export class Component {
   public get name(): string {
     return this.source.name.getText();

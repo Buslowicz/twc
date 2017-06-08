@@ -45,7 +45,6 @@ export function style(this: ParsedDecorator, component: Component, ...styles: Ar
     }
   });
 }
-// todo: add remote template imports (solve cwd issue)
 export function template(this: ParsedDecorator, component: Component, src: string) {
   component.template = src.endsWith('.html') ? new Link(src, this.declaration as CallExpression) : src;
 }
