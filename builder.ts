@@ -1,16 +1,17 @@
+import { existsSync } from 'fs';
 import { kebabCase } from 'lodash';
-import { extname } from 'path';
+import { dirname, extname, parse, resolve } from 'path';
 import {
   ClassDeclaration, ClassElement, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, JSDoc,
-  MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, PropertyDeclaration, PropertySignature, SourceFile, Statement,
+  MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, PropertyDeclaration, PropertySignature, SourceFile, Statement,
   SyntaxKind, TypeLiteralNode, TypeNode
 } from 'typescript';
 
 import * as decoratorsMap from './decorators';
 import {
-  getDecorators, getFlatHeritage, getText, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBlock, isClassDeclaration,
-  isExportAssignment, isExportDeclaration, isImportDeclaration, isInterfaceDeclaration, isMethod, isModuleDeclaration, isNamedImports,
-  isProperty, isStatic, isTemplateExpression, Link, notPrivate, notStatic, ParsedDecorator, RefUpdater, stripQuotes
+  getDecorators, getFlatHeritage, getRoot, getText, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBlock,
+  isClassDeclaration, isExportAssignment, isExportDeclaration, isImportDeclaration, isInterfaceDeclaration, isMethod, isModuleDeclaration,
+  isNamedImports, isProperty, isStatic, isTemplateExpression, Link, notPrivate, notStatic, ParsedDecorator, RefUpdater, stripQuotes
 } from './helpers';
 import { getTypeAndValue, parseDeclarationType, ValidValue } from './parsers';
 import * as buildTargets from './targets';
@@ -349,6 +350,12 @@ export class Component {
         .join('');
 
       this.methods.delete('template');
+    }
+
+    const fileName = getRoot(this.source).fileName;
+    const implicitTemplateName = `${parse(fileName).name}.html`;
+    if (!this.template && existsSync(resolve(dirname(fileName), implicitTemplateName))) {
+      this.template = new Link(implicitTemplateName, source as Node);
     }
   }
 

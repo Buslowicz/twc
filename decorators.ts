@@ -1,6 +1,5 @@
 import { Component, Method, Property, Style } from './builder';
 import { Link, ParsedDecorator } from './helpers';
-import { CallExpression } from 'typescript/lib/typescript';
 
 interface DecoratorExtras {
   methods?: Array<Method>;
@@ -39,12 +38,12 @@ export function observe(this: ParsedDecorator, method: Method, ...args): Decorat
 export function style(this: ParsedDecorator, component: Component, ...styles: Array<string>) {
   component.styles = styles.map((css) => {
     if (css.endsWith('.css')) {
-      return new Style(new Link(css, this.declaration as CallExpression));
+      return new Style(new Link(css, this.declaration));
     } else {
       return new Style(css, /^[\w\d]+(-[\w\d]+)+$/.test(css));
     }
   });
 }
 export function template(this: ParsedDecorator, component: Component, src: string) {
-  component.template = src.endsWith('.html') ? new Link(src, this.declaration as CallExpression) : src;
+  component.template = src.endsWith('.html') ? new Link(src, this.declaration) : src;
 }

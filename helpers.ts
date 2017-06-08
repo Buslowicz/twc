@@ -20,7 +20,7 @@ export const transparentTypes = [
 export const methodKinds = [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructor ];
 
 export class Link {
-  constructor(public uri: string, private source: CallExpression) {}
+  constructor(public uri: string, private source: Node) {}
 
   public toString() {
     return readFileSync(resolve(dirname(getRoot(this.source).fileName), this.uri)).toString();
