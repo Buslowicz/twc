@@ -5,13 +5,13 @@ import {
   MethodDeclaration, NamedImports, NamespaceImport, PrefixUnaryExpression, PropertyDeclaration, ScriptTarget, SyntaxKind,
   UnionOrIntersectionTypeNode, VariableStatement
 } from 'typescript';
-import { Component, decoratorsMap, Method, Property } from '../builder';
+import { Component, Method, Property } from '../builder';
+import * as decoratorsMap from '../decorators';
 import {
   flatExtends, flattenArray, getDecorators, getText, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBinaryExpression,
-  isBlock, isCallExpression,
-  isExtendsDeclaration, isGetter, isIdentifier, isMethod, isNamedImports, isNamespaceImport, isPrefixUnaryExpression, isPrivate, isProperty,
-  isPublic, isSetter, isStatic, isTransparent, Link, notGetter, notMethod, notPrivate, notProperty, notPublic, notSetter, notStatic,
-  notTransparent, Ref, ReferencedExpression, toProperty, toString
+  isBlock, isCallExpression, isExtendsDeclaration, isGetter, isIdentifier, isMethod, isNamedImports, isNamespaceImport,
+  isPrefixUnaryExpression, isPrivate, isProperty, isPublic, isSetter, isStatic, isTransparent, Link, notGetter, notMethod, notPrivate,
+  notProperty, notPublic, notSetter, notStatic, notTransparent, Ref, ReferencedExpression, toProperty, toString
 } from '../helpers';
 import {
   getFinalType, getSimpleKind, getTypeAndValue, parseDeclarationInitializer, parseDeclarationType, parseExpression,
@@ -32,11 +32,15 @@ function parseClass(src) {
 describe('helpers', () => {
   describe('getDecorators()', () => {
     it('should return a list of parsed decorators (name and arguments object)', () => {
-      expect(getDecorators(parseClass(`class T { @a(1) @b({a: true, b: 'test'}) @c p; }`).members[ 0 ])).to.deep.equal([
-        { name: 'a', arguments: [ 1 ] },
-        { name: 'b', arguments: [ { a: true, b: 'test' } ] },
-        { name: 'c' }
-      ]);
+      expect(getDecorators(parseClass(`class T { @a(1) @b({a: true, b: 'test'}) @c @d() p;}`).members[ 0 ]).map((decor) => decor.valueOf()))
+        .to.deep.equal(
+        [
+          { name: 'a', arguments: [ 1 ] },
+          { name: 'b', arguments: [ { a: true, b: 'test' } ] },
+          { name: 'c', arguments: undefined },
+          { name: 'd', arguments: [] }
+        ]
+      );
     });
     it('should create a method declaration named `_*propertyName*Computed` for function passed as arguments', () => {
       const method = getDecorators(parseClass(`class T { @a((a: string, b: number) => a.repeat(b)) p; }`).members[ 0 ])[ 0 ].arguments[ 0 ];
@@ -859,33 +863,33 @@ describe('decorators', () => {
   describe('@attr', () => {
     it('should set `reflectToAttribute` flag on provided property to true', () => {
       const prop = {} as Property;
-      decoratorsMap.attr(prop);
+      decoratorsMap.attr.call(null, prop);
       expect(prop.reflectToAttribute).to.be.true;
     });
   });
   describe('@notify', () => {
     it('should set `notify` flag on provided property to true', () => {
       const prop = {} as Property;
-      decoratorsMap.notify(prop);
+      decoratorsMap.notify.call(null, prop);
       expect(prop.notify).to.be.true;
     });
   });
   describe('@compute()', () => {
     it('should set `computed` to be a provided method name with provided arguments (if provided a string)', () => {
       const prop = {} as Property;
-      decoratorsMap.compute(prop, 'computed', [ 'a', 'b' ]);
+      decoratorsMap.compute.call(null, prop, 'computed', [ 'a', 'b' ]);
       expect(prop.computed).to.equal('"computed(a, b)"');
     });
     it('should set a `computed` to be a name of provided function and arguments (if provided a function)', () => {
       const prop = {} as Property;
       const expression = parse<ExpressionStatement>('(a, b) => a + b)').expression as any;
-      decoratorsMap.compute(prop, new Method(expression, 'computed'), [ 'a', 'b' ]);
+      decoratorsMap.compute.call(null, prop, new Method(expression, 'computed'), [ 'a', 'b' ]);
       expect(prop.computed).to.equal('"computed(a, b)"');
     });
     it('should return an array containing method declaration if provided a function as ', () => {
       const prop = {} as Property;
       const expression = parse<ExpressionStatement>('(a, b) => a + b)').expression as any;
-      const [ method ] = decoratorsMap.compute(prop, new Method(expression, 'computed'), [ 'a', 'b' ]).methods;
+      const [ method ] = decoratorsMap.compute.call(null, prop, new Method(expression, 'computed'), [ 'a', 'b' ]).methods;
       expect(method).to.be.instanceof(Method);
       expect(method.name).to.equal('computed');
       expect(method.toString()).to.equal('computed(a, b) { return a + b; }');
@@ -893,64 +897,65 @@ describe('decorators', () => {
     it('should use arguments names if no properties were provided', () => {
       const prop = {} as Property;
       const expression = parse<ExpressionStatement>('(a, b) => a + b)').expression as any;
-      decoratorsMap.compute(prop, new Method(expression, 'computed'));
+      decoratorsMap.compute.call(null, prop, new Method(expression, 'computed'));
       expect(prop.computed).to.equal('"computed(a, b)"');
     });
   });
   describe('@observe()', () => {
     it('should return an array containing object with `name` of property and method name as `observer` if observing single prop', () => {
-      const { properties: [ property ] } = decoratorsMap.observe({ name: 'observerMethod' } as Method, 'prop');
+      const { properties: [ property ] } = decoratorsMap.observe.call(null, { name: 'observerMethod' } as Method, 'prop');
       expect(property).to.deep.equal({ name: 'prop', observer: '"observerMethod"' });
     });
     it('should return an array containing method name and all properties as arguments if observing multiple properties', () => {
-      const { observers: [ observer ] } = decoratorsMap.observe({ name: 'observerMethod' } as Method, 'prop1', 'prop2');
+      const { observers: [ observer ] } = decoratorsMap.observe.call(null, { name: 'observerMethod' } as Method, 'prop1', 'prop2');
       expect(observer).to.equal('observerMethod(prop1, prop2)');
     });
     it('should use arguments names if no properties were provided', () => {
       const functionDeclaration = parseDeclaration('let x = function(prop1: string, prop2: string) { return prop1 + prop2; }').initializer;
       const method = new Method(functionDeclaration as any, 'observerMethod');
-      const { observers: [ observer ] } = decoratorsMap.observe(method);
+      const { observers: [ observer ] } = decoratorsMap.observe.call(null, method);
       expect(observer).to.equal('observerMethod(prop1, prop2)');
     });
     it('should add observer to observers array if path is provided instead of property name', () => {
-      const { observers: [ observer ] } = decoratorsMap.observe({ name: 'observerMethod' } as Method, 'prop.deep');
+      const { observers: [ observer ] } = decoratorsMap.observe.call(null, { name: 'observerMethod' } as Method, 'prop.deep');
       expect(observer).to.equal('observerMethod(prop.deep)');
     });
   });
   describe('@style()', () => {
     it('should set styles to an array of size equal to number of provided declarations', () => {
       const component = {} as Component;
-      decoratorsMap.style(component, 'my-styles1', 'my-styles2', 'my-styles3');
+      decoratorsMap.style.call(null, component, 'my-styles1', 'my-styles2', 'my-styles3');
       expect(component.styles).to.have.lengthOf(3);
     });
     it('should set styles to an array containing a Link object with provided uri if css file path is provided', () => {
       const component = {} as Component;
-      decoratorsMap.style(component, 'file.css');
+      decoratorsMap.style.call(null, component, 'file.css');
       const [ { style } ] = component.styles;
       expect(style).to.be.instanceof(Link);
       expect((style as Link).uri).to.equal('file.css');
     });
     it('should set styles to an array containing object with provided style and type `inline` if css was provided', () => {
       const component = {} as Component;
-      decoratorsMap.style(component, ':host { color: red; }');
+      decoratorsMap.style.call(null, component, ':host { color: red; }');
       const [ { style, isShared } ] = component.styles;
       expect(style).to.equal(':host { color: red; }');
       expect(isShared).to.equal(false);
     });
     it('should set styles to an array containing object with component name and type `shared` if shared style was provided', () => {
       const component = {} as Component;
-      decoratorsMap.style(component, 'my-styles');
+      decoratorsMap.style.call(null, component, 'my-styles');
       const [ { style, isShared } ] = component.styles;
       expect(style).to.equal('my-styles');
       expect(isShared).to.equal(true);
     });
     it('should set styles to an array of mixed style declarations types', () => {
       const component = {} as Component;
-      decoratorsMap.style(component, 'file.css', 'my-styles', ':host { color: red; }');
+      decoratorsMap.style.call(null, component, 'file.css', 'my-styles', ':host { color: red; }');
       expect(component.styles).to.deep.equal([
         {
           isShared: false,
           style: {
+            source: undefined,
             uri: 'file.css'
           }
         },
@@ -968,7 +973,7 @@ describe('decorators', () => {
   describe('@template()', () => {
     it('should set template to be a Link if provided html file path', () => {
       const component = {} as Component;
-      decoratorsMap.template(component, 'template.html');
+      decoratorsMap.template.call(null, component, 'template.html');
       const template = component.template as Link;
       expect(template).to.be.instanceof(Link);
       expect(template.uri).to.equal('template.html');
@@ -976,7 +981,7 @@ describe('decorators', () => {
 
     it('should set template to be as provided', () => {
       const component = {} as Component;
-      decoratorsMap.template(component, '<h1>Hello World</h1>');
+      decoratorsMap.template.call(null, component, '<h1>Hello World</h1>');
       expect(component.template).to.equal('<h1>Hello World</h1>');
     });
   });

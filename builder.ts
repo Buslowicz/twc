@@ -2,15 +2,18 @@ import { kebabCase } from 'lodash';
 import { extname } from 'path';
 import {
   ClassDeclaration, ClassElement, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, JSDoc,
-  MethodDeclaration, ModuleBlock, ModuleDeclaration, ModuleKind, NamespaceImport, PropertyDeclaration, PropertySignature, SourceFile,
-  Statement, SyntaxKind, transpileModule, TypeLiteralNode, TypeNode
+  MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, PropertyDeclaration, PropertySignature, SourceFile, Statement,
+  SyntaxKind, TypeLiteralNode, TypeNode
 } from 'typescript';
+
+import * as decoratorsMap from './decorators';
 import {
   getDecorators, getFlatHeritage, getText, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBlock, isClassDeclaration,
   isExportAssignment, isExportDeclaration, isImportDeclaration, isInterfaceDeclaration, isMethod, isModuleDeclaration, isNamedImports,
-  isProperty, isStatic, isTemplateExpression, Link, notPrivate, notStatic, ParsedDecorator, RefUpdater, stripQuotes, updateImportedRefs
+  isProperty, isStatic, isTemplateExpression, Link, notPrivate, notStatic, ParsedDecorator, RefUpdater, stripQuotes
 } from './helpers';
 import { getTypeAndValue, parseDeclarationType, ValidValue } from './parsers';
+import * as buildTargets from './targets';
 
 export interface PolymerPropertyConfig {
   type: SyntaxKind;
@@ -30,41 +33,6 @@ export const typeMap = {
   [SyntaxKind.ArrayType]: Array
 };
 
-export const decoratorsMap = {
-  attr: (property: Property) => property.reflectToAttribute = true,
-  compute: (property: Property, ref: string | Method, args: Array<string> = []) => {
-    if (args.length === 0 && typeof ref !== 'string') {
-      args = ref.argumentsNoType;
-    }
-    if (typeof ref === 'string') {
-      property.computed = `"${ref}(${args.join(', ')})"`;
-      return { methods: [] };
-    } else {
-      property.computed = `"${ref.name}(${args.join(', ')})"`;
-      return { methods: [ ref ] };
-    }
-  },
-  notify: (property: Property) => property.notify = true,
-  observe: (method: Method, ...args): { properties?: Array<{ name: string, observer: string }>, observers?: Array<string> } => {
-    if (args.length === 0) {
-      args = method.argumentsNoType;
-    }
-    if (args.length === 1 && !args[ 0 ].includes('.')) {
-      return { properties: [ { name: args[ 0 ], observer: `"${method.name}"` } ] };
-    }
-    return { observers: [ `${method.name}(${args.join(', ')})` ] };
-  },
-  style: (component: Component, ...styles: Array<string>) => component.styles = styles.map((style) => {
-    if (style.endsWith('.css')) {
-      return new Style(new Link(style));
-    } else {
-      return new Style(style, /^[\w\d]+(-[\w\d]+)+$/.test(style));
-    }
-  }),
-  // todo: add remote template imports (solve cwd issue)
-  template: (component: Component, template: string) => component.template = template.endsWith('.html') ? new Link(template) : template
-};
-
 export class ImportedNode {
   /** imported member */
   public get identifier() {
@@ -82,15 +50,14 @@ export class ImportedNode {
 export class Style {
   constructor(private readonly style: string | Link, private readonly isShared = false) {}
 
-  public toHTML(): string {
-    // todo: set baseURI
+  public toString(): string {
     let style = '';
     if (!this.isShared && typeof this.style === 'string') {
       style = this.style;
     } else if (this.style instanceof Link) {
-      style = this.style.uri; // getContents('');
+      style = `${this.style}`;
     }
-    return `<style${this.isShared ? ` include="${this.style}"` : ''}>${style}</style>`;
+    return `<style${this.isShared ? ` include="${this.style}"` : ''}>${style.trim()}</style>`;
   }
 }
 
@@ -389,10 +356,11 @@ export class Component {
   private decorate(member: Property | Method | Component, decorators: Array<ParsedDecorator>): Property | Method | Component {
     decorators.forEach((decor) => {
       if (decor.name in decoratorsMap) {
-        const { methods = [], properties = [], observers = [] } = decoratorsMap[ decor.name ](
+        const { methods = [], properties = [], observers = [] } = decoratorsMap[ decor.name ].call(
+          decor,
           member,
           ...(decor.arguments || [])
-        );
+        ) || {};
         properties.forEach((property) => {
           if (this.properties.has(property.name)) {
             Object.assign(this.properties.get(property.name), property);
@@ -483,87 +451,6 @@ export class Module {
   }
 
   public toString() {
-    return Targets[ this.output ].call(this);
-  }
-}
-
-export namespace Targets {
-  export function polymer1(this: Module) {
-    const lifecycleMap = {
-      attributeChangedCallback: 'attributeChanged',
-      connectedCallback: 'attached',
-      constructor: 'created',
-      disconnectedCallback: 'detached'
-    };
-
-    const component = this.statements
-      .filter((statement) => statement instanceof Component || statement instanceof Module)
-      .reduce((all, statement) => all.concat(statement instanceof Module ? statement.components : statement), [])
-      .find((statement) => statement instanceof Component) as Component;
-
-    const importedRefs = new Map();
-    const imports = [];
-    for (let node = this; node; node = node.parent) {
-      imports.push(...node.imports);
-      node.imports
-        .map((mod) => mod.imports)
-        .reduce((all, curr) => all.concat(curr), [])
-        .forEach((member) => importedRefs.set(member.identifier, member));
-    }
-
-    const printImports = () => imports.map((statement: Import) => statement.toHTML()).join('\n');
-
-    const printStatements = () => this.statements
-      .filter((statement) => !(statement instanceof Import))
-      .map((statement: Statement) => {
-        if (statement instanceof Module) {
-          return statement.toString();
-        } else if (statement instanceof Component) {
-          return printScript(statement);
-        } else {
-          const updatedStatement = updateImportedRefs(statement, importedRefs);
-          return this.parent ? updatedStatement : updatedStatement.replace(/^(\s*)(export (default )?)/, '$1');
-        }
-      })
-      .join('\n');
-
-    const printScript = (comp: Component) => `
-      const ${comp.name} = Polymer({\n${
-      comp.events.map((event) => `${event}`).join('\n')
-      }${[
-      `is: "${kebabCase(comp.name)}"`,
-      comp.properties.size > 0 ? `properties: {
-      ${Array.from(comp.properties.values(), (prop) => `${prop.provideRefs(importedRefs)}`).join(',\n')}
-      }` : '',
-      comp.observers.length > 0 ? `observers: [
-      ${comp.observers.map((observer) => `"${observer}"`).join(',\n')}
-      ]` : '',
-      comp.behaviors.length > 0 ? `behaviors: [
-      ${comp.behaviors.map((behavior) => `"${behavior}"`).join(',\n')}
-      ]` : '',
-      ...Array.from(comp.methods.values())
-        .map((method) => method.name in lifecycleMap ? new Method(method.declaration, lifecycleMap[method.name]) : method)
-        .map((method) => `${method.provideRefs(importedRefs)}`)
-    ].filter((chunk) => !!chunk).join(',\n')}
-      });
-      ${ Array.from(comp.staticMethods.values()).map((method) => `${comp.name}.${method.provideRefs(importedRefs)};`).join('\n') }
-      ${ Array.from(comp.staticProperties.values()).map((prop) => `${comp.name}.${prop.provideRefs(importedRefs)};`).join('\n') }
-    `;
-
-    const printDomModule = () => `
-      <dom-module is="${kebabCase(component.name)}">${
-      component.template ?
-        `<template>
-          ${component.styles.map((style) => style.toHTML()).join('\n')}
-          ${component.template}
-        </template>` : ''}
-        <script>
-          ${transpileModule(printStatements(), { compilerOptions: { module: ModuleKind.ES2015 } }).outputText}
-        </script>
-      </dom-module>`;
-
-    return `
-      ${this.parent ? `namespace ${this.name} {\n${printStatements()}\n}` : printImports() + printDomModule()}
-    `;
+    return buildTargets[ this.output ].call(this);
   }
 }

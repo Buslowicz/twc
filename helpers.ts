@@ -1,18 +1,13 @@
 import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { dirname, resolve } from 'path';
 import {
   BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, Declaration, EnumDeclaration, ExportAssignment,
   ExportDeclaration, Expression, ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression, GetAccessorDeclaration,
   HeritageClause, Identifier, ImportDeclaration, InterfaceDeclaration, MethodDeclaration, ModuleDeclaration, NamedImports, NamespaceImport,
-  Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SyntaxKind, TemplateExpression, TypeAliasDeclaration,
-  VariableStatement
+  Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SourceFile, SyntaxKind, TemplateExpression,
+  TypeAliasDeclaration, VariableStatement
 } from 'typescript';
 import { ImportedNode, Method } from './builder';
-
-export interface ParsedDecorator {
-  name: string;
-  arguments?: Array<any>;
-}
 
 export const transparentTypes = [
   SyntaxKind.AnyKeyword,
@@ -25,10 +20,10 @@ export const transparentTypes = [
 export const methodKinds = [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructor ];
 
 export class Link {
-  constructor(public uri: string) {}
+  constructor(public uri: string, private source: CallExpression) {}
 
-  public getContents(base: string) {
-    return readFileSync(resolve(base, this.uri)).toString();
+  public toString() {
+    return readFileSync(resolve(dirname(getRoot(this.source).fileName), this.uri)).toString();
   }
 }
 
@@ -83,32 +78,45 @@ export class InitializerWrapper extends RefUpdater {
   }
 }
 
+export class ParsedDecorator {
+  public get name(): string {
+    return isCallExpression(this.declaration) ? this.declaration.expression.getText() : this.declaration.getText();
+  }
+
+  public get arguments() {
+    if (!isCallExpression(this.declaration)) {
+      return void 0;
+    }
+    return this.declaration.arguments.map((arg) => {
+      switch (arg.kind) {
+        case SyntaxKind.ArrowFunction:
+        case SyntaxKind.FunctionExpression:
+          return new Method(arg as FunctionExpression, `_${this.variable.getText()}Computed`);
+        case SyntaxKind.Identifier:
+          return new Ref(arg as Identifier);
+        default:
+          try {
+            return new Function(`return ${arg.getText()}`)();
+          } catch (err) {
+            return new ReferencedExpression(arg);
+          }
+      }
+    });
+  }
+
+  constructor(public readonly declaration: Identifier | CallExpression, private readonly variable: Identifier) {}
+
+  public valueOf(): {name: string, arguments: Array<any>} {
+    return { name: this.name, arguments: this.arguments };
+  }
+}
+
 export const getDecorators = (declaration: ClassElement | ClassDeclaration): Array<ParsedDecorator> => {
   if (!declaration.decorators) {
     return [];
   }
-  return declaration.decorators.map(({ expression }) => {
-    if (isCallExpression(expression)) {
-      const name = expression.expression.getText();
-      const args = expression.arguments.map((arg) => {
-        switch (arg.kind) {
-          case SyntaxKind.ArrowFunction:
-          case SyntaxKind.FunctionExpression:
-            return new Method(arg as FunctionExpression, `_${declaration.name.getText()}Computed`);
-          case SyntaxKind.Identifier:
-            return new Ref(arg as Identifier);
-          default:
-            try {
-              return new Function(`return ${arg.getText()}`)();
-            } catch (err) {
-              return new ReferencedExpression(arg);
-            }
-        }
-      });
-      return { arguments: args, name };
-    }
-    return { name: expression.getText() };
-  });
+  return declaration.decorators
+    .map(({ expression }) => new ParsedDecorator(expression as any, declaration.name as Identifier));
 };
 
 export const flatExtends = (expression: Node) => {
@@ -224,6 +232,14 @@ export const flattenChildren = (node: Node): Array<Node> => {
   const list = [ node ];
   forEachChild(node, (deep) => { list.push(...flattenChildren(deep)); });
   return list;
+};
+
+export const getRoot = (node: Node): SourceFile => {
+  let root = node;
+  while (node.parent) {
+    root = node = node.parent;
+  }
+  return root as SourceFile;
 };
 
 export const updateImportedRefs = (src: Node, vars: Map<string, ImportedNode>): string => {

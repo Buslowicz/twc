@@ -4,7 +4,9 @@
 <link rel="import" href="bower:polymer/polymer.html">
       <dom-module is="element-name"><template>
           <style>h1 {color: red;}</style>
-<style>style.css</style>
+<style>:host {
+    display: block;
+}</style>
 <style include="shared-style"></style>
           
       <dom-if if="{{test}}">
@@ -14,7 +16,7 @@
         <h1>Yo</h1>
       </dom-if>
       <p>{{testFun({})}}</p>
-    
+
         </template>
         <script>
           var A = '20';

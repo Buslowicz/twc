@@ -25,6 +25,7 @@
     "types/fake.d.ts",
     "types/polymer.d.ts",
     "tests/*",
+    "samples/*",
     "*.ts"
   ]
 }
