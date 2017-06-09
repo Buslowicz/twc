@@ -49,9 +49,11 @@ export class ReferencedExpression {
 
 export abstract class RefUpdater {
   protected refs?: Map<string, ImportedNode>;
+  protected skipSuper?: boolean;
 
-  public provideRefs(variables: Map<string, ImportedNode>): this {
+  public provideRefs(variables: Map<string, ImportedNode>, skipSuper = false): this {
     this.refs = variables;
+    this.skipSuper = skipSuper;
     return this;
   }
 

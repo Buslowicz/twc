@@ -15,6 +15,10 @@ export function polymer1(this: Module) {
     .reduce((all, statement) => all.concat(statement instanceof Module ? statement.components : statement), [])
     .find((statement) => statement instanceof Component) as Component;
 
+  if (component && component.heritage && component.heritage !== 'Polymer.Element') {
+    throw new SyntaxError('Components in Polymer v1 can only extend `Polymer.Element` class.');
+  }
+
   const importedRefs = new Map();
   const imports = [];
   for (let node = this; node; node = node.parent) {
@@ -57,7 +61,7 @@ export function polymer1(this: Module) {
       ]` : '',
     ...Array.from(comp.methods.values())
       .map((method) => method.name in lifecycleMap ? new Method(method.declaration, lifecycleMap[ method.name ]) : method)
-      .map((method) => `${method.provideRefs(importedRefs)}`)
+      .map((method) => `${method.provideRefs(importedRefs, true)}`)
   ].filter((chunk) => !!chunk).join(',\n')}
       });
       ${ Array.from(comp.staticMethods.values()).map((method) => `${comp.name}.${method.provideRefs(importedRefs)};`).join('\n') }

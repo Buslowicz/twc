@@ -251,7 +251,11 @@ export class Method extends RefUpdater {
 
   private get statements(): Array<string> {
     if (isBlock(this.declaration.body)) {
-      return this.declaration.body.statements.map(this.getText);
+      const statements = this.declaration.body.statements.map(this.getText);
+      if (this.skipSuper) {
+        return statements.filter((statement) => !/\ssuper\(.*?\);?/.test(statement));
+      }
+      return statements;
     } else {
       return [ `return ${this.getText(this.declaration.body as MethodDeclaration)};` ];
     }
