@@ -26,6 +26,7 @@
     "types/polymer.d.ts",
     "tests/*",
     "samples/*",
+    "targets/*",
     "*.ts"
   ]
 }

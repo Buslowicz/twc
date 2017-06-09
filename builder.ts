@@ -87,7 +87,7 @@ export class Import {
     }
   }
 
-  public toHTML(): string {
+  public toString(): string {
     switch (extname(this.module)) {
       case '.html':
         return `<link rel="import" href="${this.module}">`;
@@ -419,7 +419,7 @@ export class Module {
   public readonly variables: Map<string, ImportedNode | any> = new Map();
 
   constructor(private readonly source: SourceFile | ModuleDeclaration,
-              private readonly output: 'polymer1' | 'polymer2',
+              private readonly output: 'Polymer1' | 'Polymer2',
               public readonly parent: Module = null) {
     (isModuleDeclaration(source) ? source.body as ModuleBlock : source).statements.forEach((statement) => {
       if (isImportDeclaration(statement)) {
@@ -461,6 +461,6 @@ export class Module {
   }
 
   public toString() {
-    return buildTargets[ this.output ].call(this);
+    return new buildTargets[ this.output ](this).toString();
   }
 }
