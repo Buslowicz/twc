@@ -17,7 +17,7 @@
     "no-namespace": false,
     "quotemark": [
       true,
-      "single"
+      "double"
     ],
     "no-empty-interface": false,
     "array-type": false,

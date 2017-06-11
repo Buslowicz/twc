@@ -1,14 +1,15 @@
-import { kebabCase } from 'lodash';
-import { ModuleKind, Statement, transpileModule } from 'typescript';
-import { Component, Import, ImportedNode, Method, Module } from '../builder';
-import { updateImportedRefs } from '../helpers';
+import { kebabCase } from "lodash";
+import * as pretty from "pretty";
+import { ModuleKind, Statement, transpileModule } from "typescript";
+import { Component, Import, ImportedNode, Method, Module } from "../builder";
+import { getQuoteChar, updateImportedRefs } from "../helpers";
 
 export class Polymer1 {
   private static lifecycleMap = {
-    attributeChangedCallback: 'attributeChanged',
-    connectedCallback: 'attached',
-    constructor: 'created',
-    disconnectedCallback: 'detached'
+    attributeChangedCallback: "attributeChanged",
+    connectedCallback: "attached",
+    constructor: "created",
+    disconnectedCallback: "detached"
   };
 
   private get component(): Component {
@@ -39,8 +40,8 @@ export class Polymer1 {
 
   constructor(private module: Module) {
     const component = this.component;
-    if (component && component.heritage && component.heritage !== 'Polymer.Element') {
-      throw new SyntaxError('Components in Polymer v1 can only extend `Polymer.Element` class.');
+    if (component && component.heritage && component.heritage !== "Polymer.Element") {
+      throw new SyntaxError("Components in Polymer v1 can only extend `Polymer.Element` class.");
     }
   }
 
@@ -48,7 +49,13 @@ export class Polymer1 {
     if (this.module.parent) {
       return `namespace ${this.module.name} {\n${this.statements()}\n}`;
     } else {
-      return this.domModule();
+      const start = process.hrtime();
+      const html = pretty(this.domModule()) + "\n";
+      const end = process.hrtime();
+      console.log(`DomModule generated in ${
+      Math.round((end[ 0 ] * 1000) + (end[ 1 ] / 1000000)) - Math.round((start[ 0 ] * 1000) + (start[ 1 ] / 1000000))
+        }`);
+      return html;
     }
   }
 
@@ -62,59 +69,61 @@ export class Polymer1 {
           return this.componentScript(statement);
         } else {
           const updatedStatement = updateImportedRefs(statement, this.importedRefs);
-          return this.module.parent ? updatedStatement : updatedStatement.replace(/^(\s*)(export (default )?)/, '$1');
+          return this.module.parent ? updatedStatement : updatedStatement.replace(/^(\s*)(export (default )?)/, "$1");
         }
       })
-      .join('\n');
+      .join("\n");
   }
 
   private domModule() {
-    return `
-      ${this.imports.join('\n')}
-      <dom-module is="${kebabCase(this.component.name)}">${
-      this.component.template ?
-        `<template>
-          ${this.component.styles.join('\n')}
-          ${this.component.template}
-        </template>` : ''}
-        <script>
-          ${transpileModule(this.statements(), { compilerOptions: { module: ModuleKind.ES2015 } }).outputText}
-        </script>
-      </dom-module>`;
+    return `${this.imports.join("\n")}
+    <dom-module is="${kebabCase(this.component.name)}">${
+      this.component.template ? `
+      <template>
+        ${this.component.styles.join("\n")}
+        ${this.component.template.toString().trim()}
+      </template>` : ""}
+      <script>
+        ${transpileModule(this.statements(), { compilerOptions: { module: ModuleKind.ES2015 } }).outputText}
+      </script>
+    </dom-module>`;
   }
 
   private componentScript(component: Component) {
+    const quote = getQuoteChar(this.module.source);
     return `
       const ${component.name} = Polymer({\n${
-      component.events.join('\n')
+      component.events.join("\n")
       }${[
-      `is: "${kebabCase(component.name)}"`,
+      `is: ${quote}${kebabCase(component.name)}${quote}`,
       this.behaviors(component),
       this.observers(component),
       this.properties(component),
       ...this.methods(component)
-    ].filter((chunk) => !!chunk).join(',\n')}
+    ].filter((chunk) => !!chunk).join(",\n")}
       });
-      ${this.staticMethods(component).join('\n')}
-      ${this.staticProperties(component).join('\n')}
+      ${this.staticMethods(component).join("\n")}
+      ${this.staticProperties(component).join("\n")}
     `;
   }
 
   private behaviors(component: Component) {
-    return component.behaviors.length === 0 ? '' : `behaviors: [
-      ${component.behaviors.map((behavior) => `"${behavior}"`).join(',\n')}
+    const quote = getQuoteChar(this.module.source);
+    return component.behaviors.length === 0 ? "" : `behaviors: [
+      ${component.behaviors.map((behavior) => `${quote}${behavior}${quote}`).join(",\n")}
     ]`;
   }
 
   private observers(component: Component) {
-    return component.observers.length === 0 ? '' : `observers: [
-      ${component.observers.map((observer) => `"${observer}"`).join(',\n')}
+    const quote = getQuoteChar(this.module.source);
+    return component.observers.length === 0 ? "" : `observers: [
+      ${component.observers.map((observer) => `${quote}${observer}${quote}`).join(",\n")}
     ]`;
   }
 
   private properties(component: Component) {
-    return component.properties.size === 0 ? '' : `properties: {
-      ${Array.from(component.properties.values(), (prop) => `${prop.provideRefs(this.importedRefs)}`).join(',\n')}
+    return component.properties.size === 0 ? "" : `properties: {
+      ${Array.from(component.properties.values(), (prop) => `${prop.provideRefs(this.importedRefs)}`).join(",\n")}
     }`;
   }
 

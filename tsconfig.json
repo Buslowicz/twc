@@ -27,6 +27,7 @@
     "tests/*",
     "samples/*",
     "targets/*",
+    "assets/*",
     "*.ts"
   ]
 }

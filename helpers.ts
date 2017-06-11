@@ -1,13 +1,13 @@
-import { readFileSync } from 'fs';
-import { dirname, resolve } from 'path';
+import { readFileSync } from "fs";
+import { dirname, resolve } from "path";
 import {
   BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, Declaration, EnumDeclaration, ExportAssignment,
   ExportDeclaration, Expression, ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression, GetAccessorDeclaration,
   HeritageClause, Identifier, ImportDeclaration, InterfaceDeclaration, MethodDeclaration, ModuleDeclaration, NamedImports, NamespaceImport,
   Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SourceFile, SyntaxKind, TemplateExpression,
   TypeAliasDeclaration, VariableStatement
-} from 'typescript';
-import { ImportedNode, Method } from './builder';
+} from "typescript";
+import { ImportedNode, Method } from "./builder";
 
 export const transparentTypes = [
   SyntaxKind.AnyKeyword,
@@ -76,7 +76,7 @@ export class InitializerWrapper extends RefUpdater {
   }
 
   public toString() {
-    return new Function(`return ${this.getText(this.declaration)};`).toString().replace('anonymous', '');
+    return new Function(`return ${this.getText(this.declaration)};`).toString().replace("anonymous", "");
   }
 }
 
@@ -108,7 +108,7 @@ export class ParsedDecorator {
 
   constructor(public readonly declaration: Identifier | CallExpression, private readonly variable: Identifier) {}
 
-  public valueOf(): {name: string, arguments: Array<any>} {
+  public valueOf(): { name: string, arguments: Array<any> } {
     return { name: this.name, arguments: this.arguments };
   }
 }
@@ -137,9 +137,9 @@ export const getFlatHeritage = (declaration: ClassDeclaration | InterfaceDeclara
   return declaration
     .heritageClauses
     .filter(isExtendsDeclaration)
-    .map(toProperty('types'))
+    .map(toProperty("types"))
     .reduce(flattenArray, [])
-    .map(toProperty('expression'))
+    .map(toProperty("expression"))
     .map(flatExtends)
     .reduce(flattenArray, []);
 };
@@ -180,11 +180,11 @@ export const isExportAssignment = (st: Node): st is ExportAssignment => st.kind 
 export const isTemplateExpression = (expr: Node): expr is TemplateExpression => expr.kind === SyntaxKind.TemplateExpression;
 export const isNamespaceImport = (expr: Node): expr is NamespaceImport => expr.kind === SyntaxKind.NamespaceImport;
 export const isNamedImports = (expr: Node): expr is NamedImports => expr.kind === SyntaxKind.NamedImports;
-export const isBinaryExpression = (expr: Node): expr is BinaryExpression => 'operatorToken' in expr;
-export const isExpressionStatement = (expr: Node): expr is ExpressionStatement => 'expression' in expr;
-export const isPrefixUnaryExpression = (expr: Node): expr is PrefixUnaryExpression => 'operator' in expr;
-export const isCallExpression = (expr: Node): expr is CallExpression => 'arguments' in expr;
-export const isIdentifier = (expr: Node): expr is Identifier => 'originalKeywordKind' in expr;
+export const isBinaryExpression = (expr: Node): expr is BinaryExpression => "operatorToken" in expr;
+export const isExpressionStatement = (expr: Node): expr is ExpressionStatement => "expression" in expr;
+export const isPrefixUnaryExpression = (expr: Node): expr is PrefixUnaryExpression => "operator" in expr;
+export const isCallExpression = (expr: Node): expr is CallExpression => "arguments" in expr;
+export const isIdentifier = (expr: Node): expr is Identifier => "originalKeywordKind" in expr;
 export const isBlock = (expr: Node): expr is Block => expr.kind === SyntaxKind.Block;
 export const isExtendsDeclaration = (heritage: HeritageClause): boolean => heritage.token === SyntaxKind.ExtendsKeyword;
 
@@ -210,22 +210,22 @@ export const toString = (object: any): string => object.toString();
 export const getText = (node: Node): string => node.getText();
 export const flattenArray = (p: Array<any>, c: any): Array<any> => p.concat(c);
 export const toProperty = (key: string): (obj: any) => any => (obj: object) => obj[ key ];
-export const stripQuotes = (str: string, char?: '`'|'"'|'\''): string => {
-  if (str[0] === str[str.length - 1] && (char && str[0] === char || ['`', '"', '\''].includes(str[0]))) {
+export const stripQuotes = (str: string, char?: "`" | "\"" | "'"): string => {
+  if (str[ 0 ] === str[ str.length - 1 ] && (char && str[ 0 ] === char || [ "`", "\"", "'" ].includes(str[ 0 ]))) {
     return str.slice(1, -1);
   }
   return str;
 };
 
 export const reindent = (chunks: TemplateStringsArray | string, ...params: Array<string>): string => {
-  const str = typeof chunks === 'string' ? chunks : chunks[ 0 ] + chunks.slice(1).map((chunk, i) => params[ i ] + chunk).join('');
+  const str = typeof chunks === "string" ? chunks : chunks[ 0 ] + chunks.slice(1).map((chunk, i) => params[ i ] + chunk).join("");
   const tab = str.match(/^(\s*?\n)?([\t ]+)\S/);
-  return tab ? str.replace(new RegExp(`^${tab[ 2 ]}`, 'gm'), '') : str;
+  return tab ? str.replace(new RegExp(`^${tab[ 2 ]}`, "gm"), "") : str;
 };
 
 export const indent = (tab: string): (chunks: TemplateStringsArray, ...params: Array<string>) => string => {
   return (chunks: TemplateStringsArray, ...params: Array<string>) => {
-    const str = reindent(chunks[ 0 ] + chunks.slice(1).map((chunk, i) => params[ i ] + chunk).join(''));
+    const str = reindent(chunks[ 0 ] + chunks.slice(1).map((chunk, i) => params[ i ] + chunk).join(""));
     return str.replace(/^(.)/gm, `${tab}$1`);
   };
 };
@@ -235,6 +235,22 @@ export const flattenChildren = (node: Node): Array<Node> => {
   forEachChild(node, (deep) => { list.push(...flattenChildren(deep)); });
   return list;
 };
+
+export const findFirstNodeOfKind = (node, kind) => {
+  let result;
+  if (node.kind === kind) {
+    result = node;
+  }
+  forEachChild(node, (deep) => {
+    if (result) {
+      return;
+    }
+    result = findFirstNodeOfKind(deep, kind) || result;
+  });
+  return result;
+};
+
+export const getQuoteChar = (declaration) => findFirstNodeOfKind(getRoot(declaration), SyntaxKind.StringLiteral).getText()[ 0 ];
 
 export const getRoot = (node: Node): SourceFile => {
   let root = node;
@@ -246,7 +262,7 @@ export const getRoot = (node: Node): SourceFile => {
 
 export const updateImportedRefs = (src: Node, vars: Map<string, ImportedNode>): string => {
   return flattenChildren(src)
-    .filter((node: Node) => node.constructor.name === 'IdentifierObject' && (node.parent as Declaration).name !== node)
+    .filter((node: Node) => node.constructor.name === "IdentifierObject" && (node.parent as Declaration).name !== node)
     .filter((node) => vars.has(node.getText()))
     .sort((a, b) => b.pos - a.pos)
     .reduce((arr, identifier) => {
@@ -256,6 +272,6 @@ export const updateImportedRefs = (src: Node, vars: Map<string, ImportedNode>): 
         ...identifier.getFullText().replace(text, vars.get(text).fullIdentifier),
         ...arr.slice(identifier.end - src.pos)
       ];
-    }, src.getFullText().split(''))
-    .join('');
+    }, src.getFullText().split(""))
+    .join("");
 };

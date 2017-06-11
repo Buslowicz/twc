@@ -1,8 +1,8 @@
-import { test as T1, test2 } from 'bower:esp/esp.html#Namespace';
-import * as esp2 from 'bower:esp/esp2.html';
-import { Templatizer } from 'bower:polymer/polymer.html#Polymer';
-import { attr, behavior, compute, notify, observe, style } from 'twc/polymer';
-import './assets/test';
+import { test as T1, test2 } from "bower:esp/esp.html#Namespace";
+import * as esp2 from "bower:esp/esp2.html";
+import { Templatizer } from "bower:polymer/polymer.html#Polymer";
+import { attr, behavior, compute, notify, observe, style } from "twc/polymer";
+import "./assets/test";
 
 declare function CustomElement(cls): void;
 
@@ -12,13 +12,13 @@ namespace Polymer {
   }
 }
 
-let A = '20';
+let A = "20";
 
 export const CONST = true;
 
 declare const window: any;
 
-declare const CONST2 = 'types';
+declare const CONST2 = "types";
 
 declare const enum ENUM { A, B, C }
 
@@ -28,19 +28,19 @@ interface CustomEvent {
   detail: any;
 }
 
-A = '25';
+A = "25";
 
 console.log(test2);
 
-function testFun(slot, orientation = 'X') {
+function testFun(slot, orientation = "X") {
   let transform: primitive;
   const { width, height } = slot.itemSize;
-  if (orientation === 'X') {
+  if (orientation === "X") {
     transform = `translate(${slot.index * width}px, ${slot.col * height}px)`;
   } else {
     transform = `translate(${slot.col * width}px, ${slot.index * height}px)`;
   }
-  return { transform, 'width.px': width, 'height.px': height };
+  return { transform, "width.px": width, "height.px": height };
 }
 
 export interface ProfileChangeEvent extends CustomEvent {
@@ -65,26 +65,26 @@ export interface SomeEvent extends CustomEvent {
  */
 const myBehavior = {
   test() {
-    console.log('behavior test');
+    console.log("behavior test");
   }
 };
 
 export namespace Custom {
   /* tslint:disable:array-type */
   export class X {
-    public unionTest1: boolean | number | string | null | undefined | object | never | void | any | Date | 'test' | 5 | { a: string }
+    public unionTest1: boolean | number | string | null | undefined | object | never | void | any | Date | "test" | 5 | { a: string }
       | [ number, string, boolean ] | Array<any>;
-    public unionTest2: boolean & number & string & null & undefined & object & never & void & any & Date & 'test' & 5 & { a: string }
+    public unionTest2: boolean & number & string & null & undefined & object & never & void & any & Date & "test" & 5 & { a: string }
       & [ number, string, boolean ] & Array<any>;
     public empty;
     public st1: string;
-    public st2 = 'test';
-    public st3 = 'test' + 'test';
+    public st2 = "test";
+    public st3 = "test" + "test";
     public st4 = `${25}`;
     public st5 = `test`;
     public st6: string = null;
-    public st7: 'test';
-    public st8: 'test1' | 'test2';
+    public st7: "test";
+    public st8: "test1" | "test2";
     public nm1: number;
     public nm2 = 10;
     public nm3 = 5 * 5 * 5;
@@ -96,14 +96,14 @@ export namespace Custom {
     public dt1: Date;
     public dt2 = new Date();
     public lt1: { a: boolean, b: string };
-    public lt2 = { a: true, b: 'test' };
+    public lt2 = { a: true, b: "test" };
     public ar1: Array<boolean>;
     public ar2: [ boolean ];
     public ar3: boolean[];
     public ar4 = [ 1, 2, 3 ];
     public ar5 = new Array(10);
     public tp1: [ string, number ];
-    public tp2: [ string, number ] = [ 'a', 10 ];
+    public tp2: [ string, number ] = [ "a", 10 ];
     //noinspection TsLint
     public obj1: Object;
     public obj2: object;
@@ -122,7 +122,7 @@ export namespace Custom {
     public un3: Date & Object;
 
     public fn1: () => string;
-    public fn2 = () => 'test';
+    public fn2 = () => "test";
   }
 }
 export interface ElementName extends Polymer.TheBehavior, Templatizer {}
@@ -136,7 +136,7 @@ export namespace Custom2 {
    * @demo test.html
    */
   @CustomElement
-  @style('h1 {color: red;}', 'style.css', 'shared-style')
+  @style("h1 {color: red;}", "style.css", "shared-style")
   @behavior(myBehavior)
   export class ElementName extends Polymer.Element {
     public static prop = test2;
@@ -145,7 +145,7 @@ export namespace Custom2 {
      * Some static method
      */
     public static staticTest(test: string, test2: { a: boolean, b: any }, test3?: number) {
-      console.log('static');
+      console.log("static");
     }
 
     @compute((st1, st2) => st1 + st2) public computedProp: string;
@@ -154,35 +154,35 @@ export namespace Custom2 {
      * A greetings list
      */
     @attr public greetings: Array<string>;
-    public readonly test: string = 'tester';
+    public readonly test: string = "tester";
     @notify public profile: any = T1;
 
     constructor() {
       super();
-      console.log('created');
+      console.log("created");
     }
 
     public connectedCallback() {
       super.connectedCallback();
-      console.log('connected');
+      console.log("connected");
     }
 
     /**
      * Observer method
      */
-    @observe('profile.prop')
+    @observe("profile.prop")
     public observer(val: string) {
-      console.log('val:', val);
+      console.log("val:", val);
     }
 
     @observe
     public observerAuto(greetings: Array<string>) {
-      console.log('greetings:', greetings);
+      console.log("greetings:", greetings);
     }
 
     @observe
     public observerAutoMulti(greetings: Array<string>, profile: object) {
-      console.log('greetings:', greetings, profile);
+      console.log("greetings:", greetings, profile);
     }
 
     public externalDependency() {
@@ -191,15 +191,15 @@ export namespace Custom2 {
       return T1 + test2;
     }
 
-    public testFun(slot, orientation = 'X') {
+    public testFun(slot, orientation = "X") {
       let transform: primitive | Custom.X;
       const { width, height } = slot.itemSize;
-      if (orientation === 'X') {
+      if (orientation === "X") {
         transform = `translate(${slot.index * width}px, ${slot.col * height}px)`;
       } else {
         transform = `translate(${slot.col * width}px, ${slot.index * height}px)`;
       }
-      return { transform, 'width.px': width, 'height.px': height };
+      return { transform, "width.px": width, "height.px": height };
     }
 
     public template() {

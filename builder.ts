@@ -1,20 +1,20 @@
-import { existsSync } from 'fs';
-import { kebabCase } from 'lodash';
-import { dirname, extname, parse, resolve } from 'path';
+import { existsSync } from "fs";
+import { kebabCase } from "lodash";
+import { dirname, extname, parse, resolve } from "path";
 import {
   ClassDeclaration, ClassElement, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, JSDoc,
   MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, PropertyDeclaration, PropertySignature, SourceFile, Statement,
   SyntaxKind, TypeLiteralNode, TypeNode
-} from 'typescript';
+} from "typescript";
 
-import * as decoratorsMap from './decorators';
+import * as decoratorsMap from "./decorators";
 import {
   getDecorators, getFlatHeritage, getRoot, getText, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBlock,
   isClassDeclaration, isExportAssignment, isExportDeclaration, isImportDeclaration, isInterfaceDeclaration, isMethod, isModuleDeclaration,
   isNamedImports, isProperty, isStatic, isTemplateExpression, Link, notPrivate, notStatic, ParsedDecorator, RefUpdater, stripQuotes
-} from './helpers';
-import { getTypeAndValue, parseDeclarationType, ValidValue } from './parsers';
-import * as buildTargets from './targets';
+} from "./helpers";
+import { getTypeAndValue, parseDeclarationType, ValidValue } from "./parsers";
+import * as buildTargets from "./targets";
 
 export interface PolymerPropertyConfig {
   type: SyntaxKind;
@@ -42,23 +42,23 @@ export class ImportedNode {
 
   /** imported member with namespace */
   public get fullIdentifier() {
-    return `${this.importClause.namespace ? `${this.importClause.namespace}.` : ''}${this.bindings.name.getText()}`;
+    return `${this.importClause.namespace ? `${this.importClause.namespace}.` : ""}${this.bindings.name.getText()}`;
   }
 
-  constructor(private readonly bindings: ImportSpecifier | NamespaceImport, public readonly importClause: Import) {}
+  constructor(public readonly bindings: ImportSpecifier | NamespaceImport, public readonly importClause: Import) {}
 }
 
 export class Style {
-  constructor(private readonly style: string | Link, private readonly isShared = false) {}
+  constructor(public readonly style: string | Link, public readonly isShared = false) {}
 
   public toString(): string {
-    let style = '';
-    if (!this.isShared && typeof this.style === 'string') {
+    let style = "";
+    if (!this.isShared && typeof this.style === "string") {
       style = this.style;
     } else if (this.style instanceof Link) {
       style = `${this.style}`;
     }
-    return `<style${this.isShared ? ` include="${this.style}"` : ''}>${style.trim()}</style>`;
+    return `<style${this.isShared ? ` include="${this.style}"` : ""}>${style.trim()}</style>`;
   }
 }
 
@@ -69,11 +69,11 @@ export class Import {
 
   public get isImportable() {
     const { module } = this;
-    return [ '.js', '.html', '.css' ].includes(extname(module));
+    return [ ".js", ".html", ".css" ].includes(extname(module));
   }
 
   constructor(public readonly declaration: ImportDeclaration) {
-    const { 1: module, 2: namespace = '' } = declaration.moduleSpecifier.getText().replace(/["']$|^["']/g, '').match(/([^#]+)(?:#(.+))?/);
+    const { 1: module, 2: namespace = "" } = declaration.moduleSpecifier.getText().replace(/["']$|^["']/g, "").match(/([^#]+)(?:#(.+))?/);
     this.module = module;
     this.namespace = namespace;
     if (declaration.importClause) {
@@ -89,11 +89,11 @@ export class Import {
 
   public toString(): string {
     switch (extname(this.module)) {
-      case '.html':
+      case ".html":
         return `<link rel="import" href="${this.module}">`;
-      case '.js':
+      case ".js":
         return `<script src="${this.module}"></script>`;
-      case '.css':
+      case ".css":
         return `<link rel="stylesheet" href="${this.module}">`;
       default:
         return `<link rel="import" href="${this.module}">`;
@@ -107,36 +107,36 @@ export class RegisteredEvent {
   }
 
   public get description(): string {
-    const jsDoc = this.declaration[ 'jsDoc' ];
-    return jsDoc ? jsDoc.map((doc) => doc.comment).join('\n') : null;
+    const jsDoc = this.declaration[ "jsDoc" ];
+    return jsDoc ? jsDoc.map((doc) => doc.comment).join("\n") : null;
   }
 
   public get params(): Array<{ type: ValidValue, rawType: TypeNode, name: string, description?: string }> {
-    const property = this.declaration.members.find((member) => member.name.getText() === 'detail') as PropertySignature;
+    const property = this.declaration.members.find((member) => member.name.getText() === "detail") as PropertySignature;
     return (property.type as TypeLiteralNode).members.map((member) => ({
-      description: member[ 'jsDoc' ] ? member[ 'jsDoc' ].map((doc) => doc.comment).join('\n') : null,
+      description: member[ "jsDoc" ] ? member[ "jsDoc" ].map((doc) => doc.comment).join("\n") : null,
       name: member.name.getText(),
-      rawType: member[ 'type' ],
+      rawType: member[ "type" ],
       type: parseDeclarationType(member as any)
     }));
   }
 
-  constructor(private readonly declaration: InterfaceDeclaration) {}
+  constructor(public readonly declaration: InterfaceDeclaration) {}
 
   public toString() {
     return [
-      '/**',
+      "/**",
       ...(this.description ? [
         ` * ${this.description}`,
         ` *`
       ] : []),
       ` * @event ${kebabCase(this.name)}`,
       ...this.params.map(({ rawType, name, description }) => {
-        const type = rawType.getText().replace(/\s+/g, ' ').replace(/(.+?:.+?);/g, '$1,');
-        return ` * @param {${type}} ${name}${description ? ` ${description}` : ''}`;
+        const type = rawType.getText().replace(/\s+/g, " ").replace(/(.+?:.+?);/g, "$1,");
+        return ` * @param {${type}} ${name}${description ? ` ${description}` : ""}`;
       }),
-      ' */\n'
-    ].join('\n');
+      " */\n"
+    ].join("\n");
   }
 }
 
@@ -158,7 +158,7 @@ export class Property extends RefUpdater {
     this.decorators = getDecorators(declaration);
 
     Object.assign(this, {
-      jsDoc: declaration[ 'jsDoc' ] as Array<JSDoc>,
+      jsDoc: declaration[ "jsDoc" ] as Array<JSDoc>,
       type: isDate ? Date : typeMap[ type || SyntaxKind.ObjectKeyword ],
       value
     });
@@ -171,20 +171,17 @@ export class Property extends RefUpdater {
     if (isStatic(this.declaration)) {
       return `${this.getJsDoc()}${this.name} = ${this.value}`;
     }
-    return `${this.getJsDoc()}${this.name}: ${
-      this.isSimpleConfig() ? this.type.name : `{ ${
-        [
-          this.getType(),
-          this.getValue(),
-          this.getReadOnly(),
-          this.getReflectToAttribute(),
-          this.getNotify(),
-          this.getComputed(),
-          this.getObserver()
-        ]
-          .filter((key) => !!key)
-          .join(', ')} }`
-      }`;
+    const propConfig = [
+      this.getType(),
+      this.getValue(),
+      this.getReadOnly(),
+      this.getReflectToAttribute(),
+      this.getNotify(),
+      this.getComputed(),
+      this.getObserver()
+    ]
+      .filter((key) => !!key);
+    return `${this.getJsDoc()}${this.name}: ${this.isSimpleConfig() ? this.type.name : `{ ${ propConfig } }`}`;
   }
 
   private getType() {
@@ -196,15 +193,15 @@ export class Property extends RefUpdater {
   }
 
   private getReadOnly() {
-    return this.readOnly ? 'readOnly: true' : undefined;
+    return this.readOnly ? "readOnly: true" : undefined;
   }
 
   private getReflectToAttribute() {
-    return this.reflectToAttribute ? 'reflectToAttribute: true' : undefined;
+    return this.reflectToAttribute ? "reflectToAttribute: true" : undefined;
   }
 
   private getNotify() {
-    return this.notify ? 'notify: true' : undefined;
+    return this.notify ? "notify: true" : undefined;
   }
 
   private getComputed() {
@@ -216,7 +213,7 @@ export class Property extends RefUpdater {
   }
 
   private getJsDoc() {
-    return this.jsDoc ? `${this.jsDoc.map((doc) => doc.getText()).join('\n')}\n` : '';
+    return this.jsDoc ? `${this.jsDoc.map((doc) => doc.getText()).join("\n")}\n` : "";
   }
 
   private isSimpleConfig(): boolean {
@@ -261,13 +258,13 @@ export class Method extends RefUpdater {
     }
   }
 
-  constructor(public readonly declaration: MethodDeclaration | FunctionExpression, public readonly name = 'function') {
+  constructor(public readonly declaration: MethodDeclaration | FunctionExpression, public readonly name = "function") {
     super();
   }
 
   public toString() {
     const name = isStatic(this.declaration as ClassElement) ? `${this.name} = function` : this.name;
-    return `${name}(${this.arguments.join(', ')}) { ${this.statements.join('\n')} }`;
+    return `${name}(${this.arguments.join(", ")}) { ${this.statements.join("\n")} }`;
   }
 }
 
@@ -300,7 +297,7 @@ export class Component {
     return getDecorators(this.source);
   }
 
-  constructor(private readonly source: ClassDeclaration) {
+  constructor(public readonly source: ClassDeclaration) {
     this.source
       .members
       .filter(isProperty)
@@ -321,7 +318,7 @@ export class Component {
       .members
       .filter(isMethod)
       .filter(notStatic)
-      .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : 'constructor'))
+      .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : "constructor"))
       .map((method) => this.decorate(method, method.decorators))
       .forEach((method: Method) => this.methods.set(method.name, method));
 
@@ -329,14 +326,14 @@ export class Component {
       .members
       .filter(isMethod)
       .filter(isStatic)
-      .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : 'constructor'))
+      .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : "constructor"))
       .forEach((method: Method) => this.staticMethods.set(method.name, method));
 
     this.decorate(this, this.decorators);
 
-    if (this.methods.has('template')) {
+    if (this.methods.has("template")) {
       // todo: improve and test
-      this.template = this.methods.get('template')
+      this.template = this.methods.get("template")
         .declaration.body.statements
         .map((statement: ExpressionStatement) => {
           const tpl = statement.expression;
@@ -344,16 +341,16 @@ export class Component {
             return `${tpl.head.text}${
               tpl
                 .templateSpans
-                .map((span) => `{{${span.expression.getText().replace('this.', '')}}}${span.literal.text}`)
-                .join('')
+                .map((span) => `{{${span.expression.getText().replace("this.", "")}}}${span.literal.text}`)
+                .join("")
               }`;
           } else {
             return stripQuotes(tpl.getText());
           }
         })
-        .join('');
+        .join("");
 
-      this.methods.delete('template');
+      this.methods.delete("template");
     }
 
     const fileName = getRoot(this.source).fileName;
@@ -394,7 +391,7 @@ export class Component {
 
 export class Module {
   public get name() {
-    return isModuleDeclaration(this.source) ? this.source.name.getText() : '';
+    return isModuleDeclaration(this.source) ? this.source.name.getText() : "";
   }
 
   public get imports(): Array<Import> {
@@ -418,8 +415,8 @@ export class Module {
   public readonly statements: Array<Statement | Component | Import | Module> = [];
   public readonly variables: Map<string, ImportedNode | any> = new Map();
 
-  constructor(private readonly source: SourceFile | ModuleDeclaration,
-              private readonly output: 'Polymer1' | 'Polymer2',
+  constructor(public readonly source: SourceFile | ModuleDeclaration,
+              public readonly output: "Polymer1" | "Polymer2",
               public readonly parent: Module = null) {
     (isModuleDeclaration(source) ? source.body as ModuleBlock : source).statements.forEach((statement) => {
       if (isImportDeclaration(statement)) {
@@ -431,12 +428,12 @@ export class Module {
         const name = statement.name.getText();
         if (this.variables.has(name) && this.variables.get(name) instanceof Component) {
           this.variables.get(name).behaviors.push(...getFlatHeritage(statement));
-        } else if (inheritsFrom(statement, 'CustomEvent', 'Event')) {
+        } else if (inheritsFrom(statement, "CustomEvent", "Event")) {
           this.variables.set(name, new RegisteredEvent(statement));
         } else {
           this.variables.set(name, statement);
         }
-      } else if (isClassDeclaration(statement) && hasDecorator(statement, 'CustomElement')) {
+      } else if (isClassDeclaration(statement) && hasDecorator(statement, "CustomElement")) {
         const component = new Component(statement as ClassDeclaration);
 
         if (this.variables.has(component.name) && !(this.variables.get(component.name) instanceof Component)) {
