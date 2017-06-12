@@ -25,6 +25,7 @@
     "max-line-length": [
       true,
       140
-    ]
+    ],
+    "no-misused-new": false
   }
 }
