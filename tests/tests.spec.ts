@@ -5,27 +5,27 @@ import {
   MethodDeclaration, NamedImports, NamespaceImport, PrefixUnaryExpression, PropertyDeclaration, ScriptTarget, SyntaxKind,
   UnionOrIntersectionTypeNode, VariableStatement
 } from "typescript";
-import { Component, Method, Property } from "../builder";
-import * as decoratorsMap from "../decorators";
+import { Component, Method, Property } from "../src/builder";
+import * as decoratorsMap from "../src/decorators";
 import {
   flatExtends, flattenArray, getDecorators, getText, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBinaryExpression,
   isBlock, isCallExpression, isExtendsDeclaration, isGetter, isIdentifier, isMethod, isNamedImports, isNamespaceImport,
   isPrefixUnaryExpression, isPrivate, isProperty, isPublic, isSetter, isStatic, isTransparent, Link, notGetter, notMethod, notPrivate,
   notProperty, notPublic, notSetter, notStatic, notTransparent, Ref, ReferencedExpression, toProperty, toString
-} from "../helpers";
+} from "../src/helpers";
 import {
-  getFinalType, getSimpleKind, getTypeAndValue, parseDeclarationInitializer, parseDeclarationType, parseExpression,
+  getFinalType, getSimpleKind, parseDeclaration, parseDeclarationInitializer, parseDeclarationType, parseExpression,
   parseUnionOrIntersectionType
-} from "../parsers";
+} from "../src/type-analyzer";
 
-function parse<T>(src) {
-  return createSourceFile("", src, ScriptTarget.ES2015, true).statements[ 0 ] as any as T;
+function parse<T>(src: string): T {
+  return createSourceFile("", src, ScriptTarget.ES2015, true).statements[ 0 ] as any;
 }
-function parseDeclaration(src) {
+function parsVars(src: string): PropertyDeclaration {
   const statement: VariableStatement = createSourceFile("", src, ScriptTarget.ES2015, true).statements[ 0 ] as any;
-  return statement.declarationList.declarations[ 0 ] as any as PropertyDeclaration;
+  return statement.declarationList.declarations[ 0 ] as any;
 }
-function parseClass(src) {
+function parseClass(src: string): ClassDeclaration {
   return createSourceFile("", src, ScriptTarget.ES2015, true).statements[ 0 ] as ClassDeclaration;
 }
 
@@ -129,7 +129,7 @@ describe("helpers", () => {
   });
   describe("isBinaryExpression()", () => {
     it("should check if expression is a binary expression", () => {
-      const expr = parseDeclaration("let p = 5 * 5;").initializer;
+      const expr = parsVars("let p = 5 * 5;").initializer;
       if (isBinaryExpression(expr)) {
         const binExpr: BinaryExpression = expr;
         expect(binExpr).to.not.be.null;
@@ -141,7 +141,7 @@ describe("helpers", () => {
   });
   describe("isPrefixUnaryExpression()", () => {
     it("should check if expression is prefix unary expression", () => {
-      const expr = parseDeclaration("let p = ~5;").initializer;
+      const expr = parsVars("let p = ~5;").initializer;
       if (isPrefixUnaryExpression(expr)) {
         const unaryExpr: PrefixUnaryExpression = expr;
         expect(unaryExpr).to.not.be.null;
@@ -153,7 +153,7 @@ describe("helpers", () => {
   });
   describe("isCallExpression()", () => {
     it("should check if expression is call expression", () => {
-      const expr = parseDeclaration("let p = test();").initializer;
+      const expr = parsVars("let p = test();").initializer;
       if (isCallExpression(expr)) {
         const callExpr: CallExpression = expr;
         expect(callExpr).to.not.be.null;
@@ -165,7 +165,7 @@ describe("helpers", () => {
   });
   describe("isIdentifier()", () => {
     it("should check if expression is identifier", () => {
-      const expr = parseDeclaration("let p = undefined;").initializer;
+      const expr = parsVars("let p = undefined;").initializer;
       if (isIdentifier(expr)) {
         const identifier: Identifier = expr;
         expect(identifier).to.not.be.null;
@@ -243,15 +243,15 @@ describe("helpers", () => {
   });
   describe("isTransparent()", () => {
     it("should return true if node kind is of transparent type (any, void, never, null, undefined)", () => {
-      expect(isTransparent(parseDeclaration(`let x: any;`).type)).to.be.true;
-      expect(isTransparent(parseDeclaration(`let x: void;`).type)).to.be.true;
-      expect(isTransparent(parseDeclaration(`let x: never;`).type)).to.be.true;
-      expect(isTransparent(parseDeclaration(`let x: null;`).type)).to.be.true;
-      expect(isTransparent(parseDeclaration(`let x: undefined;`).type)).to.be.true;
-      expect(isTransparent(parseDeclaration(`let x: number;`).type)).to.be.false;
-      expect(isTransparent(parseDeclaration(`let x: string;`).type)).to.be.false;
-      expect(isTransparent(parseDeclaration(`let x: boolean;`).type)).to.be.false;
-      expect(isTransparent(parseDeclaration(`let x: object;`).type)).to.be.false;
+      expect(isTransparent(parsVars(`let x: any;`).type)).to.be.true;
+      expect(isTransparent(parsVars(`let x: void;`).type)).to.be.true;
+      expect(isTransparent(parsVars(`let x: never;`).type)).to.be.true;
+      expect(isTransparent(parsVars(`let x: null;`).type)).to.be.true;
+      expect(isTransparent(parsVars(`let x: undefined;`).type)).to.be.true;
+      expect(isTransparent(parsVars(`let x: number;`).type)).to.be.false;
+      expect(isTransparent(parsVars(`let x: string;`).type)).to.be.false;
+      expect(isTransparent(parsVars(`let x: boolean;`).type)).to.be.false;
+      expect(isTransparent(parsVars(`let x: object;`).type)).to.be.false;
     });
   });
   describe("notPrivate()", () => {
@@ -305,15 +305,15 @@ describe("helpers", () => {
   });
   describe("notTransparent()", () => {
     it("should return true if node kind is not transparent type (any, void, never, null, undefined)", () => {
-      expect(notTransparent(parseDeclaration(`let x: any;`).type)).to.be.false;
-      expect(notTransparent(parseDeclaration(`let x: void;`).type)).to.be.false;
-      expect(notTransparent(parseDeclaration(`let x: never;`).type)).to.be.false;
-      expect(notTransparent(parseDeclaration(`let x: null;`).type)).to.be.false;
-      expect(notTransparent(parseDeclaration(`let x: undefined;`).type)).to.be.false;
-      expect(notTransparent(parseDeclaration(`let x: number;`).type)).to.be.true;
-      expect(notTransparent(parseDeclaration(`let x: string;`).type)).to.be.true;
-      expect(notTransparent(parseDeclaration(`let x: boolean;`).type)).to.be.true;
-      expect(notTransparent(parseDeclaration(`let x: object;`).type)).to.be.true;
+      expect(notTransparent(parsVars(`let x: any;`).type)).to.be.false;
+      expect(notTransparent(parsVars(`let x: void;`).type)).to.be.false;
+      expect(notTransparent(parsVars(`let x: never;`).type)).to.be.false;
+      expect(notTransparent(parsVars(`let x: null;`).type)).to.be.false;
+      expect(notTransparent(parsVars(`let x: undefined;`).type)).to.be.false;
+      expect(notTransparent(parsVars(`let x: number;`).type)).to.be.true;
+      expect(notTransparent(parsVars(`let x: string;`).type)).to.be.true;
+      expect(notTransparent(parsVars(`let x: boolean;`).type)).to.be.true;
+      expect(notTransparent(parsVars(`let x: object;`).type)).to.be.true;
     });
   });
   describe("toString()", () => {
@@ -340,204 +340,210 @@ describe("helpers", () => {
   });
   describe("InitializerWrapper()", () => {
     it("should wrap a value in a function", () => {
-      expect(new InitializerWrapper(parseDeclaration(`let x = 10`).initializer).valueOf()).to.equal(10);
-      expect(new InitializerWrapper(parseDeclaration(`let x = "test" + "ing"`).initializer).valueOf()).to.equal("testing");
-      expect(new InitializerWrapper(parseDeclaration(`let x = [1, 2, 3]`).initializer).valueOf()).to.deep.equal([ 1, 2, 3 ]);
-      expect(new InitializerWrapper(parseDeclaration(`let x = [1, 2, 3]`).initializer).valueOf()).to.not.equal(
-        new InitializerWrapper(parseDeclaration(`let x = [1, 2, 3]`).initializer).valueOf()
+      expect(new InitializerWrapper(parsVars(`let x = 10`).initializer).valueOf()).to.equal(10);
+      expect(new InitializerWrapper(parsVars(`let x = "test" + "ing"`).initializer).valueOf()).to.equal("testing");
+      expect(new InitializerWrapper(parsVars(`let x = [1, 2, 3]`).initializer).valueOf()).to.deep.equal([ 1, 2, 3 ]);
+      expect(new InitializerWrapper(parsVars(`let x = [1, 2, 3]`).initializer).valueOf()).to.not.equal(
+        new InitializerWrapper(parsVars(`let x = [1, 2, 3]`).initializer).valueOf()
       );
-      expect(new InitializerWrapper(parseDeclaration(`let x = [1, 2, 3]`).initializer).valueOf()).to.deep.equal(
-        new InitializerWrapper(parseDeclaration(`let x = [1, 2, 3]`).initializer).valueOf()
+      expect(new InitializerWrapper(parsVars(`let x = [1, 2, 3]`).initializer).valueOf()).to.deep.equal(
+        new InitializerWrapper(parsVars(`let x = [1, 2, 3]`).initializer).valueOf()
       );
     });
   });
 });
 describe("parsers", () => {
   describe("parseUnionOrIntersectionType()", () => {
-    it("should parseDeclaration unions with same types", () => {
-      expect(parseUnionOrIntersectionType(parseDeclaration(`let p: string | string;`).type as UnionOrIntersectionTypeNode))
+    it("should parsVars unions with same types", () => {
+      expect(parseUnionOrIntersectionType(parsVars(`let p: string | string;`).type as UnionOrIntersectionTypeNode))
         .to.equal(SyntaxKind.StringKeyword);
-      expect(parseUnionOrIntersectionType(parseDeclaration(`let p: number | number;`).type as UnionOrIntersectionTypeNode))
+      expect(parseUnionOrIntersectionType(parsVars(`let p: number | number;`).type as UnionOrIntersectionTypeNode))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseUnionOrIntersectionType(parseDeclaration(`let p: boolean | boolean;`).type as UnionOrIntersectionTypeNode))
+      expect(parseUnionOrIntersectionType(parsVars(`let p: boolean | boolean;`).type as UnionOrIntersectionTypeNode))
         .to.equal(SyntaxKind.BooleanKeyword);
-      expect(parseUnionOrIntersectionType(parseDeclaration(`let p: Array<any> | Array<any>;`).type as UnionOrIntersectionTypeNode))
+      expect(parseUnionOrIntersectionType(parsVars(`let p: Array<any> | Array<any>;`).type as UnionOrIntersectionTypeNode))
         .to.equal(SyntaxKind.ArrayType);
     });
     it("should ignore transparent types when parsing unions", () => {
-      expect(parseUnionOrIntersectionType(parseDeclaration(`let p: string | null;`).type as UnionOrIntersectionTypeNode))
+      expect(parseUnionOrIntersectionType(parsVars(`let p: string | null;`).type as UnionOrIntersectionTypeNode))
         .to.equal(SyntaxKind.StringKeyword);
-      expect(parseUnionOrIntersectionType(parseDeclaration(`let p: null | string;`).type as UnionOrIntersectionTypeNode))
+      expect(parseUnionOrIntersectionType(parsVars(`let p: null | string;`).type as UnionOrIntersectionTypeNode))
         .to.equal(SyntaxKind.StringKeyword);
-      expect(parseUnionOrIntersectionType(parseDeclaration(`let p: string | any;`).type as UnionOrIntersectionTypeNode))
+      expect(parseUnionOrIntersectionType(parsVars(`let p: string | any;`).type as UnionOrIntersectionTypeNode))
         .to.equal(SyntaxKind.StringKeyword);
     });
     it("should return ObjectKeyword for mixed types", () => {
-      expect(parseUnionOrIntersectionType(parseDeclaration(`let p: string | number;`).type as UnionOrIntersectionTypeNode))
+      expect(parseUnionOrIntersectionType(parsVars(`let p: string | number;`).type as UnionOrIntersectionTypeNode))
         .to.equal(SyntaxKind.ObjectKeyword);
-      expect(parseUnionOrIntersectionType(parseDeclaration(`let p: Array<number> | number;`).type as UnionOrIntersectionTypeNode))
+      expect(parseUnionOrIntersectionType(parsVars(`let p: Array<number> | number;`).type as UnionOrIntersectionTypeNode))
         .to.equal(SyntaxKind.ObjectKeyword);
-      expect(parseUnionOrIntersectionType(parseDeclaration(`let p: Array<number> | number;`).type as UnionOrIntersectionTypeNode))
+      expect(parseUnionOrIntersectionType(parsVars(`let p: Array<number> | number;`).type as UnionOrIntersectionTypeNode))
         .to.equal(SyntaxKind.ObjectKeyword);
     });
-    it("should parseDeclaration literals unions", () => {
-      expect(parseUnionOrIntersectionType(parseDeclaration(`let p: 'a' | 'b';`).type as UnionOrIntersectionTypeNode))
+    it("should parsVars literals unions", () => {
+      expect(parseUnionOrIntersectionType(parsVars(`let p: 'a' | 'b';`).type as UnionOrIntersectionTypeNode))
         .to.equal(SyntaxKind.StringKeyword);
-      expect(parseUnionOrIntersectionType(parseDeclaration(`let p: 1 | 2;`).type as UnionOrIntersectionTypeNode))
+      expect(parseUnionOrIntersectionType(parsVars(`let p: 1 | 2;`).type as UnionOrIntersectionTypeNode))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseUnionOrIntersectionType(parseDeclaration(`let p: 'a' | 1;`).type as UnionOrIntersectionTypeNode))
+      expect(parseUnionOrIntersectionType(parsVars(`let p: 'a' | 1;`).type as UnionOrIntersectionTypeNode))
         .to.equal(SyntaxKind.ObjectKeyword);
     });
   });
   describe("parseExpression()", () => {
     it("should understand simple numeral expressions", () => {
-      expect(parseExpression(parseDeclaration("let p = 5 + 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 + 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 * 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 * 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 ** 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 ** 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 * 5 * 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 * 5 * 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 - 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 - 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 / 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 / 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 % 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 % 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 & 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 & 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 | 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 | 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 ^ 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 ^ 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = ~5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = ~5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 << 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 << 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 >> 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 >> 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 >>> 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 >>> 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
     });
     it("should understand simple boolean expressions", () => {
-      expect(parseExpression(parseDeclaration("let p = 5 == 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 == 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.BooleanKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 === 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 === 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.BooleanKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 != 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 != 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.BooleanKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 !== 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 !== 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.BooleanKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 < 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 < 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.BooleanKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 <= 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 <= 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.BooleanKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 > 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 > 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.BooleanKeyword);
-      expect(parseExpression(parseDeclaration("let p = 5 >= 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = 5 >= 5;").initializer as BinaryExpression))
+        .to.equal(SyntaxKind.BooleanKeyword);
+      expect(parseExpression(parsVars("let p = !5;").initializer as BinaryExpression))
+        .to.equal(SyntaxKind.BooleanKeyword);
+      expect(parseExpression(parsVars("let p = !true;").initializer as BinaryExpression))
+        .to.equal(SyntaxKind.BooleanKeyword);
+      expect(parseExpression(parsVars("let p = !'test';").initializer as BinaryExpression))
         .to.equal(SyntaxKind.BooleanKeyword);
     });
     it("should understand simple text expressions", () => {
-      expect(parseExpression(parseDeclaration("let p = \"a\" + \"b\";").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = \"a\" + \"b\";").initializer as BinaryExpression))
         .to.equal(SyntaxKind.StringKeyword);
     });
     it("should understand mixed types simple expressions", () => {
-      expect(parseExpression(parseDeclaration("let p = \"a\" + 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = \"a\" + 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.StringKeyword);
-      expect(parseExpression(parseDeclaration("let p = true * 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = true * 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = window.innerWidth * 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = window.innerWidth * 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = window.innerWidth + 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = window.innerWidth + 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = (a || b) + 5;").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = (a || b) + 5;").initializer as BinaryExpression))
         .to.equal(SyntaxKind.NumberKeyword);
-      expect(parseExpression(parseDeclaration("let p = document.title + \" string\";").initializer as BinaryExpression))
+      expect(parseExpression(parsVars("let p = document.title + \" string\";").initializer as BinaryExpression))
         .to.equal(SyntaxKind.StringKeyword);
     });
   });
   describe("parseDeclarationType()", () => {
     it("should direct unions and intersections to `parseUnionOrIntersectionType` function", () => {
-      expect(parseDeclarationType(parseDeclaration(`let p: 'test1' | 'test2';`))).to.equal(SyntaxKind.StringKeyword);
-      expect(parseDeclarationType(parseDeclaration(`let p: string | null;`))).to.equal(SyntaxKind.StringKeyword);
-      expect(parseDeclarationType(parseDeclaration(`let p: boolean | true;`))).to.equal(SyntaxKind.BooleanKeyword);
-      expect(parseDeclarationType(parseDeclaration(`let p: string | number;`))).to.equal(SyntaxKind.ObjectKeyword);
-      expect(parseDeclarationType(parseDeclaration(`let p: Date & Object;`))).to.equal(SyntaxKind.ObjectKeyword);
+      expect(parseDeclarationType(parsVars(`let p: 'test1' | 'test2';`))).to.equal(SyntaxKind.StringKeyword);
+      expect(parseDeclarationType(parsVars(`let p: string | null;`))).to.equal(SyntaxKind.StringKeyword);
+      expect(parseDeclarationType(parsVars(`let p: boolean | true;`))).to.equal(SyntaxKind.BooleanKeyword);
+      expect(parseDeclarationType(parsVars(`let p: string | number;`))).to.equal(SyntaxKind.ObjectKeyword);
+      expect(parseDeclarationType(parsVars(`let p: Date & Object;`))).to.equal(SyntaxKind.ObjectKeyword);
     });
   });
   describe("parseDeclarationInitializer()", () => {
     it("should return no value and type Unknown if there is no initializer", () => {
-      expect(parseDeclarationInitializer(parseDeclaration("let p;"))).to.deep.equal({
+      expect(parseDeclarationInitializer(parsVars("let p;"))).to.deep.equal({
         type: SyntaxKind.Unknown
       });
-      expect(parseDeclarationInitializer(parseDeclaration("let p: string;"))).to.deep.equal({
+      expect(parseDeclarationInitializer(parsVars("let p: string;"))).to.deep.equal({
         type: SyntaxKind.Unknown
       });
     });
     it("should get type and value from simple literal initializer", () => {
-      expect(parseDeclarationInitializer(parseDeclaration("let p = \"test\";"))).to.deep.equal({
+      expect(parseDeclarationInitializer(parsVars("let p = \"test\";"))).to.deep.equal({
         type: SyntaxKind.StringKeyword, value: "\"test\""
       });
-      expect(parseDeclarationInitializer(parseDeclaration("let p = true;"))).to.deep.equal({
+      expect(parseDeclarationInitializer(parsVars("let p = true;"))).to.deep.equal({
         type: SyntaxKind.BooleanKeyword, value: true
       });
-      expect(parseDeclarationInitializer(parseDeclaration("let p = 10;"))).to.deep.equal({
+      expect(parseDeclarationInitializer(parsVars("let p = 10;"))).to.deep.equal({
         type: SyntaxKind.NumberKeyword, value: 10
       });
-      expect(parseDeclarationInitializer(parseDeclaration("let p = `25`;"))).to.deep.equal({
+      expect(parseDeclarationInitializer(parsVars("let p = `25`;"))).to.deep.equal({
         type: SyntaxKind.StringKeyword, value: "`25`"
       });
     });
     it("should get type and value from complex initializer and wrap value with an anonymous function", () => {
-      let initAndType = parseDeclarationInitializer(parseDeclaration("let p = `${25}`;"));
+      let initAndType = parseDeclarationInitializer(parsVars("let p = `${25}`;"));
       expect(initAndType.type).to.equal(SyntaxKind.StringKeyword);
       expect(initAndType.value.toString().replace(/\s+/g, " ")).to.equal("function () { return `${25}`; }");
 
-      initAndType = parseDeclarationInitializer(parseDeclaration("let p = { a: true };"));
+      initAndType = parseDeclarationInitializer(parsVars("let p = { a: true };"));
       expect(initAndType.type).to.equal(SyntaxKind.ObjectKeyword);
       expect(initAndType.value.toString().replace(/\s+/g, " ")).to.equal("function () { return { a: true }; }");
 
-      initAndType = parseDeclarationInitializer(parseDeclaration("let p = ENUM.A;"));
+      initAndType = parseDeclarationInitializer(parsVars("let p = ENUM.A;"));
       expect(initAndType.type).to.equal(SyntaxKind.ObjectKeyword);
       expect(initAndType.value.toString().replace(/\s+/g, " ")).to.equal("function () { return ENUM.A; }");
 
-      initAndType = parseDeclarationInitializer(parseDeclaration("let p = () => \"test\";"));
+      initAndType = parseDeclarationInitializer(parsVars("let p = () => \"test\";"));
       expect(initAndType.type).to.equal(SyntaxKind.ObjectKeyword);
       expect(initAndType.value.toString().replace(/\s+/g, " ")).to.equal("function () { return () => \"test\"; }");
 
-      initAndType = parseDeclarationInitializer(parseDeclaration("let p = new Date();"));
+      initAndType = parseDeclarationInitializer(parsVars("let p = new Date();"));
       expect(initAndType.type).to.equal(SyntaxKind.ObjectKeyword);
       expect(initAndType.value.toString().replace(/\s+/g, " ")).to.equal("function () { return new Date(); }");
 
-      initAndType = parseDeclarationInitializer(parseDeclaration("let p = [ 1, 2, 3 ];"));
+      initAndType = parseDeclarationInitializer(parsVars("let p = [ 1, 2, 3 ];"));
       expect(initAndType.type).to.equal(SyntaxKind.ArrayType);
       expect(initAndType.value.toString().replace(/\s+/g, " ")).to.equal("function () { return [ 1, 2, 3 ]; }");
 
-      initAndType = parseDeclarationInitializer(parseDeclaration("let p = new Array(10);"));
+      initAndType = parseDeclarationInitializer(parsVars("let p = new Array(10);"));
       expect(initAndType.type).to.equal(SyntaxKind.ArrayType);
       expect(initAndType.value.toString().replace(/\s+/g, " ")).to.equal("function () { return new Array(10); }");
     });
     it("should get type and value from expressions", () => {
-      let initAndType = parseDeclarationInitializer(parseDeclaration("let p = 5 * 5 * 5;"));
+      let initAndType = parseDeclarationInitializer(parsVars("let p = 5 * 5 * 5;"));
       expect(initAndType.type).to.equal(SyntaxKind.NumberKeyword);
       expect(initAndType.value.toString().replace(/\s+/g, " ")).to.equal("function () { return 5 * 5 * 5; }");
 
-      initAndType = parseDeclarationInitializer(parseDeclaration("let p = \"test\" + \"test\";"));
+      initAndType = parseDeclarationInitializer(parsVars("let p = \"test\" + \"test\";"));
       expect(initAndType.type).to.equal(SyntaxKind.StringKeyword);
       expect(initAndType.value.toString().replace(/\s+/g, " ")).to.equal("function () { return \"test\" + \"test\"; }");
 
-      initAndType = parseDeclarationInitializer(parseDeclaration("let p = 5 * innerWidth;"));
+      initAndType = parseDeclarationInitializer(parsVars("let p = 5 * innerWidth;"));
       expect(initAndType.type).to.equal(SyntaxKind.NumberKeyword);
       expect(initAndType.value.toString().replace(/\s+/g, " ")).to.equal("function () { return 5 * innerWidth; }");
     });
     it("should fallback to ObjectKeyword if no type was recognized", () => {
-      let initAndType = parseDeclarationInitializer(parseDeclaration("let p = window && window.opener;"));
+      let initAndType = parseDeclarationInitializer(parsVars("let p = window && window.opener;"));
       expect(initAndType.type).to.equal(SyntaxKind.ObjectKeyword);
       expect(initAndType.value.toString().replace(/\s+/g, " "))
         .to.equal("function () { return window && window.opener; }");
 
-      initAndType = parseDeclarationInitializer(parseDeclaration("let p = (window && window.opener);"));
+      initAndType = parseDeclarationInitializer(parsVars("let p = (window && window.opener);"));
       expect(initAndType.type).to.equal(SyntaxKind.ObjectKeyword);
       expect(initAndType.value.toString().replace(/\s+/g, " "))
         .to.equal("function () { return (window && window.opener); }");
@@ -545,50 +551,50 @@ describe("parsers", () => {
   });
   describe("getFinalType()", () => {
     it("should return type of node or type of literal (if node is literal)", () => {
-      expect(getFinalType(parseDeclaration(`let x: string`).type).kind).to.equal(SyntaxKind.StringKeyword);
-      expect(getFinalType(parseDeclaration(`let x: 'test'`).type).kind).to.equal(SyntaxKind.StringLiteral);
-      expect(getFinalType(parseDeclaration(`let x: 10`).type).kind).to.equal(SyntaxKind.NumericLiteral);
+      expect(getFinalType(parsVars(`let x: string`).type).kind).to.equal(SyntaxKind.StringKeyword);
+      expect(getFinalType(parsVars(`let x: 'test'`).type).kind).to.equal(SyntaxKind.StringLiteral);
+      expect(getFinalType(parsVars(`let x: 10`).type).kind).to.equal(SyntaxKind.NumericLiteral);
     });
   });
   describe("getSimpleKind()", () => {
-    it("should parseDeclaration simple types", () => {
-      expect(getSimpleKind(parseDeclaration(`let p;`).type)).to.equal(SyntaxKind.Unknown);
-      expect(getSimpleKind(parseDeclaration(`let p: string;`).type)).to.equal(SyntaxKind.StringKeyword);
-      expect(getSimpleKind(parseDeclaration(`let p: number;`).type)).to.equal(SyntaxKind.NumberKeyword);
-      expect(getSimpleKind(parseDeclaration(`let p: boolean;`).type)).to.equal(SyntaxKind.BooleanKeyword);
-      expect(getSimpleKind(parseDeclaration(`let p: Array<boolean>;`).type)).to.equal(SyntaxKind.ArrayType);
+    it("should parsVars simple types", () => {
+      expect(getSimpleKind(parsVars(`let p;`).type)).to.equal(SyntaxKind.Unknown);
+      expect(getSimpleKind(parsVars(`let p: string;`).type)).to.equal(SyntaxKind.StringKeyword);
+      expect(getSimpleKind(parsVars(`let p: number;`).type)).to.equal(SyntaxKind.NumberKeyword);
+      expect(getSimpleKind(parsVars(`let p: boolean;`).type)).to.equal(SyntaxKind.BooleanKeyword);
+      expect(getSimpleKind(parsVars(`let p: Array<boolean>;`).type)).to.equal(SyntaxKind.ArrayType);
     });
     it("should convert all TypeReferences to ObjectKeyword", () => {
-      expect(getSimpleKind(parseDeclaration(`let p: Date;`).type)).to.equal(SyntaxKind.ObjectKeyword);
-      expect(getSimpleKind(parseDeclaration(`let p: Object;`).type)).to.equal(SyntaxKind.ObjectKeyword);
-      expect(getSimpleKind(parseDeclaration(`let p: PolymerElement;`).type)).to.equal(SyntaxKind.ObjectKeyword);
-      expect(getSimpleKind(parseDeclaration(`let p: ENUM;`).type)).to.equal(SyntaxKind.ObjectKeyword);
+      expect(getSimpleKind(parsVars(`let p: Date;`).type)).to.equal(SyntaxKind.ObjectKeyword);
+      expect(getSimpleKind(parsVars(`let p: Object;`).type)).to.equal(SyntaxKind.ObjectKeyword);
+      expect(getSimpleKind(parsVars(`let p: PolymerElement;`).type)).to.equal(SyntaxKind.ObjectKeyword);
+      expect(getSimpleKind(parsVars(`let p: ENUM;`).type)).to.equal(SyntaxKind.ObjectKeyword);
     });
     it("should ignore all transparent types and convert them to Unknown type", () => {
-      expect(getSimpleKind(parseDeclaration(`let p: null;`).type)).to.equal(SyntaxKind.Unknown);
-      expect(getSimpleKind(parseDeclaration(`let p: undefined;`).type)).to.equal(SyntaxKind.Unknown);
-      expect(getSimpleKind(parseDeclaration(`let p: any;`).type)).to.equal(SyntaxKind.Unknown);
-      expect(getSimpleKind(parseDeclaration(`let p: void;`).type)).to.equal(SyntaxKind.Unknown);
-      expect(getSimpleKind(parseDeclaration(`let p: never;`).type)).to.equal(SyntaxKind.Unknown);
+      expect(getSimpleKind(parsVars(`let p: null;`).type)).to.equal(SyntaxKind.Unknown);
+      expect(getSimpleKind(parsVars(`let p: undefined;`).type)).to.equal(SyntaxKind.Unknown);
+      expect(getSimpleKind(parsVars(`let p: any;`).type)).to.equal(SyntaxKind.Unknown);
+      expect(getSimpleKind(parsVars(`let p: void;`).type)).to.equal(SyntaxKind.Unknown);
+      expect(getSimpleKind(parsVars(`let p: never;`).type)).to.equal(SyntaxKind.Unknown);
     });
-    it("should parseDeclaration literal types", () => {
-      expect(getSimpleKind(parseDeclaration(`let p: boolean[];`).type)).to.equal(SyntaxKind.ArrayType);
-      expect(getSimpleKind(parseDeclaration(`let p: [ boolean ];`).type)).to.equal(SyntaxKind.ArrayType);
-      expect(getSimpleKind(parseDeclaration(`let p: [ string, number ];`).type)).to.equal(SyntaxKind.ArrayType);
+    it("should parsVars literal types", () => {
+      expect(getSimpleKind(parsVars(`let p: boolean[];`).type)).to.equal(SyntaxKind.ArrayType);
+      expect(getSimpleKind(parsVars(`let p: [ boolean ];`).type)).to.equal(SyntaxKind.ArrayType);
+      expect(getSimpleKind(parsVars(`let p: [ string, number ];`).type)).to.equal(SyntaxKind.ArrayType);
 
-      expect(getSimpleKind(parseDeclaration(`let p: 'test';`).type)).to.equal(SyntaxKind.StringKeyword);
-      expect(getSimpleKind(parseDeclaration(`let p: { a: boolean, b: string };`).type)).to.equal(SyntaxKind.ObjectKeyword);
-      expect(getSimpleKind(parseDeclaration(`let p: () => string;`).type)).to.equal(SyntaxKind.ObjectKeyword);
+      expect(getSimpleKind(parsVars(`let p: 'test';`).type)).to.equal(SyntaxKind.StringKeyword);
+      expect(getSimpleKind(parsVars(`let p: { a: boolean, b: string };`).type)).to.equal(SyntaxKind.ObjectKeyword);
+      expect(getSimpleKind(parsVars(`let p: () => string;`).type)).to.equal(SyntaxKind.ObjectKeyword);
     });
   });
-  describe("getTypeAndValue()", () => {
+  describe("parseDeclaration()", () => {
     it("should prefer implicit type over deducted one", () => {
-      expect(getTypeAndValue(parseDeclaration("let p: number = null;")))
+      expect(parseDeclaration(parsVars("let p: number = null;")))
         .to.deep.equal({ type: SyntaxKind.NumberKeyword, value: null, isDate: false });
-      expect(getTypeAndValue(parseDeclaration("let p: number = undefined;")))
+      expect(parseDeclaration(parsVars("let p: number = undefined;")))
         .to.deep.equal({ type: SyntaxKind.NumberKeyword, value: undefined, isDate: false });
 
-      const initAndType = getTypeAndValue(parseDeclaration("let p: string = document.title;"));
+      const initAndType = parseDeclaration(parsVars("let p: string = document.title;"));
       expect(initAndType.type).to.equal(SyntaxKind.StringKeyword);
       expect(initAndType.value.toString().replace(/\s+/g, " ")).to.equal("function () { return document.title; }");
     });
@@ -596,8 +602,8 @@ describe("parsers", () => {
 });
 describe("builders", () => {
   describe("Method()", () => {
-    const method = parseDeclaration(`let x = function(a, b) { return a + b; }`).initializer as any as MethodDeclaration;
-    it("should parseDeclaration a function expression and return a function", () => {
+    const method = parsVars(`let x = function(a, b) { return a + b; }`).initializer as any as MethodDeclaration;
+    it("should parsVars a function expression and return a function", () => {
       expect(new Method(method).toString()).to.equal(`function(a, b) { return a + b; }`);
     });
     it("should name a function if name was provided", () => {
@@ -606,7 +612,7 @@ describe("builders", () => {
     });
   });
   describe("Property()", () => {
-    it("should parseDeclaration properties", () => {
+    it("should parsVars properties", () => {
       const classDeclaration = parseClass(`class Test {
       public readonly t1: string = document.title;
       t2 = "test";
@@ -626,7 +632,7 @@ describe("builders", () => {
         .filter(notPrivate)
         .filter(notStatic)
         .map((property: PropertyDeclaration) => new Property(property, property.name.getText()))
-        .map((property) => property.toString())
+        .map((property) => `${property.jsDoc}${property.name}: ${property}`)
       ).to.deep.equal([
         "t1: { type: String,value: function () {\nreturn document.title;\n},readOnly: true }",
         "t2: { type: String,value: \"test\" }",
@@ -656,7 +662,7 @@ describe("builders", () => {
         }
       }`)).template).to.equal("<h1>{{lastName}}</h1> <h2>{{name}}</h2>");
     });
-    it("should parseDeclaration class correctly and build valid properties and methods", () => {
+    it("should parsVars class correctly and build valid properties and methods", () => {
       let element = new Component(parseClass(`class Test {
       public readonly t1: string = document.title;
       t2 = "test";
@@ -675,7 +681,7 @@ describe("builders", () => {
       expect(element[ "properties" ].size).to.equal(8);
       expect(element[ "methods" ].size).to.equal(2);
 
-      expect(Array.from(element[ "properties" ].values()).map(toString)).to.deep.equal([
+      expect(Array.from(element[ "properties" ].values()).map((prop) => `${prop.jsDoc}${prop.name}: ${prop}`)).to.deep.equal([
         "t1: { type: String,value: function () {\nreturn document.title;\n},readOnly: true }",
         "t2: { type: String,value: \"test\" }",
         "t3: String",
@@ -817,7 +823,7 @@ describe("builders", () => {
       expect(element[ "properties" ].size).to.equal(4);
       expect(element[ "methods" ].size).to.equal(9);
 
-      expect(Array.from(element[ "properties" ].values()).map(toString)).to.deep.equal([
+      expect(Array.from(element[ "properties" ].values()).map((prop) => `${prop.jsDoc}${prop.name}: ${prop}`)).to.deep.equal([
         "testValue: String",
         "value: { type: String,value: \"\",reflectToAttribute: true,observer: \"valueChanged\" }",
         "symbols: { type: Array,value: function () {\nreturn [\n          InputMath.SYMBOLS_BASIC,\n          " +
@@ -913,7 +919,7 @@ describe("decorators", () => {
       expect(observer).to.equal("observerMethod(p1, p2)");
     });
     it("should use arguments names if no properties were provided", () => {
-      const functionDeclaration = parseDeclaration("let x = function(prop1: string, prop2: string) { return prop1 + prop2; }").initializer;
+      const functionDeclaration = parsVars("let x = function(prop1: string, prop2: string) { return prop1 + prop2; }").initializer;
       const method = new Method(functionDeclaration as any, "observerMethod");
       const { observers: [ observer ] } = decoratorsMap.observe.call({ declaration }, method);
       expect(observer).to.equal("observerMethod(prop1, prop2)");

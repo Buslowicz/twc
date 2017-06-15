@@ -49,6 +49,31 @@ export interface ProfileChangeEvent extends CustomEvent {
     newProfile: any;
   };
 }
+
+/**
+ * Make the property value to be computed using provided method (or its name) and arguments (optional when providing method with arguments
+ * matching class properties).
+ *
+ * @example
+ * @CustomElement()
+ * class MyElement {
+ *  @compute((name) => name.toLowerCase()) computedProperty1: string;
+ *  @compute((age) => age >= 18, ['user.age']) computedProperty2: boolean;
+ *  @compute((firstName, lastName) => `${firstName} ${lastName}`) computedProperty3: string;
+ *  @compute((firstName, lastName) => `${firstName} ${lastName}`) computedProperty3: string;
+ *  @compute('resolver', ['name']) computedProperty4: string;
+ *
+ *  resolver(name) {
+ *    return name.toLowerCase();
+ *  }
+ * }
+ *
+ * @param method Resolver for the computed property, or name of method from class prototype to be used as a resolver
+ * @param [args] List of dependencies to pass to the resolver (if resolver is a function, arguments can be taken from arguments)
+ */
+export function compute(method: string, args: [ string ]): PropertyDecorator;
+export function compute(method: Function, args?: [ string ]): PropertyDecorator;
+
 /** Fires whenever ** .. yo! */
 export interface SomeEvent extends CustomEvent {
   detail: {

@@ -4,6 +4,7 @@
     "tslint:recommended"
   ],
   "rules": {
+    "ban-types": false,
     "interface-name": false,
     "trailing-comma": [
       true,

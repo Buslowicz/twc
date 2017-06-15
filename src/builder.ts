@@ -1,31 +1,22 @@
 import { existsSync } from "fs";
-import { kebabCase } from "lodash";
 import { dirname, extname, parse, resolve } from "path";
 import {
   ClassDeclaration, ClassElement, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, JSDoc,
   MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, PropertyDeclaration, PropertySignature, SourceFile, Statement,
   SyntaxKind, TypeLiteralNode, TypeNode
 } from "typescript";
-
+import * as buildTargets from "../targets";
 import * as decoratorsMap from "./decorators";
 import {
-  getDecorators, getFlatHeritage, getRoot, getText, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBlock,
-  isClassDeclaration, isExportAssignment, isExportDeclaration, isImportDeclaration, isInterfaceDeclaration, isMethod, isModuleDeclaration,
-  isNamedImports, isProperty, isStatic, isTemplateExpression, Link, notPrivate, notStatic, ParsedDecorator, RefUpdater, stripQuotes
+  getDecorators, getFlatHeritage, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBlock, isClassDeclaration,
+  isExportAssignment, isExportDeclaration, isImportDeclaration, isInterfaceDeclaration, isMethod, isModuleDeclaration, isNamedImports,
+  isProperty, isStatic, isTemplateExpression, Link, notPrivate, notStatic, ParsedDecorator, RefUpdater, stripQuotes
 } from "./helpers";
-import { getTypeAndValue, parseDeclarationType, ValidValue } from "./parsers";
-import * as buildTargets from "./targets";
+import { parseDeclaration, parseDeclarationType, ValidValue } from "./type-analyzer";
 
-export interface PolymerPropertyConfig {
-  type: SyntaxKind;
-  value?: ValidValue;
-  readOnly?: boolean;
-  reflectToAttribute?: boolean;
-  notify?: boolean;
-  computed?: string;
-  observer?: string;
-}
-
+/**
+ * Map of TypeScript kind to JavaScript type.
+ */
 export const typeMap = {
   [SyntaxKind.StringKeyword]: String,
   [SyntaxKind.NumberKeyword]: Number,
@@ -34,13 +25,16 @@ export const typeMap = {
   [SyntaxKind.ArrayType]: Array
 };
 
+/**
+ * Representation of an imported entity. Provides an imported identifier and fullIdentifier (identifier with namespace if provided).
+ */
 export class ImportedNode {
-  /** imported member */
+  /** Imported entity name */
   public get identifier() {
     return this.bindings.name.getText();
   }
 
-  /** imported member with namespace */
+  /** Imported entity name with namespace */
   public get fullIdentifier() {
     return `${this.importClause.namespace ? `${this.importClause.namespace}.` : ""}${this.bindings.name.getText()}`;
   }
@@ -48,25 +42,21 @@ export class ImportedNode {
   constructor(public readonly bindings: ImportSpecifier | NamespaceImport, public readonly importClause: Import) {}
 }
 
-export class Style {
-  constructor(public readonly style: string | Link, public readonly isShared = false) {}
-
-  public toString(): string {
-    let style = "";
-    if (!this.isShared && typeof this.style === "string") {
-      style = this.style;
-    } else if (this.style instanceof Link) {
-      style = `${this.style}`;
-    }
-    return `<style${this.isShared ? ` include="${this.style}"` : ""}>${style.trim()}</style>`;
-  }
-}
-
+/**
+ * Representation of an import. Provides a list of ImportedNode's, module path and a namespace.
+ * When converted to a string, it returns an HTML Import for HTML files, script tak for JS files and link for CSS files.
+ *
+ * @todo fetch namespace from external module
+ */
 export class Import {
+  /** Module path */
   public module: string;
+  /** Module namespace */
   public namespace: string;
+  /** List of imported entities */
   public imports: Array<ImportedNode> = [];
 
+  /** Checks if module is importable (module path ends with .js, .html or .css) */
   public get isImportable() {
     const { module } = this;
     return [ ".js", ".html", ".css" ].includes(extname(module));
@@ -101,16 +91,38 @@ export class Import {
   }
 }
 
+/**
+ * Representation of a style, which can be css, link to css file or a shared component.
+ * When converted to a string, it returns a style tag with provided css or include clause for shared styles.
+ */
+export class Style {
+  constructor(public readonly style: string | Link, public readonly isShared = false) {}
+
+  public toString(): string {
+    let style = `${this.style}`;
+    if (this.isShared) {
+      style = "";
+    }
+    return `<style${this.isShared ? ` include="${this.style}"` : ""}>${style.trim()}</style>`;
+  }
+}
+
+/**
+ * Representation of a custom event interface declaration.
+ */
 export class RegisteredEvent {
+  /** Name of an event */
   public get name(): string {
     return this.declaration.name.getText();
   }
 
+  /** Event description */
   public get description(): string {
     const jsDoc = this.declaration[ "jsDoc" ];
     return jsDoc ? jsDoc.map((doc) => doc.comment).join("\n") : null;
   }
 
+  /** List of detail members (keys in an event detail) */
   public get params(): Array<{ type: ValidValue, rawType: TypeNode, name: string, description?: string }> {
     const property = this.declaration.members.find((member) => member.name.getText() === "detail") as PropertySignature;
     return (property.type as TypeLiteralNode).members.map((member) => ({
@@ -130,7 +142,7 @@ export class RegisteredEvent {
         ` * ${this.description}`,
         ` *`
       ] : []),
-      ` * @event ${kebabCase(this.name)}`,
+      ` * @event ${this.name.replace(/([A-Z])/g, (_, l, i) => (i ? "-" : "") + l.toLowerCase())}`,
       ...this.params.map(({ rawType, name, description }) => {
         const type = rawType.getText().replace(/\s+/g, " ").replace(/(.+?:.+?);/g, "$1,");
         return ` * @param {${type}} ${name}${description ? ` ${description}` : ""}`;
@@ -140,28 +152,45 @@ export class RegisteredEvent {
   }
 }
 
+/**
+ * Representation of a component property.
+ * When converted to a string, it returns an object with a property config or a type if only type is available.
+ */
 export class Property extends RefUpdater {
+  /** Type of a property */
   public type: Constructor<ValidValue>;
+  /** Default value */
   public value?: ValidValue | InitializerWrapper;
-  public readOnly?: boolean;
+  /** Whether property reflects to an attribute */
   public reflectToAttribute?: boolean;
+  /** Whether to send an event whenever property changes */
   public notify?: boolean;
+  /** Computed property resolver */
   public computed?: string;
+  /** Property observer */
   public observer?: string;
-  public jsDoc?: Array<JSDoc>;
-  public decorators: Array<ParsedDecorator>;
+
+  /** Whether property has a read only access */
+  public get readOnly(): boolean {
+    return hasModifier(this.declaration, SyntaxKind.ReadonlyKeyword);
+  }
+
+  /** Property decorators */
+  public get decorators(): Array<ParsedDecorator> {
+    return getDecorators(this.declaration);
+  }
+
+  /** JSDoc for the property */
+  public get jsDoc(): string {
+    const jsDoc = this.declaration[ "jsDoc" ] as Array<JSDoc>;
+    return jsDoc ? `${jsDoc.map((doc) => doc.getText()).join("\n")}\n` : "";
+  }
 
   constructor(public readonly declaration: PropertyDeclaration, public readonly name: string) {
     super();
-    const { type, value, isDate } = getTypeAndValue(declaration);
-    this.readOnly = hasModifier(declaration, SyntaxKind.ReadonlyKeyword);
-    this.decorators = getDecorators(declaration);
+    const { type, value, isDate } = parseDeclaration(declaration);
 
-    Object.assign(this, {
-      jsDoc: declaration[ "jsDoc" ] as Array<JSDoc>,
-      type: isDate ? Date : typeMap[ type || SyntaxKind.ObjectKeyword ],
-      value
-    });
+    Object.assign(this, { type: isDate ? Date : typeMap[ type || SyntaxKind.ObjectKeyword ], value });
   }
 
   public toString() {
@@ -169,76 +198,44 @@ export class Property extends RefUpdater {
       (this.value as InitializerWrapper).provideRefs(this.refs);
     }
     if (isStatic(this.declaration)) {
-      return `${this.getJsDoc()}${this.name} = ${this.value}`;
+      return `${this.value}`;
     }
-    const propConfig = [
-      this.getType(),
-      this.getValue(),
-      this.getReadOnly(),
-      this.getReflectToAttribute(),
-      this.getNotify(),
-      this.getComputed(),
-      this.getObserver()
+    const props = [ "value", "readOnly", "reflectToAttribute", "notify", "computed", "observer" ];
+
+    const isSimpleConfig = this.type && this.value === undefined && props.slice(1).every((prop) => !this[ prop ]);
+
+    return isSimpleConfig ? this.type.name : `{ ${ [
+      `type: ${this.type.name}`,
+      ...props.map((prop) => this[ prop ] ? `${prop}: ${this[ prop ]}` : undefined)
     ]
-      .filter((key) => !!key);
-    return `${this.getJsDoc()}${this.name}: ${this.isSimpleConfig() ? this.type.name : `{ ${ propConfig } }`}`;
-  }
-
-  private getType() {
-    return `type: ${this.type.name}`;
-  }
-
-  private getValue() {
-    return this.value ? `value: ${this.value}` : undefined;
-  }
-
-  private getReadOnly() {
-    return this.readOnly ? "readOnly: true" : undefined;
-  }
-
-  private getReflectToAttribute() {
-    return this.reflectToAttribute ? "reflectToAttribute: true" : undefined;
-  }
-
-  private getNotify() {
-    return this.notify ? "notify: true" : undefined;
-  }
-
-  private getComputed() {
-    return this.computed ? `computed: ${this.computed}` : undefined;
-  }
-
-  private getObserver() {
-    return this.observer ? `observer: ${this.observer}` : undefined;
-  }
-
-  private getJsDoc() {
-    return this.jsDoc ? `${this.jsDoc.map((doc) => doc.getText()).join("\n")}\n` : "";
-  }
-
-  private isSimpleConfig(): boolean {
-    return this.type
-      && this.value === undefined
-      && !this.readOnly
-      && !this.reflectToAttribute
-      && !this.notify
-      && !this.computed
-      && !this.observer;
+      .filter((key) => !!key) } }`;
   }
 }
 
+/**
+ * Representation of a component method
+ */
 export class Method extends RefUpdater {
+  /** JSDoc for the method */
+  public get jsDoc(): string {
+    const jsDoc = this.declaration[ "jsDoc" ] as Array<JSDoc>;
+    return jsDoc ? `${jsDoc.map((doc) => doc.getText()).join("\n")}\n` : "";
+  }
+
+  /** Property decorators */
   public get decorators(): Array<ParsedDecorator> {
     return getDecorators(this.declaration as any);
   }
 
+  /** Method arguments list */
   public get arguments(): Array<string> {
     if (!this.declaration.parameters) {
       return [];
     }
-    return this.declaration.parameters.map(getText);
+    return this.declaration.parameters.map((param) => param.getText());
   }
 
+  /** Method arguments names list (without type declaration) */
   public get argumentsNoType(): Array<string> {
     if (!this.declaration.parameters) {
       return [];
@@ -246,6 +243,7 @@ export class Method extends RefUpdater {
     return this.declaration.parameters.map((param) => param.name.getText());
   }
 
+  /** List of method body statements */
   private get statements(): Array<string> {
     if (isBlock(this.declaration.body)) {
       const statements = this.declaration.body.statements.map(this.getText);
@@ -263,16 +261,21 @@ export class Method extends RefUpdater {
   }
 
   public toString() {
-    const name = isStatic(this.declaration as ClassElement) ? `${this.name} = function` : this.name;
+    const name = isStatic(this.declaration as ClassElement) ? "function" : this.name;
     return `${name}(${this.arguments.join(", ")}) { ${this.statements.join("\n")} }`;
   }
 }
 
+/**
+ * Representation of a component
+ */
 export class Component {
+  /** Components name */
   public get name(): string {
     return this.source.name.getText();
   }
 
+  /** Components extends list */
   public get heritage(): string {
     if (!this.source.heritageClauses) {
       return null;
@@ -282,17 +285,34 @@ export class Component {
       .reduce((a, c) => c, null).getText().slice(8);
   }
 
+  /** Components template */
   public template: string | Link;
+
+  /** Components styles */
   public styles: Array<Style> = [];
+
+  /** Components behaviors list */
   public behaviors: Array<string> = [];
+
+  /** Events fired by the component */
   public events: Array<RegisteredEvent> = [];
 
+  /** Components properties map */
   public properties: Map<string, Property> = new Map();
+
+  /** Components methods map */
   public methods: Map<string, Method> = new Map();
+
+  /** List of observers */
   public observers: Array<string> = [];
+
+  /** Components static properties map */
   public staticProperties: Map<string, Property> = new Map();
+
+  /** Components static methods map */
   public staticMethods: Map<string, Method> = new Map();
 
+  /** Property decorators */
   public get decorators(): Array<ParsedDecorator> {
     return getDecorators(this.source);
   }
@@ -360,6 +380,14 @@ export class Component {
     }
   }
 
+  /**
+   * Decorate a property, method or a component with each decorator from a list
+   *
+   * @param member Property, method or component to decorate
+   * @param decorators list of decorators to apply
+   *
+   * @returns Member provided (to allow chained calls)
+   */
   private decorate(member: Property | Method | Component, decorators: Array<ParsedDecorator>): Property | Method | Component {
     decorators.forEach((decor) => {
       if (decor.name in decoratorsMap) {
@@ -389,30 +417,42 @@ export class Component {
   }
 }
 
+/**
+ * Representation of a module. Converting to string generates a final output.
+ */
 export class Module {
+  /**
+   * Module name (for module/namespace declaration)
+   */
   public get name() {
     return isModuleDeclaration(this.source) ? this.source.name.getText() : "";
   }
 
+  /** Imports list */
   public get imports(): Array<Import> {
     return this.statements
       .filter((statement) => statement instanceof Import)
       .filter((statement: Import) => statement.isImportable) as Array<Import>;
   }
 
+  /** List of Components */
   public get components(): Array<Component> {
     return Array
       .from(this.variables.values())
       .filter((variable) => variable instanceof Component);
   }
 
+  /** List of Custom Events */
   public get events(): Array<RegisteredEvent> {
     return Array
       .from(this.variables.values())
       .filter((variable) => variable instanceof RegisteredEvent);
   }
 
+  /** List of statements */
   public readonly statements: Array<Statement | Component | Import | Module> = [];
+
+  /** Map of variable identifiers to variables */
   public readonly variables: Map<string, ImportedNode | any> = new Map();
 
   constructor(public readonly source: SourceFile | ModuleDeclaration,

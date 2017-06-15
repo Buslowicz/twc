@@ -1,40 +1,31 @@
 #!/usr/bin/env node
 
+import * as commandLineArgs from "command-line-args";
+import * as commandLineUsage from "command-line-usage";
 import "typescript/lib/typescriptServices";
-const commandLineArgs = require("command-line-args");
-const commandLineUsage = require("command-line-usage");
-import ReadWriteStream = NodeJS.ReadWriteStream;
-import find = require("find-up");
-import * as If from "gulp-if";
-import * as merge from "merge2";
-import { join } from "path";
-import { existsSync, readFileSync } from "fs";
-import { dest } from "gulp";
-import { createProject } from "gulp-typescript";
-import { StreamParser } from "./StreamParser";
 
 const cliOptions = [
   {
-    name: "tsConfig",
     alias: "p",
-    type: String,
+    defaultValue: "tsconfig.json",
     description: "tsconfig.json file location",
-    typeLabel: "[underline]{path}",
-    defaultValue: "tsconfig.json"
-  },
-  {
-    name: "bowerConfig",
-    alias: "b",
+    name: "tsConfig",
     type: String,
-    description: "bower.json file location",
-    typeLabel: "[underline]{path}",
-    defaultValue: "bower.json"
+    typeLabel: "[underline]{path}"
   },
   {
-    name: "help",
+    alias: "b",
+    defaultValue: "bower.json",
+    description: "bower.json file location",
+    name: "bowerConfig",
+    type: String,
+    typeLabel: "[underline]{path}"
+  },
+  {
     alias: "?",
-    type: Boolean,
-    description: "Shows this help"
+    description: "Shows this help",
+    name: "help",
+    type: Boolean
   }
 ];
 let cli;
@@ -49,19 +40,19 @@ try {
 if (cli.help) {
   console.log(commandLineUsage([
     {
-      header: "Typed Web Components",
-      content: "Convert TypeScript classes into native Polymer components"
+      content: "Convert TypeScript classes into native Polymer components",
+      header: "Typed Web Components"
     },
     {
-      header: "Syntax",
-      content: "twc [options]"
+      content: "twc [options]",
+      header: "Syntax"
     },
     {
-      header: "Examples",
       content: [
         "twc",
         "twc --tsConfig custom-config.json"
-      ].join("\n")
+      ].join("\n"),
+      header: "Examples"
     },
     {
       header: "Options", optionList: cliOptions.slice(0, -1)
@@ -69,35 +60,3 @@ if (cli.help) {
   ]));
   process.exit();
 }
-
-const cwd = process.cwd();
-const fullPath = path => path ? join(cwd, path) : undefined;
-
-const bowerRCFilePath = find.sync(".bowerrc");
-const tsConfigPath = cli.tsConfig ? fullPath(cli.tsConfig) : find.sync("tsconfig.json");
-const bowerConfigPath = cli.bowerConfig ? fullPath(cli.bowerConfig) : find.sync("bower.json");
-const tsConfig = require(tsConfigPath);
-
-const { outDir, declaration, declarationDir } = tsConfig.compilerOptions;
-
-let bowerDir: "bower_components";
-if (existsSync(bowerRCFilePath)) {
-  bowerDir = JSON.parse(readFileSync(bowerRCFilePath).toString()).directory;
-}
-
-console.time("Done");
-const { 1: polymerVersion = 1 } = require(bowerConfigPath).dependencies.polymer.match(/#[\D]*(\d)(?:\.\d)+/) || {};
-const collector = new StreamParser(Number(polymerVersion), tsConfig.compilerOptions.target, bowerDir);
-const tsProject = createProject(tsConfigPath, collector.tsConfig);
-const stream: { js: ReadWriteStream; dts: ReadWriteStream } = tsProject.src()
-  .pipe(collector.collectSources())
-  .pipe(tsProject());
-
-merge([ stream.dts, stream.js ])
-  .pipe(collector.generateOutput())
-  .pipe(If("*.html", dest(outDir || ".")))
-  .pipe(If(({ path }) => declaration && path.endsWith(".d.ts"), dest(declarationDir || outDir || ".")))
-  .on("finish", () => {
-    console.timeEnd("Done");
-    process.exit(0);
-  });

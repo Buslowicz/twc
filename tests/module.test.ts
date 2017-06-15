@@ -1,16 +1,9 @@
-import { use, expect } from "chai";
-use(require("chai-string"));
+import { expect } from "chai";
 import { readFileSync } from "fs";
-import Module from "../src/PolymerModule";
 
 describe("module builder", () => {
   function moduleTests(esVersion: number) {
     return () => {
-      let inputMathMeta: Module;
-      let elementNameMeta: Module;
-      let noTemplateMeta: Module;
-      let notifyComputedMeta: Module;
-
       before(() => {
         inputMathMeta = new Module(
           `${__dirname}/assets/input-math.ts`,
