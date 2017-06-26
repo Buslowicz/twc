@@ -1,6 +1,4 @@
 #!/usr/bin/node
-// import * as commandLineArgs from "command-line-args";
-// import * as commandLineUsage from "command-line-usage";
 import { existsSync, mkdirSync, readFileSync, watchFile, writeFileSync } from "fs";
 import { basename, dirname, join, relative, resolve } from "path";
 import { fileExists } from "ts-node/dist";
@@ -10,15 +8,6 @@ import { Module } from "./builder";
 const packageJson = readConfigFile(
   findConfigFile(module.filename, fileExists, "package.json"), (path) => `${readFileSync(path, "utf-8")}`
 ).config;
-
-// console.log(JSON.stringify(process.argv.slice(2).reduce((config, option) => {
-//   if (option.startsWith("-")) {
-//     config.lastOption = config.options[ option.substr(option.startsWith("--") ? 2 : 1) ] = { option, params: [] };
-//   } else {
-//     config.lastOption.params.push(option);
-//   }
-//   return config;
-// }, { lastOption: null, options: {} }).options, null, 2));
 
 interface Config {
   compilerOptions: CompilerOptions;
@@ -43,7 +32,7 @@ function emitFile(fileName: string, options: Config) {
       return p;
     }, "");
   }
-  writeFileSync(path, new Module(source, options.compilerOptions, options.compileTo).toString());
+  writeFileSync(path, new Module(source, options.compilerOptions, options.compileTo || "Polymer1").toString());
 }
 
 function watch(rootFileNames: string[], options: Config) {
@@ -86,7 +75,7 @@ const twcOverrides: CompilerOptions = {
   sourceMap: false
 };
 
-Object.assign(tsConfig.compilerOptions, config.options, twcOverrides);
+tsConfig.compilerOptions = Object.assign({}, tsConfig.compilerOptions, config.options, twcOverrides);
 
 if (!tsConfig.exclude) {
   tsConfig.exclude = [];

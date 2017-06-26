@@ -65,9 +65,10 @@ export class Polymer1 {
   private get domModule(): string {
     // Forcing ES2015 modules to prevent code pollution with loaders boilerplate code
     const compilerOptions = Object.assign(this.module.compilerOptions, {module: ModuleKind.ES2015});
+    const { body } = this;
+    const script = body ? `<script>${transpileModule(body, {compilerOptions}).outputText}</script>` : "";
 
-    const script = this.body ? `<script>${transpileModule(this.body, {compilerOptions}).outputText}</script>` : "";
-    return `${this.imports.join("\n")}${this.component ? `
+    return `${this.imports.join("\n")}${this.component ? `${this.component.jsDoc}
     <dom-module is="${this.component.name.replace(/([A-Z])/g, (_, l, i) => (i ? "-" : "") + l.toLowerCase())}">${
       this.component.template ? `
       <template>
