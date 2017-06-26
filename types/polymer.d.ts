@@ -107,3 +107,7 @@ declare class PolymerMetaEffects extends PolymerBatchedEffects {
   // _createPropertyFromInfo(name: string, info): void;
   // _setPropertyDefaults(properties): void;
 }
+
+interface Event {
+  model: any;
+}

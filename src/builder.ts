@@ -2,17 +2,16 @@ import { existsSync } from "fs";
 import { dirname, extname, parse, resolve } from "path";
 import {
   ClassDeclaration, ClassElement, CompilerOptions, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier,
-  InterfaceDeclaration, JSDoc,
-  MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, PropertyDeclaration, PropertySignature, SourceFile, Statement,
-  SyntaxKind, TypeLiteralNode, TypeNode
+  InterfaceDeclaration, JSDoc, MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, PropertyDeclaration,
+  PropertySignature, SourceFile, Statement, SyntaxKind, TypeLiteralNode, TypeNode
 } from "typescript";
-import * as buildTargets from "../targets";
 import * as decoratorsMap from "./decorators";
 import {
   getDecorators, getFlatHeritage, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBlock, isClassDeclaration,
   isExportAssignment, isExportDeclaration, isImportDeclaration, isInterfaceDeclaration, isMethod, isModuleDeclaration, isNamedImports,
   isProperty, isStatic, isTemplateExpression, Link, notPrivate, notStatic, ParsedDecorator, RefUpdater, stripQuotes
 } from "./helpers";
+import * as buildTargets from "./targets";
 import { parseDeclaration, parseDeclarationType, ValidValue } from "./type-analyzer";
 
 /**
@@ -126,6 +125,9 @@ export class RegisteredEvent {
   /** List of detail members (keys in an event detail) */
   public get params(): Array<{ type: ValidValue, rawType: TypeNode, name: string, description?: string }> {
     const property = this.declaration.members.find((member) => member.name.getText() === "detail") as PropertySignature;
+    if (!property) {
+      return [];
+    }
     return (property.type as TypeLiteralNode).members.map((member) => ({
       description: member[ "jsDoc" ] ? member[ "jsDoc" ].map((doc) => doc.comment).join("\n") : null,
       name: member.name.getText(),
@@ -469,7 +471,7 @@ export class Module {
       } else if (isInterfaceDeclaration(statement)) {
         const name = statement.name.getText();
         if (this.variables.has(name) && this.variables.get(name) instanceof Component) {
-          this.variables.get(name).behaviors.push(...getFlatHeritage(statement));
+          this.variables.get(name).behaviors.push(...getFlatHeritage(statement, this.variables));
         } else if (inheritsFrom(statement, "CustomEvent", "Event")) {
           this.variables.set(name, new RegisteredEvent(statement));
         } else {
@@ -479,7 +481,8 @@ export class Module {
         const component = new Component(statement as ClassDeclaration);
 
         if (this.variables.has(component.name) && !(this.variables.get(component.name) instanceof Component)) {
-          component.behaviors.push(...getFlatHeritage(this.variables.get(component.name)));
+          const heritage = getFlatHeritage(this.variables.get(component.name), this.variables);
+          component.behaviors.push(...heritage);
         }
 
         this.variables.set(component.name, component);

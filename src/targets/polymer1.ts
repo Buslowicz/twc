@@ -1,7 +1,7 @@
 import * as pretty from "pretty";
-import { Statement, transpileModule } from "typescript";
-import { Component, Import, ImportedNode, Method, Module } from "../src/builder";
-import { getQuoteChar, updateImportedRefs } from "../src/helpers";
+import { ModuleKind, Statement, transpileModule } from "typescript";
+import { Component, Import, ImportedNode, Method, Module } from "../builder";
+import { getQuoteChar, updateImportedRefs } from "../helpers";
 
 /**
  * Outputs Polymer v1 native component.
@@ -63,17 +63,19 @@ export class Polymer1 {
 
   /** Generate a dom module. */
   private get domModule(): string {
-    return `${this.imports.join("\n")}
+    // Forcing ES2015 modules to prevent code pollution with loaders boilerplate code
+    const compilerOptions = Object.assign(this.module.compilerOptions, {module: ModuleKind.ES2015});
+
+    const script = this.body ? `<script>${transpileModule(this.body, {compilerOptions}).outputText}</script>` : "";
+    return `${this.imports.join("\n")}${this.component ? `
     <dom-module is="${this.component.name.replace(/([A-Z])/g, (_, l, i) => (i ? "-" : "") + l.toLowerCase())}">${
       this.component.template ? `
       <template>
         ${this.component.styles.join("\n")}
         ${this.component.template.toString().trim()}
       </template>` : ""}
-      <script>
-        ${transpileModule(this.body, { compilerOptions: this.module.compilerOptions }).outputText}
-      </script>
-    </dom-module>`;
+      ${script}
+    </dom-module>` : script}`;
   }
 
   constructor(private module: Module) {
@@ -90,9 +92,11 @@ export class Polymer1 {
       const start = process.hrtime();
       const html = pretty(this.domModule) + "\n";
       const end = process.hrtime();
-      console.log(`DomModule ${this.component.name} generated in ${
-      Math.round((end[ 0 ] * 1000) + (end[ 1 ] / 1000000)) - Math.round((start[ 0 ] * 1000) + (start[ 1 ] / 1000000))
-        }`);
+      if (!process.env["SILENT"]) {
+        const fac = 1000000;
+        const genTime = Math.round((end[0] * 1000) + (end[1] / fac)) - Math.round((start[0] * 1000) + (start[1] / fac));
+        console.log(`\`${this.component ? this.component.name : "Module"}\` generated in ${genTime}`);
+      }
       return html;
     }
   }
@@ -130,9 +134,8 @@ export class Polymer1 {
    * @returns Stringified behaviors declaration
    */
   private behaviors(component: Component): string {
-    const quote = getQuoteChar(this.module.source);
     return component.behaviors.length === 0 ? "" : `behaviors: [
-      ${component.behaviors.map((behavior) => `${quote}${behavior}${quote}`).join(",\n")}
+      ${component.behaviors.map((behavior) => `${behavior}`).join(",\n")}
     ]`;
   }
 
@@ -173,7 +176,7 @@ export class Polymer1 {
   private methods(component: Component): Array<string> {
     return Array
       .from(component.methods.values())
-      .map((m) => m.name in Polymer1.lifecycleMap ? new Method(m.declaration, Polymer1.lifecycleMap[ m.name ]) : m)
+      .map((m) => m.name in Polymer1.lifecycleMap ? new Method(m.declaration, Polymer1.lifecycleMap[m.name]) : m)
       .map((m) => `${m.jsDoc}${m.provideRefs(this.importedRefs, true)}`);
   }
 

@@ -4,7 +4,7 @@
   "description": "Typed Web Components compiles pure TypeScript classes to native Polymer modules.",
   "main": "./src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "tslint -p tsconfig.json && mocha --require ts-node/register --ui bdd tests/tests.spec.ts"
   },
   "bin": {
     "twc": "./dist/src/cli.js"
@@ -21,9 +21,11 @@
   },
   "devDependencies": {
     "@types/chai": "^3.5.2",
+    "@types/chai-string": "^1.1.30",
     "@types/mocha": "^2.2.41",
     "@types/node": "^7.0.13",
     "chai": "^3.5.0",
+    "chai-string": "^1.4.0",
     "mocha": "^3.3.0",
     "ts-node": "^3.0.6",
     "tslint": "^5.1.0"

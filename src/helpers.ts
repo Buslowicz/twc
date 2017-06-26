@@ -26,43 +26,6 @@ export const transparentTypes = [
 export const methodKinds = [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructor ];
 
 /**
- * Class holding a reference to a file. When converted to a string, the file is read and content is returned.
- */
-export class Link {
-  constructor(public uri: string, private source: Node) {}
-
-  public toString() {
-    return readFileSync(resolve(dirname(getRoot(this.source).fileName), this.uri)).toString();
-  }
-}
-
-/**
- * A reference to an identifier. It will allow to get types from already visited entities.
- */
-export class Ref {
-  constructor(public ref: Identifier) {}
-
-  public getReference(statements: Map<string, any>) {
-    return statements.get(this.ref.getText());
-  }
-
-  public toString() {
-    return this.ref.getText();
-  }
-}
-
-/**
- * Reference to an expression, which cannot be converted to a function expression due to external references.
- */
-export class ReferencedExpression {
-  constructor(public expr: Expression) {}
-
-  public toString() {
-    return this.expr.getText();
-  }
-}
-
-/**
  * Class bringing the functionality of updating identifiers of imported entities with a namespace.
  */
 export abstract class RefUpdater {
@@ -96,6 +59,43 @@ export abstract class RefUpdater {
     } else {
       return statement.getText();
     }
+  }
+}
+
+/**
+ * Class holding a reference to a file. When converted to a string, the file is read and content is returned.
+ */
+export class Link {
+  constructor(public uri: string, private source: Node) {}
+
+  public toString() {
+    return readFileSync(resolve(dirname(getRoot(this.source).fileName), this.uri)).toString();
+  }
+}
+
+/**
+ * A reference to an identifier. It will allow to get types from already visited entities.
+ */
+export class Ref {
+  constructor(public ref: Identifier) {}
+
+  public getReference(statements: Map<string, any>) {
+    return statements.get(this.ref.getText());
+  }
+
+  public toString() {
+    return this.ref.getText();
+  }
+}
+
+/**
+ * Reference to an expression, which cannot be converted to a function expression due to external references.
+ */
+export class ReferencedExpression {
+  constructor(public expr: Expression) {}
+
+  public toString() {
+    return this.expr.getText();
   }
 }
 
@@ -176,12 +176,16 @@ export const getDecorators = (declaration: ClassElement | ClassDeclaration): Arr
  *
  * @returns Array of used mixin names
  */
-export const flatExtends = (expression: Node): Array<string> => {
+export const flatExtends = (expression: Node, vars?: Map<string, ImportedNode>): Array<string> => {
+  const getText = (expr: Node) => {
+    return vars ? updateImportedRefs(expr, vars) : expr.getText();
+  };
+
   if (isCallExpression(expression)) {
-    const deepList = [ expression.expression.getText(), ...expression.arguments.map((arg) => flatExtends(arg)) ];
+    const deepList = [ getText(expression.expression), ...expression.arguments.map((arg) => flatExtends(arg)) ];
     return deepList.reduce((p: Array<string>, c) => p.concat(c), []) as any;
   } else {
-    return [ expression.getText() ];
+    return [ getText(expression) ];
   }
 };
 
@@ -192,7 +196,7 @@ export const flatExtends = (expression: Node): Array<string> => {
  *
  * @returns Array of used mixin names
  */
-export const getFlatHeritage = (declaration: ClassDeclaration | InterfaceDeclaration): Array<string> => {
+export const getFlatHeritage = (declaration: ClassDeclaration | InterfaceDeclaration, vars?: Map<string, ImportedNode>): Array<string> => {
   if (!declaration.heritageClauses) {
     return [];
   }
@@ -203,7 +207,7 @@ export const getFlatHeritage = (declaration: ClassDeclaration | InterfaceDeclara
     .map(toProperty("types"))
     .reduce(flattenArray, [])
     .map(toProperty("expression"))
-    .map(flatExtends)
+    .map((node) => flatExtends(node, vars))
     .reduce(flattenArray, []);
 };
 

@@ -22,8 +22,9 @@
   },
   "include": [
     "src/*",
-    "targets/*",
+    "src/targets/*",
     "tests/*",
+    "tests/targets/*",
     "tests/samples/*",
     "types/*",
     "*.ts"
