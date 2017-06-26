@@ -1,10 +1,8 @@
 import { test as T1, test2 } from "bower:esp/esp.html#Namespace";
 import * as esp2 from "bower:esp/esp2.html";
 import { Templatizer } from "bower:polymer/polymer.html#Polymer";
-import { attr, behavior, compute, notify, observe, style } from "twc/polymer";
+import { attr, compute, CustomElement, notify, observe, style } from "twc/polymer";
 import "./assets/test";
-
-declare function CustomElement(cls): void;
 
 namespace Polymer {
   export interface TheBehavior {
@@ -50,30 +48,6 @@ export interface ProfileChangeEvent extends CustomEvent {
   };
 }
 
-/**
- * Make the property value to be computed using provided method (or its name) and arguments (optional when providing method with arguments
- * matching class properties).
- *
- * @example
- * @CustomElement()
- * class MyElement {
- *  @compute((name) => name.toLowerCase()) computedProperty1: string;
- *  @compute((age) => age >= 18, ['user.age']) computedProperty2: boolean;
- *  @compute((firstName, lastName) => `${firstName} ${lastName}`) computedProperty3: string;
- *  @compute((firstName, lastName) => `${firstName} ${lastName}`) computedProperty3: string;
- *  @compute('resolver', ['name']) computedProperty4: string;
- *
- *  resolver(name) {
- *    return name.toLowerCase();
- *  }
- * }
- *
- * @param method Resolver for the computed property, or name of method from class prototype to be used as a resolver
- * @param [args] List of dependencies to pass to the resolver (if resolver is a function, arguments can be taken from arguments)
- */
-export function compute(method: string, args: [ string ]): PropertyDecorator;
-export function compute(method: Function, args?: [ string ]): PropertyDecorator;
-
 /** Fires whenever ** .. yo! */
 export interface SomeEvent extends CustomEvent {
   detail: {
@@ -84,15 +58,6 @@ export interface SomeEvent extends CustomEvent {
     name: string;
   };
 }
-
-/**
- * A behavior
- */
-const myBehavior = {
-  test() {
-    console.log("behavior test");
-  }
-};
 
 export namespace Custom {
   /* tslint:disable:array-type */
@@ -160,9 +125,8 @@ export namespace Custom2 {
    *
    * @demo test.html
    */
-  @CustomElement
+  @CustomElement()
   @style("h1 {color: red;}", "style.css", "shared-style")
-  @behavior(myBehavior)
   export class ElementName extends Polymer.Element {
     public static prop = test2;
 
@@ -178,9 +142,9 @@ export namespace Custom2 {
     /**
      * A greetings list
      */
-    @attr public greetings: Array<string>;
+    @attr() public greetings: Array<string>;
     public readonly test: string = "tester";
-    @notify public profile: any = T1;
+    @notify() public profile: any = T1;
 
     constructor() {
       super();
@@ -188,7 +152,7 @@ export namespace Custom2 {
     }
 
     public connectedCallback() {
-      super.connectedCallback();
+      // super.connectedCallback();
       console.log("connected");
     }
 
@@ -200,12 +164,12 @@ export namespace Custom2 {
       console.log("val:", val);
     }
 
-    @observe
+    @observe()
     public observerAuto(greetings: Array<string>) {
       console.log("greetings:", greetings);
     }
 
-    @observe
+    @observe()
     public observerAutoMulti(greetings: Array<string>, profile: object) {
       console.log("greetings:", greetings, profile);
     }
@@ -240,7 +204,7 @@ export namespace Custom2 {
     }
   }
 
-  @CustomElement
+  @CustomElement()
   export class NewElement extends HTMLDivElement {
     public template() {
       return `<div>Hello World</div>`;

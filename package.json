@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": {
-    "twc": "./src/cli.js"
+    "twc": "./dist/src/cli.js"
   },
   "author": {
     "email": "draccoz+typescript@gmail.com",
@@ -16,8 +16,6 @@
   },
   "license": "ISC",
   "dependencies": {
-    "command-line-args": "^3.0.5",
-    "command-line-usage": "^4.0.0",
     "pretty": "^2.0.0",
     "typescript": "^2.2.2"
   },

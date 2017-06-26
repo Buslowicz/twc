@@ -1,5 +1,5 @@
 import * as pretty from "pretty";
-import { ModuleKind, Statement, transpileModule } from "typescript";
+import { Statement, transpileModule } from "typescript";
 import { Component, Import, ImportedNode, Method, Module } from "../src/builder";
 import { getQuoteChar, updateImportedRefs } from "../src/helpers";
 
@@ -71,7 +71,7 @@ export class Polymer1 {
         ${this.component.template.toString().trim()}
       </template>` : ""}
       <script>
-        ${transpileModule(this.body, { compilerOptions: { module: ModuleKind.ES2015 } }).outputText}
+        ${transpileModule(this.body, { compilerOptions: this.module.compilerOptions }).outputText}
       </script>
     </dom-module>`;
   }
@@ -90,7 +90,7 @@ export class Polymer1 {
       const start = process.hrtime();
       const html = pretty(this.domModule) + "\n";
       const end = process.hrtime();
-      console.log(`DomModule generated in ${
+      console.log(`DomModule ${this.component.name} generated in ${
       Math.round((end[ 0 ] * 1000) + (end[ 1 ] / 1000000)) - Math.round((start[ 0 ] * 1000) + (start[ 1 ] / 1000000))
         }`);
       return html;

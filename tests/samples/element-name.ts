@@ -1,13 +1,6 @@
-import "./types";
-import { template, style, behavior, attr, notify, observe, computed } from "twc/polymer";
-import { Templatizer } from "bower:polymer/polymer.html#Polymer";
 import { test } from "bower:esp/esp.html";
-
-export namespace Polymer {
-  export interface TheBehavior {
-    created(): void;
-  }
-}
+import { Templatizer } from "bower:polymer/polymer.html#Polymer";
+import { attr, compute, CustomElement, notify, observe, style, template } from "twc/polymer";
 
 export interface ProfileChangeEvent extends CustomEvent {
   detail: {
@@ -26,64 +19,48 @@ export interface SomeEvent extends CustomEvent {
   };
 }
 
-/**
- * A behavior
- */
-const myBehavior = {
-  test() {
-    console.log("behavior test");
-  }
-};
-
-export interface ElementName extends Polymer.TheBehavior, Templatizer {}
+export interface ElementName extends Templatizer {}
 
 /**
  * A test class
  *
  * @demo test.html
  */
+@CustomElement()
 @template("template.element-name.html")
-@style("h1 {color: red;}")
-@style("style.css")
-@style("shared-style")
-@behavior(myBehavior)
+@style("h1 {color: red;}", "style.css", "shared-style")
 export class ElementName extends Polymer.Element {
-  /**
-   * A greetings list
-   */
-  @attr greetings: Array<string>;
-  readonly test: string = "tester";
-  @notify profile: any;
-
   /**
    * Some static method
    */
-  static staticTest(test: string, test2: {a: boolean, b: any}, test3?: number) {
+  public static staticTest(test: string, test2: { a: boolean, b: any }, test3?: number) {
     console.log("static");
   }
 
   /**
+   * A greetings list
+   */
+  @attr() public greetings: Array<string>;
+  public readonly test: string = "tester";
+  @notify() public profile: any;
+
+  @compute((val: string) => val + "!", [ "test" ]) public computedProp: string;
+  @compute((test: string) => test + "!") public computedPropAuto;
+
+  /**
    * Observer method
    */
-  @observe("profile.prop") observer(val: string) {
+  @observe("profile.prop")
+  public observer(val: string) {
     console.log("val:", val);
   }
 
-  @observe observerAuto(greetings: Array<string>) {
+  @observe()
+  public observerAuto(greetings: Array<string>) {
     console.log("greetings:", greetings);
   }
 
-  @computed("test") computedProp(val: string) {
-    console.log(val);
-    return val + "!";
-  }
-
-  @computed computedPropAuto(test: string) {
-    console.log("test:", test);
-    return test + "!";
-  }
-
-  externalDependency() {
+  public externalDependency() {
     return test;
   }
 }

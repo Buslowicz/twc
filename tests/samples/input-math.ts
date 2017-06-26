@@ -1,5 +1,4 @@
-import "./types";
-import { template, attr, notify, observe } from "twc/polymer";
+import { attr, notify, observe, template } from "twc/polymer";
 
 import "./imports/jquery.js";
 import "./imports/mathquill.js";
@@ -17,9 +16,9 @@ export interface PolymerEvent extends Event {
 @component("input-math")
 @template("<input>")
 export class InputMath extends Polymer.Element {
-  static HISTORY_SIZE: number = 20;
+  public static HISTORY_SIZE: number = 20;
 
-  static SYMBOLS_BASIC: ICmd[] = [
+  public static SYMBOLS_BASIC: ICmd[] = [
     { cmd: "\\sqrt", name: "√" },
     { cmd: "\\nthroot", name: "√", className: "n-sup" },
     { cmd: "\\int", name: "∫" },
@@ -32,43 +31,25 @@ export class InputMath extends Polymer.Element {
     { cmd: "\\div", name: "÷" }
   ];
 
-  static SYMBOLS_GREEK: ICmd[] = [
-    { cmd: "\\lambda", name: "λ" },
-    { cmd: "\\pi", name: "π" },
-    { cmd: "\\mu", name: "μ" },
-    { cmd: "\\sum", name: "Σ" },
-    { cmd: "\\alpha", name: "α" },
-    { cmd: "\\beta", name: "β" },
-    { cmd: "\\gamma", name: "γ" },
-    { cmd: "\\delta", name: "ᵟ", className: "big" },
-    { cmd: "\\Delta", name: "Δ" }
+  public testValue: "yep"|"nope";
+
+  @attr() public value: string|null = "";
+
+  @notify() public symbols: ICmd[][] = [
+    InputMath.SYMBOLS_BASIC
   ];
 
-  static SYMBOLS_PHYSICS: ICmd[] = [
-    { cmd: "\\ohm", name: "Ω" },
-    { cmd: "\\phi", name: "ᶲ", className: "big" }
-  ];
+  public showSymbols: string = "";
 
-  testValue: "yep"|"nope";
-
-  @attr value: string|null = "";
-
-  @notify symbols: ICmd[][] = [
-    InputMath.SYMBOLS_BASIC,
-    InputMath.SYMBOLS_GREEK
-  ];
-
-  showSymbols: string = "";
-
-  private _history: string[];
-  private _mathField: MathQuill.EditableField;
-  private _observerLocked: boolean = false;
-  private _freezeHistory: boolean = false;
-  private _editor: HTMLElement = document.createElement("div");
+  private history: string[];
+  private mathField: MathQuill.EditableField;
+  private observerLocked: boolean = false;
+  private freezeHistory: boolean = false;
+  private editor: HTMLElement = document.createElement("div");
 
   constructor() {
     super();
-    var editor: HTMLElement = this._editor;
+    const editor: HTMLElement = this.editor;
     editor.id = "editor";
     editor.classList.add("input-math");
     this[ "_mathField" ] = MathQuill.getInterface(2).MathField(editor, {
@@ -79,71 +60,71 @@ export class InputMath extends Polymer.Element {
     });
   }
 
-  ready(): void {
-    this.insertBefore(this._editor, this.$.controls);
+  public ready(): void {
+    this.insertBefore(this.editor, this.$.controls);
   }
 
-  cmd(ev: PolymerEvent): void {
-    this._mathField.cmd(ev.model.item.cmd).focus();
+  public cmd(ev: PolymerEvent): void {
+    this.mathField.cmd(ev.model.item.cmd).focus();
   }
 
-  undo(): void {
-    if (this._history && this._history.length > 0) {
-      this._freezeHistory = true;
-      this.value = this._history.pop();
-      this._freezeHistory = false;
+  public undo(): void {
+    if (this.history && this.history.length > 0) {
+      this.freezeHistory = true;
+      this.value = this.history.pop();
+      this.freezeHistory = false;
     }
   }
 
   @observe("value")
-  valueChanged(value: string, prevValue: string): Array<{ test: boolean }> {
+  public valueChanged(value: string, prevValue: string) {
     this._updateHistory(prevValue);
 
-    if (this._observerLocked) {
+    if (this.observerLocked) {
       return;
     }
 
-    this._mathField.select().write(value);
-    if (this._mathField.latex() === "") {
+    this.mathField.select().write(value);
+    if (this.mathField.latex() === "") {
       this.undo();
     }
   }
 
   @observe("showSymbols")
-  symbolsChanged(symbols: string): void {
+  public symbolsChanged(symbols: string): void {
     if (symbols) {
-      this.symbols = symbols.split(",").map(groupName => {
+      this.symbols = symbols.split(",").map((groupName) => {
         return InputMath[ "SYMBOLS_" + groupName.toUpperCase() ] || [];
       });
     }
   }
 
   @listen("keydown")
-  keyShortcuts(ev: KeyboardEvent): void {
+  public keyShortcuts(ev: KeyboardEvent): void {
     if (ev.ctrlKey && ev.keyCode === 90) {
       this.undo();
     }
   }
 
-  _updateValue(test: { a: () => void, b: any }): void {
+  public _updateValue(test: { a: () => void, b: any }): void {
     console.log(test);
-    this._observerLocked = true;
-    this.value = this._mathField.latex();
-    this._observerLocked = false;
+    this.observerLocked = true;
+    this.value = this.mathField.latex();
+    this.observerLocked = false;
   }
 
   private _updateHistory(prevValue: string): void {
-    if (!this._history) {
-      this._history = [];
+    if (!this.history) {
+      this.history = [];
     }
 
-    if (this._freezeHistory || prevValue == null) {
+    if (this.freezeHistory || prevValue == null) {
       return;
     }
 
-    this._history.push(prevValue);
-    if (this._history.length > InputMath.HISTORY_SIZE) {
-      this._history.shift();
+    this.history.push(prevValue);
+    if (this.history.length > InputMath.HISTORY_SIZE) {
+      this.history.shift();
     }
   }
 }

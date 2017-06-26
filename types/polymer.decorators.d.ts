@@ -1,4 +1,4 @@
-import "./polymer";
+/// <reference path="polymer.d.ts"/>
 
 declare module "twc/polymer" {
   /**

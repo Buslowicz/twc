@@ -4,7 +4,6 @@
     "forceConsistentCasingInFileNames": true,
     "module": "commonjs",
     "moduleResolution": "node",
-    "noEmit": true,
     "noImplicitAny": false,
     "noImplicitReturns": true,
     "noImplicitThis": true,
@@ -18,13 +17,14 @@
     "lib": [
       "es7",
       "dom"
-    ]
+    ],
+    "outDir": "dist"
   },
   "include": [
-    "decorators/*",
     "src/*",
     "targets/*",
     "tests/*",
+    "tests/samples/*",
     "types/*",
     "*.ts"
   ]

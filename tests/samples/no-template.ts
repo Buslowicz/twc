@@ -1,5 +1,6 @@
-import "twc/polymer";
+import { CustomElement } from "twc/polymer";
 
+@CustomElement()
 export class NoTemplate extends Polymer.Element {
-  name: string;
+  public name: string;
 }

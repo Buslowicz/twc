@@ -1,3 +1,5 @@
+/// <reference path="../../types/polymer.decorators.d.ts"/>
+
 declare namespace MathQuill {
   export interface EditableField {
     cmd(command: any): any;
@@ -12,7 +14,7 @@ declare const component: (name: string) => any;
 declare const listen: (name: any) => any;
 
 declare module "bower:esp/esp.html" {
-  export const test = "test";
+  export type test = "test";
 }
 
 declare module "bower:polymer/polymer.html" {
@@ -20,9 +22,9 @@ declare module "bower:polymer/polymer.html" {
 
 declare module "bower:polymer/polymer.html#Polymer" {
   export interface Templatizer {
+    new(): Templatizer;
     templatize(template: any): any;
     stamp(model: any): any;
     modelForElement(el: any): any;
-    new(): Templatizer;
   }
 }

@@ -1,7 +1,8 @@
 import { existsSync } from "fs";
 import { dirname, extname, parse, resolve } from "path";
 import {
-  ClassDeclaration, ClassElement, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, JSDoc,
+  ClassDeclaration, ClassElement, CompilerOptions, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier,
+  InterfaceDeclaration, JSDoc,
   MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, PropertyDeclaration, PropertySignature, SourceFile, Statement,
   SyntaxKind, TypeLiteralNode, TypeNode
 } from "typescript";
@@ -456,6 +457,7 @@ export class Module {
   public readonly variables: Map<string, ImportedNode | any> = new Map();
 
   constructor(public readonly source: SourceFile | ModuleDeclaration,
+              public readonly compilerOptions: CompilerOptions,
               public readonly output: "Polymer1" | "Polymer2",
               public readonly parent: Module = null) {
     (isModuleDeclaration(source) ? source.body as ModuleBlock : source).statements.forEach((statement) => {
@@ -484,7 +486,7 @@ export class Module {
         this.statements.push(component);
         return;
       } else if (isModuleDeclaration(statement)) {
-        const module = new Module(statement, this.output, this);
+        const module = new Module(statement, compilerOptions, this.output, this);
         this.variables.set(module.name, module);
         this.statements.push(module);
         return;
@@ -497,7 +499,7 @@ export class Module {
     this.components.forEach((component) => component.events.push(...this.events));
   }
 
-  public toString() {
+  public toString(): string {
     return new buildTargets[ this.output ](this).toString();
   }
 }
