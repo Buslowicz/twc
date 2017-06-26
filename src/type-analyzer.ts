@@ -189,6 +189,7 @@ export function parseDeclarationType(declaration: PropertyDeclaration): SyntaxKi
  */
 export function parseDeclarationInitializer(declaration: PropertyDeclaration): TypeAndValue {
   const { initializer } = declaration;
+
   function defaultCase() {
     const type = getSimpleKind(initializer);
     return {

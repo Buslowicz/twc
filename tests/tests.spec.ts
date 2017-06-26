@@ -17,6 +17,7 @@ import {
   getFinalType, getSimpleKind, parseDeclaration, parseDeclarationInitializer, parseDeclarationType, parseExpression,
   parseUnionOrIntersectionType
 } from "../src/type-analyzer";
+import "./targets/polymer1.spec";
 
 function parse<T>(src: string): T {
   return createSourceFile("", src, ScriptTarget.ES2015, true).statements[ 0 ] as any;
@@ -29,7 +30,7 @@ function parseClass(src: string): ClassDeclaration {
   return createSourceFile("", src, ScriptTarget.ES2015, true).statements[ 0 ] as ClassDeclaration;
 }
 
-process.env["SILENT"] = true;
+process.env[ "SILENT" ] = true;
 
 describe("helpers", () => {
   // TODO: write Link tests
@@ -1037,4 +1038,3 @@ describe("decorators", () => {
   });
 });
 
-import "./targets/polymer1.spec";

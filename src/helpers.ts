@@ -629,7 +629,7 @@ export const flattenArray = (arr: Array<any>, item: any): Array<any> => arr.conc
  *
  * @returns {Function} A function to map an item
  */
-export const toProperty = (key: string): (obj: any) => any => (obj: {[key: string]: any}) => obj[ key ];
+export const toProperty = (key: string): (obj: any) => any => (obj: { [key: string]: any }) => obj[ key ];
 
 /**
  * Strip quotes from beginning and the end of a provided string.

@@ -7,7 +7,7 @@ use(chaiString);
 describe("Polymer v1 output", () => {
   function transpile(tpl: string) {
     const component = (target: "ES5" | "ES2015") => {
-      const compilerOptions: CompilerOptions = {target: ScriptTarget[target], module: ModuleKind.ES2015};
+      const compilerOptions: CompilerOptions = { target: ScriptTarget[ target ], module: ModuleKind.ES2015 };
       const source: SourceFile = createSourceFile("sample.ts", tpl, compilerOptions.target, true);
       return new Module(source, compilerOptions, "Polymer1").toString();
     };

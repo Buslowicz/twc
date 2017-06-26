@@ -64,9 +64,9 @@ export class Polymer1 {
   /** Generate a dom module. */
   private get domModule(): string {
     // Forcing ES2015 modules to prevent code pollution with loaders boilerplate code
-    const compilerOptions = Object.assign(this.module.compilerOptions, {module: ModuleKind.ES2015});
+    const compilerOptions = Object.assign(this.module.compilerOptions, { module: ModuleKind.ES2015 });
     const { body } = this;
-    const script = body ? `<script>${transpileModule(body, {compilerOptions}).outputText}</script>` : "";
+    const script = body ? `<script>${transpileModule(body, { compilerOptions }).outputText}</script>` : "";
 
     return `${this.imports.join("\n")}${this.component ? `${this.component.jsDoc}
     <dom-module is="${this.component.name.replace(/([A-Z])/g, (_, l, i) => (i ? "-" : "") + l.toLowerCase())}">${
@@ -93,9 +93,9 @@ export class Polymer1 {
       const start = process.hrtime();
       const html = pretty(this.domModule) + "\n";
       const end = process.hrtime();
-      if (!process.env["SILENT"]) {
+      if (!process.env[ "SILENT" ]) {
         const fac = 1000000;
-        const genTime = Math.round((end[0] * 1000) + (end[1] / fac)) - Math.round((start[0] * 1000) + (start[1] / fac));
+        const genTime = Math.round((end[ 0 ] * 1000) + (end[ 1 ] / fac)) - Math.round((start[ 0 ] * 1000) + (start[ 1 ] / fac));
         console.log(`\`${this.component ? this.component.name : "Module"}\` generated in ${genTime}`);
       }
       return html;
@@ -177,7 +177,7 @@ export class Polymer1 {
   private methods(component: Component): Array<string> {
     return Array
       .from(component.methods.values())
-      .map((m) => m.name in Polymer1.lifecycleMap ? new Method(m.declaration, Polymer1.lifecycleMap[m.name]) : m)
+      .map((m) => m.name in Polymer1.lifecycleMap ? new Method(m.declaration, Polymer1.lifecycleMap[ m.name ]) : m)
       .map((m) => `${m.jsDoc}${m.provideRefs(this.importedRefs, true)}`);
   }
 
