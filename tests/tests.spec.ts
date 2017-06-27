@@ -1037,4 +1037,3 @@ describe("decorators", () => {
     });
   });
 });
-

@@ -4,7 +4,8 @@
   "description": "Typed Web Components compiles pure TypeScript classes to native Polymer modules.",
   "main": "./src/index.js",
   "scripts": {
-    "test": "tslint -p tsconfig.json && mocha --require ts-node/register --ui bdd tests/tests.spec.ts"
+    "lint": "tslint -p tsconfig.json",
+    "test": "npm run lint && mocha --require ts-node/register --ui bdd tests/tests.spec.ts"
   },
   "bin": {
     "twc": "./dist/src/cli.js"
