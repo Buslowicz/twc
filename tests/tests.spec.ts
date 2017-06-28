@@ -659,7 +659,7 @@ describe("builders", () => {
         "t3: String",
         "/** Some test property */\ntest1: { type: Date,value: function () {\nreturn Date.now();\n} }",
         "test2: { type: Date,value: function () {\nreturn new Date();\n} }",
-        "attr: { type: String }",
+        "attr: { type: String,value: null }",
         "computed1: String",
         "computed2: String"
       ]);
@@ -698,6 +698,9 @@ describe("builders", () => {
       t2 = "test";
       t3: string;
       private helper: string;
+      undef = undefined;
+      custom: CustomObject = new CustomObject();
+      called: boolean = someFunc();
       /** Some test property */
       test1: Date = Date.now();
       test2: Date = new Date();
@@ -708,16 +711,19 @@ describe("builders", () => {
       testFun() { return 10; }
     }`));
 
-      expect(element[ "properties" ].size).to.equal(8);
+      expect(element[ "properties" ].size).to.equal(11);
       expect(element[ "methods" ].size).to.equal(2);
 
       expect(Array.from(element[ "properties" ].values()).map((prop) => `${prop.jsDoc}${prop.name}: ${prop}`)).to.deep.equal([
         "t1: { type: String,value: function () {\nreturn document.title;\n},readOnly: true }",
         "t2: { type: String,value: \"test\" }",
         "t3: String",
+        "undef: Object",
+        "custom: { type: Object,value: function () {\nreturn new CustomObject();\n} }",
+        "called: { type: Boolean,value: function () {\nreturn someFunc();\n} }",
         "/** Some test property */\ntest1: { type: Date,value: function () {\nreturn Date.now();\n} }",
         "test2: { type: Date,value: function () {\nreturn new Date();\n} }",
-        "attr: { type: String,reflectToAttribute: true }",
+        "attr: { type: String,value: null,reflectToAttribute: true }",
         "computed1: { type: String,computed: \"compute(test1, test2)\" }",
         "computed2: { type: String,computed: \"_computed2Computed(test1, test2)\" }"
       ]);

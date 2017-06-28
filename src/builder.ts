@@ -80,8 +80,6 @@ export class Import {
 
   public toString(): string {
     switch (extname(this.module)) {
-      case ".html":
-        return `<link rel="import" href="${this.module}">`;
       case ".js":
         return `<script src="${this.module}"></script>`;
       case ".css":
@@ -206,12 +204,13 @@ export class Property extends RefUpdater {
     if (isStatic(this.declaration)) {
       return `${this.value}`;
     }
-    const props = [ "value", "readOnly", "reflectToAttribute", "notify", "computed", "observer" ];
+    const props = [ "readOnly", "reflectToAttribute", "notify", "computed", "observer" ];
 
-    const isSimpleConfig = this.type && this.value === undefined && props.slice(1).every((prop) => !this[ prop ]);
+    const isSimpleConfig = this.type && this.value === undefined && props.every((prop) => !this[ prop ]);
 
     return isSimpleConfig ? this.type.name : `{ ${ [
       `type: ${this.type.name}`,
+      ...(this.value === undefined ? [] : [ `value: ${this.value}` ]),
       ...props.map((prop) => this[ prop ] ? `${prop}: ${this[ prop ]}` : undefined)
     ]
       .filter((key) => !!key) } }`;
@@ -290,7 +289,7 @@ export class Component {
           .getText()
           .split("\n")
           .slice(1, -1)
-          .map((line) => line.slice(3))
+          .map((line) => line.trim().slice(2))
           .join("\n")
         )
         .join("\n")

@@ -1,7 +1,10 @@
 import { expect, use } from "chai";
+import * as sinon from "sinon";
+import { SinonSpy } from "sinon";
 import { CompilerOptions, createSourceFile, ModuleKind, ScriptTarget, SourceFile } from "typescript";
 import { Module } from "../../src/builder";
 import chaiString = require("chai-string");
+
 use(chaiString);
 
 describe("Polymer v1 output", () => {
@@ -17,7 +20,8 @@ describe("Polymer v1 output", () => {
       },
       get es6() {
         return component("ES2015");
-      }
+      },
+      component
     };
   }
 
@@ -36,27 +40,121 @@ describe("Polymer v1 output", () => {
       <script src="script.js"></script>`
     );
   });
+  it("should allow components without inheritance", () => {
+    const component = transpile(`
+      import { CustomElement } from "twc/polymer";
+      @CustomElement()
+      export class MyElement {}`);
+
+    expect(() => component.es5).to.not.throw(SyntaxError);
+  });
+  it("should throw an error if extending class other than Polymer.Element", () => {
+    const component = transpile(`
+      import { CustomElement } from "twc/polymer";
+      @CustomElement()
+      export class MyElement extends HTMLElement {}`);
+
+    expect(() => component.es5).to.throw(SyntaxError);
+  });
+  describe("should not emit exports", () => {
+    const component = transpile(`
+      import { CustomElement } from "twc/polymer";
+      @CustomElement()
+      export class MyElement extends Polymer.Element {}
+      export CustomElement;
+      const test = 10;
+      export default test`);
+
+    it("es5", () => {
+      expect(component.es5).to.equalIgnoreSpaces(`
+        <dom-module is="my-element">
+          <script>
+            var MyElement = Polymer({ is: "my-element" });
+            CustomElement;
+            var test = 10;
+          </script>
+        </dom-module>`
+      );
+    });
+    it("es6", () => {
+      expect(component.es6).to.equalIgnoreSpaces(`
+        <dom-module is="my-element">
+          <script>
+            const MyElement = Polymer({ is: "my-element" });
+            CustomElement;
+            const test = 10;
+          </script>
+        </dom-module>`
+      );
+    });
+  });
+  describe("should show (not throw) an error if @observe() is called on non-existing property", () => {
+    beforeEach(() => sinon.stub(console, "error"));
+    afterEach(() => (console.error as SinonSpy).restore());
+
+    const component = transpile(`
+      import { CustomElement, observe } from "twc/polymer";
+      @CustomElement()
+      export class MyElement extends Polymer.Element {
+        @observe("iDoNotExist") method() {}
+      }`);
+
+    it("es5", () => {
+      component.component("ES5");
+      expect((console.error as SinonSpy).called).to.equal(true);
+    });
+    it("es6", () => {
+      component.component("ES2015");
+      expect((console.error as SinonSpy).called).to.equal(true);
+    });
+  });
+  describe("should log the time taken to generate a module", () => {
+    beforeEach(() => {
+      delete process.env[ "SILENT" ];
+      sinon.stub(console, "log");
+    });
+    afterEach(() => {
+      process.env[ "SILENT" ] = true;
+      (console.log as SinonSpy).restore();
+    });
+
+    const component = transpile(`
+      import { CustomElement } from "twc/polymer";
+      @CustomElement()
+      export class MyElement extends Polymer.Element {}`);
+
+    it("es5", () => {
+      component.component("ES5");
+      expect((console.log as SinonSpy).called).to.equal(true);
+    });
+    it("es6", () => {
+      component.component("ES2015");
+      expect((console.log as SinonSpy).called).to.equal(true);
+    });
+  });
   describe("should update namespaces", () => {
     const component = transpile(`
       import { CustomElement } from "twc/polymer";
-      import { A, B, C } from "some.html#NS"
+      import { A, B, C } from "some.html#NS";
+      import * as D from "other.html#OtherNS";
 
       @CustomElement()
       export class MyElement extends Polymer.Element {
         method() {
-          return A + B + C;
+          return A + B + C + D;
         }
       }`);
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
         <link rel="import" href="some.html">
+        <link rel="import" href="other.html">
         <dom-module is="my-element">
           <script>
             var MyElement = Polymer({
               is: "my-element",
               method: function() {
-                return NS.A + NS.B + NS.C;
+                return NS.A + NS.B + NS.C + OtherNS.D;
               }
             });
           </script>
@@ -66,12 +164,13 @@ describe("Polymer v1 output", () => {
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
         <link rel="import" href="some.html">
+        <link rel="import" href="other.html">
         <dom-module is="my-element">
           <script>
             const MyElement = Polymer({
               is: "my-element",
               method() {
-                return NS.A + NS.B + NS.C;
+                return NS.A + NS.B + NS.C + OtherNS.D;
               }
             });
           </script>
@@ -82,12 +181,19 @@ describe("Polymer v1 output", () => {
   describe("should compile simple components", () => {
     const component = transpile(`
       import { CustomElement, template } from "twc/polymer";
+
+      /**
+       * This is a custom element
+       */
       @CustomElement()
       @template("<h1>Hello World</h1>")
       export class MyElement extends Polymer.Element {}`);
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
+        <!--
+        This is a custom element
+        -->
         <dom-module is="my-element">
           <template>
             <h1>Hello World</h1>
@@ -100,6 +206,9 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
+        <!--
+        This is a custom element
+        -->
         <dom-module is="my-element">
           <template>
             <h1>Hello World</h1>
@@ -179,7 +288,7 @@ describe("Polymer v1 output", () => {
         stringProp: string;
         readonly readOnlyProp: any;
         @attr attribute: number;
-        @notify watched: boolean;
+        @notify watched = false;
         iHaveValue = "the value";
         iHaveComplexValue = [ 1, 2, 3 ];
       }`);
@@ -194,7 +303,7 @@ describe("Polymer v1 output", () => {
                 stringProp: String,
                 readOnlyProp: { type: Object, readOnly: true },
                 attribute: { type: Number, reflectToAttribute: true },
-                watched: { type: Boolean, notify: true },
+                watched: { type: Boolean, value: false, notify: true },
                 iHaveValue: { type: String, value: "the value" },
                 iHaveComplexValue: { type: Array, value: function() { return [ 1, 2, 3 ]; } }
               }
@@ -213,7 +322,7 @@ describe("Polymer v1 output", () => {
                 stringProp: String,
                 readOnlyProp: { type: Object, readOnly: true },
                 attribute: { type: Number, reflectToAttribute: true },
-                watched: { type: Boolean, notify: true },
+                watched: { type: Boolean, value: false, notify: true },
                 iHaveValue: { type: String, value: "the value" },
                 iHaveComplexValue: { type: Array, value: function() { return [ 1, 2, 3 ]; } }
               }
@@ -377,6 +486,8 @@ describe("Polymer v1 output", () => {
     const component = transpile(`
       import { CustomElement } from "twc/polymer";
 
+      interface TheEvent extends Event {}
+
       /**
        * Fired when \`element\` changes its awesomeness level.
        */
@@ -396,6 +507,9 @@ describe("Polymer v1 output", () => {
           <script>
             var MyElement = Polymer({
             /**
+             * @event the-event
+             */
+            /**
              * Fired when \`element\` changes its awesomeness level.
              *
              * @event awesome-change
@@ -413,6 +527,9 @@ describe("Polymer v1 output", () => {
           <script>
             const MyElement = Polymer({
             /**
+             * @event the-event
+             */
+            /**
              * Fired when \`element\` changes its awesomeness level.
              *
              * @event awesome-change
@@ -426,7 +543,7 @@ describe("Polymer v1 output", () => {
     });
   });
   describe("should add behaviors to the component declaration", () => {
-    const component = transpile(`
+    const component1 = transpile(`
       import { CustomElement } from "twc/polymer";
       import { IronResizableBehavior } from "bower:iron-resizable-behavior/iron-resizable-behavior.html#Polymer"
 
@@ -435,8 +552,30 @@ describe("Polymer v1 output", () => {
       @CustomElement()
       export class MyElement extends Polymer.Element {}`);
 
+    const component2 = transpile(`
+      import { CustomElement } from "twc/polymer";
+      import { IronResizableBehavior } from "bower:iron-resizable-behavior/iron-resizable-behavior.html#Polymer"
+
+      @CustomElement()
+      export class MyElement extends Polymer.Element {}
+
+      interface MyElement extends IronResizableBehavior {}`);
+
     it("es5", () => {
-      expect(component.es5).to.equalIgnoreSpaces(`
+      expect(component1.es5).to.equalIgnoreSpaces(`
+        <link rel="import" href="bower:iron-resizable-behavior/iron-resizable-behavior.html">
+        <dom-module is="my-element">
+          <script>
+            var MyElement = Polymer({
+              is: "my-element",
+              behaviors: [
+                Polymer.IronResizableBehavior
+              ]
+            });
+          </script>
+        </dom-module>`
+      );
+      expect(component2.es5).to.equalIgnoreSpaces(`
         <link rel="import" href="bower:iron-resizable-behavior/iron-resizable-behavior.html">
         <dom-module is="my-element">
           <script>
@@ -451,7 +590,20 @@ describe("Polymer v1 output", () => {
       );
     });
     it("es6", () => {
-      expect(component.es6).to.equalIgnoreSpaces(`
+      expect(component1.es6).to.equalIgnoreSpaces(`
+        <link rel="import" href="bower:iron-resizable-behavior/iron-resizable-behavior.html">
+        <dom-module is="my-element">
+          <script>
+            const MyElement = Polymer({
+              is: "my-element",
+              behaviors: [
+                Polymer.IronResizableBehavior
+              ]
+            });
+          </script>
+        </dom-module>`
+      );
+      expect(component2.es6).to.equalIgnoreSpaces(`
         <link rel="import" href="bower:iron-resizable-behavior/iron-resizable-behavior.html">
         <dom-module is="my-element">
           <script>
