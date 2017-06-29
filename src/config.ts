@@ -137,7 +137,7 @@ const tsConfig: TSConfig = readConfigFile(tsConfigPath, readFileAsString).config
 const { compilerOptions = {}, exclude = [], files: inputFiles = [], include = [], compileTo = "Polymer1" } = tsConfig;
 
 const paths = {
-  npm: "node_modules",
+  npm: process.env.npmDir || "node_modules",
   bower: process.env.bowerDir || bowerRc.directory || ".."
 };
 
