@@ -15,6 +15,7 @@
     "strictNullChecks": false,
     "target": "es6",
     "lib": [
+      "es6",
       "es7",
       "dom"
     ],
@@ -23,9 +24,6 @@
   "include": [
     "src/*",
     "src/targets/*",
-    "tests/*",
-    "tests/targets/*",
-    "tests/samples/*",
     "types/*",
     "*.ts"
   ]

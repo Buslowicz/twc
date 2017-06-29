@@ -4,10 +4,16 @@ import { dirname, join } from "path";
 import { createSourceFile, MapLike, SourceFile } from "typescript";
 import { Module } from "./builder";
 import { cli, compilerOptions, compileTo, errors, files, twc } from "./config";
+import { outPath } from "./helpers";
 
-function emitFile(fileName: string) {
-  const source: SourceFile = createSourceFile(fileName, readFileSync(fileName).toString(), compilerOptions.target, true);
-  const path = join(compilerOptions.outDir || "", fileName.replace(/.ts$/, ".html"));
+/**
+ * Make sure the path exists. If it doesn't, create it.
+ *
+ * @param path Path to ensure
+ *
+ * @returns Ensured path
+ */
+function ensurePath(path: string) {
   if (!existsSync(path)) {
     dirname(path)
       .split("/")
@@ -19,9 +25,24 @@ function emitFile(fileName: string) {
         return p;
       }, "");
   }
-  writeFileSync(path, new Module(source, compilerOptions, compileTo).toString());
+  return path;
 }
 
+/**
+ * Transpile the file and save on the disk.
+ *
+ * @param fileName Path of the file to transpile
+ */
+function emitFile(fileName: string) {
+  const source: SourceFile = createSourceFile(fileName, readFileSync(fileName).toString(), compilerOptions.target, true);
+  writeFileSync(ensurePath(outPath(fileName.replace(/.ts$/, ".html"))), new Module(source, compilerOptions, compileTo).toString());
+}
+
+/**
+ * Watch provided files for changes. Whenever a chang happens, emit the file.
+ *
+ * @param rootFileNames Array of files to watch
+ */
 function watch(rootFileNames: string[]) {
   const files: MapLike<{ version: number }> = {};
 
@@ -52,7 +73,8 @@ if (errors.length) {
     `Version ${twc.version}`,
     `Syntax:    twc [options [file ...]`,
     "",
-    "Examples:  twc my-component.ts",
+    "Examples:  twc",
+    "           twc my-component.ts",
     "           twc --outDir dist src/*.ts",
     "",
     "Options:",

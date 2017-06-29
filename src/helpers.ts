@@ -1,13 +1,15 @@
 import { readFileSync } from "fs";
-import { dirname, resolve } from "path";
+import { dirname, join, relative, resolve } from "path";
 import {
   BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, Declaration, EnumDeclaration, ExportAssignment,
   ExportDeclaration, Expression, ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression, GetAccessorDeclaration,
-  HeritageClause, Identifier, ImportDeclaration, InterfaceDeclaration, MethodDeclaration, ModuleDeclaration, NamedImports, NamespaceImport,
-  Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SourceFile, SyntaxKind, TemplateExpression,
+  HeritageClause, Identifier, ImportDeclaration, InterfaceDeclaration, JSDoc, MethodDeclaration, ModuleDeclaration, NamedImports,
+  NamespaceImport, Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SourceFile, SyntaxKind, TemplateExpression,
   TypeAliasDeclaration, VariableStatement
 } from "typescript";
+import { Constructor } from "../types/index";
 import { ImportedNode, Method } from "./builder";
+import { compilerOptions } from "./config";
 
 /**
  * List of types that do not change the overall type.
@@ -26,9 +28,47 @@ export const transparentTypes = [
 export const methodKinds = [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructor ];
 
 /**
- * Class bringing the functionality of updating identifiers of imported entities with a namespace.
+ * Mixin adding jsDoc getter
  */
-export abstract class RefUpdater {
+export const JSDocMixin = <TBase extends Constructor>(Base: TBase = class {} as TBase) => class extends Base {
+  public declaration: Node;
+  /** JSDoc for the method */
+  public get jsDoc(): string {
+    const jsDoc = this.declaration && this.declaration[ "jsDoc" ] as Array<JSDoc>;
+    return jsDoc ? `${jsDoc.map((doc) => doc.getText()).join("\n")}\n` : "";
+  }
+
+  /** JSDoc for the module in form of HTML comment */
+  public get htmlDoc(): string {
+    const jsDoc = this.declaration[ "jsDoc" ] as Array<JSDoc>;
+    return jsDoc ? `\n<!--\n${
+      jsDoc
+        .map((doc) => doc
+          .getText()
+          .split("\n")
+          .slice(1, -1)
+          .map((line) => line.trim().slice(2))
+          .join("\n")
+        )
+        .join("\n")
+      }\n-->` : "";
+  }
+};
+
+/**
+ * Mixind adding decorators getter
+ */
+export const DecoratorsMixin = <TBase extends Constructor>(Base: TBase = class {} as TBase) => class extends Base {
+  public declaration: Node;
+  public get decorators(): Array<ParsedDecorator> {
+    return getDecorators(this.declaration as ClassElement | ClassDeclaration);
+  }
+};
+
+/**
+ * Mixin adding the functionality of updating identifiers of imported entities with a namespace.
+ */
+export const RefUpdaterMixin = <TBase extends Constructor>(Base: TBase = class {} as TBase) => class extends Base {
   protected refs?: Map<string, ImportedNode>;
   protected skipSuper?: boolean;
 
@@ -60,7 +100,7 @@ export abstract class RefUpdater {
       return statement.getText();
     }
   }
-}
+};
 
 /**
  * Class holding a reference to a file. When converted to a string, the file is read and content is returned.
@@ -102,7 +142,7 @@ export class ReferencedExpression {
 /**
  * Class holding a node, which stringified can be wrapped with an anonymous function.
  */
-export class InitializerWrapper extends RefUpdater {
+export class InitializerWrapper extends RefUpdaterMixin() {
   constructor(private declaration: Node) {
     super();
   }
@@ -173,12 +213,13 @@ export const getDecorators = (declaration: ClassElement | ClassDeclaration): Arr
  * Flatten mixin calls chain to an array of used mixins.
  *
  * @param expression Class extends expression
+ * @param refs Map of imported references
  *
  * @returns Array of used mixin names
  */
-export const flatExtends = (expression: Node, vars?: Map<string, ImportedNode>): Array<string> => {
+export const flatExtends = (expression: Node, refs?: Map<string, ImportedNode>): Array<string> => {
   const getText = (expr: Node) => {
-    return vars ? updateImportedRefs(expr, vars) : expr.getText();
+    return refs ? updateImportedRefs(expr, refs) : expr.getText();
   };
 
   if (isCallExpression(expression)) {
@@ -193,10 +234,11 @@ export const flatExtends = (expression: Node, vars?: Map<string, ImportedNode>):
  * Flatten mixin calls from Class Element or Class Declaration.
  *
  * @param declaration Class Element or Class Declaration to get decorators from
+ * @param refs Map of imported references
  *
  * @returns Array of used mixin names
  */
-export const getFlatHeritage = (declaration: ClassDeclaration | InterfaceDeclaration, vars?: Map<string, ImportedNode>): Array<string> => {
+export const getFlatHeritage = (declaration: ClassDeclaration | InterfaceDeclaration, refs?: Map<string, ImportedNode>): Array<string> => {
   if (!declaration.heritageClauses) {
     return [];
   }
@@ -207,7 +249,7 @@ export const getFlatHeritage = (declaration: ClassDeclaration | InterfaceDeclara
     .map(toProperty("types"))
     .reduce(flattenArray, [])
     .map(toProperty("expression"))
-    .map((node) => flatExtends(node, vars))
+    .map((node) => flatExtends(node, refs))
     .reduce(flattenArray, []);
 };
 
@@ -729,3 +771,12 @@ export const updateImportedRefs = (src: Node, vars: Map<string, ImportedNode>): 
     }, src.getFullText().split(""))
     .join("");
 };
+
+/**
+ * Create an output path for the file.
+ *
+ * @param fileName File to create output path for
+ *
+ * @returns Path relative to outDir
+ */
+export const outPath = (fileName: string): string => join(compilerOptions.outDir || "", relative(compilerOptions.rootDir, fileName));

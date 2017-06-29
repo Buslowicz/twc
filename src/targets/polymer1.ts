@@ -68,7 +68,7 @@ export class Polymer1 {
     const { body } = this;
     const script = body ? `<script>${transpileModule(body, { compilerOptions }).outputText}</script>` : "";
 
-    return `${this.imports.join("\n")}${this.component ? `${this.component.jsDoc}
+    return `${this.imports.join("\n")}${this.component ? `${this.component.htmlDoc}
     <dom-module is="${this.component.name.replace(/([A-Z])/g, (_, l, i) => (i ? "-" : "") + l.toLowerCase())}">${
       this.component.template ? `
       <template>

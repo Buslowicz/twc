@@ -34,8 +34,8 @@ describe("Polymer v1 output", () => {
       import "script.js";`);
 
     expect(component.es5).to.equalIgnoreSpaces(`
-      <link rel="import" href="../polymer/polymer.html">
-      <link rel="import" href="../some/component.html">
+      <link rel="import" href="../../polymer/polymer.html">
+      <link rel="import" href="../../some/component.html">
       <link rel="stylesheet" href="style.css">
       <script src="script.js"></script>`
     );
@@ -563,7 +563,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component1.es5).to.equalIgnoreSpaces(`
-        <link rel="import" href="../iron-resizable-behavior/iron-resizable-behavior.html">
+        <link rel="import" href="../../iron-resizable-behavior/iron-resizable-behavior.html">
         <dom-module is="my-element">
           <script>
             var MyElement = Polymer({
@@ -576,7 +576,7 @@ describe("Polymer v1 output", () => {
         </dom-module>`
       );
       expect(component2.es5).to.equalIgnoreSpaces(`
-        <link rel="import" href="../iron-resizable-behavior/iron-resizable-behavior.html">
+        <link rel="import" href="../../iron-resizable-behavior/iron-resizable-behavior.html">
         <dom-module is="my-element">
           <script>
             var MyElement = Polymer({
@@ -591,7 +591,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component1.es6).to.equalIgnoreSpaces(`
-        <link rel="import" href="../iron-resizable-behavior/iron-resizable-behavior.html">
+        <link rel="import" href="../../iron-resizable-behavior/iron-resizable-behavior.html">
         <dom-module is="my-element">
           <script>
             const MyElement = Polymer({
@@ -604,7 +604,7 @@ describe("Polymer v1 output", () => {
         </dom-module>`
       );
       expect(component2.es6).to.equalIgnoreSpaces(`
-        <link rel="import" href="../iron-resizable-behavior/iron-resizable-behavior.html">
+        <link rel="import" href="../../iron-resizable-behavior/iron-resizable-behavior.html">
         <dom-module is="my-element">
           <script>
             const MyElement = Polymer({

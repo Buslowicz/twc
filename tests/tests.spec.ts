@@ -36,7 +36,7 @@ describe("helpers", () => {
   // TODO: write Link tests
   // TODO: write Ref tests
   // TODO: write ReferencedExpression tests
-  // TODO: write RefUpdater tests
+  // TODO: write RefUpdaterMixin tests
   describe("InitializerWrapper()", () => {
     it("should wrap a value in a function", () => {
       expect(new InitializerWrapper(parsVars(`let x = 10`).initializer).valueOf()).to.equal(10);

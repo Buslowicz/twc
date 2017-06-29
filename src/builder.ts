@@ -2,15 +2,16 @@ import { existsSync } from "fs";
 import { dirname, extname, join, normalize, parse, relative, resolve } from "path";
 import {
   ClassDeclaration, ClassElement, CompilerOptions, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier,
-  InterfaceDeclaration, JSDoc, MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, PropertyDeclaration,
-  PropertySignature, SourceFile, Statement, SyntaxKind, TypeLiteralNode, TypeNode
+  InterfaceDeclaration, MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, PropertyDeclaration, PropertySignature,
+  SourceFile, Statement, SyntaxKind, TypeLiteralNode, TypeNode
 } from "typescript";
 import { paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
 import {
-  getDecorators, getFlatHeritage, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBlock, isClassDeclaration,
+  DecoratorsMixin, getFlatHeritage, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBlock, isClassDeclaration,
   isExportAssignment, isExportDeclaration, isImportDeclaration, isInterfaceDeclaration, isMethod, isModuleDeclaration, isNamedImports,
-  isProperty, isStatic, isTemplateExpression, Link, notPrivate, notStatic, ParsedDecorator, RefUpdater, stripQuotes
+  isProperty, isStatic, isTemplateExpression, JSDocMixin, Link, notPrivate, notStatic, outPath, ParsedDecorator, RefUpdaterMixin,
+  stripQuotes
 } from "./helpers";
 import * as buildTargets from "./targets";
 import { parseDeclaration, parseDeclarationType, ValidValue } from "./type-analyzer";
@@ -60,12 +61,12 @@ export class Import {
 
   /** Checks if module is importable (module path ends with .js, .html or .css) */
   public get isImportable() {
-    const { module } = this;
-    return [ ".js", ".html", ".css" ].includes(extname(module));
+    return [ ".js", ".html", ".css" ].includes(extname(this.module));
   }
 
-  private get pathToProject() {
-    return relative(dirname(getRoot(this.declaration).fileName), projectRoot);
+  /** Calculate path from file to project root */
+  private get rootPath() {
+    return relative(dirname(outPath(getRoot(this.declaration).fileName)), projectRoot);
   }
 
   constructor(public readonly declaration: ImportDeclaration) {
@@ -86,22 +87,32 @@ export class Import {
   public toString(): string {
     switch (extname(this.module)) {
       case ".js":
-        return `<script src="${this.module}"></script>`;
+        return `<script src="${this.resolveModule()}"></script>`;
       case ".css":
-        return `<link rel="stylesheet" href="${this.module}">`;
+        return `<link rel="stylesheet" href="${this.resolveModule()}">`;
       default:
         return `<link rel="import" href="${this.resolveModule()}">`;
     }
   }
 
+  /**
+   * Resolve absolute module paths based on repo name, outDir and rootDir
+   *
+   * @returns Resolved module/component path
+   */
   private resolveModule() {
-    // TODO: make it relative to dist and rootDir
-    if (this.module.startsWith("bower:")) {
-      return normalize(join(this.pathToProject, paths.bower, this.module.substr(6)));
-    } else if (this.module.startsWith("npm:")) {
-      return normalize(join(this.pathToProject, paths.npm, this.module.substr(4)));
+    const [ , repo = "", path = this.module ] = this.module.match(/(?:([a-z]+):)?(.*)/) || [];
+    let modulePath = path;
+    if (repo in paths) {
+      modulePath = join(paths[ repo ], path);
+    } else if (repo) {
+      modulePath = join(repo, path);
+    } else if (path.startsWith("~")) {
+      modulePath = path.substr(1);
+    } else {
+      return path;
     }
-    return this.module;
+    return normalize(join(this.rootPath, modulePath));
   }
 }
 
@@ -175,7 +186,7 @@ export class RegisteredEvent {
  * Representation of a component property.
  * When converted to a string, it returns an object with a property config or a type if only type is available.
  */
-export class Property extends RefUpdater {
+export class Property extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   /** Type of a property */
   public type: Constructor<ValidValue>;
   /** Default value */
@@ -192,17 +203,6 @@ export class Property extends RefUpdater {
   /** Whether property has a read only access */
   public get readOnly(): boolean {
     return hasModifier(this.declaration, SyntaxKind.ReadonlyKeyword);
-  }
-
-  /** Property decorators */
-  public get decorators(): Array<ParsedDecorator> {
-    return getDecorators(this.declaration);
-  }
-
-  /** JSDoc for the property */
-  public get jsDoc(): string {
-    const jsDoc = this.declaration[ "jsDoc" ] as Array<JSDoc>;
-    return jsDoc ? `${jsDoc.map((doc) => doc.getText()).join("\n")}\n` : "";
   }
 
   constructor(public readonly declaration: PropertyDeclaration, public readonly name: string) {
@@ -235,17 +235,7 @@ export class Property extends RefUpdater {
 /**
  * Representation of a component method
  */
-export class Method extends RefUpdater {
-  /** JSDoc for the method */
-  public get jsDoc(): string {
-    const jsDoc = this.declaration[ "jsDoc" ] as Array<JSDoc>;
-    return jsDoc ? `${jsDoc.map((doc) => doc.getText()).join("\n")}\n` : "";
-  }
-
-  /** Property decorators */
-  public get decorators(): Array<ParsedDecorator> {
-    return getDecorators(this.declaration as any);
-  }
+export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
 
   /** Method arguments list */
   public get arguments(): Array<string> {
@@ -289,34 +279,18 @@ export class Method extends RefUpdater {
 /**
  * Representation of a component
  */
-export class Component {
+export class Component extends JSDocMixin(DecoratorsMixin()) {
   /** Components name */
   public get name(): string {
-    return this.source.name.getText();
-  }
-
-  /** JSDoc for the component */
-  public get jsDoc(): string {
-    const jsDoc = this.source[ "jsDoc" ] as Array<JSDoc>;
-    return jsDoc ? `\n<!--\n${
-      jsDoc
-        .map((doc) => doc
-          .getText()
-          .split("\n")
-          .slice(1, -1)
-          .map((line) => line.trim().slice(2))
-          .join("\n")
-        )
-        .join("\n")
-      }\n-->` : "";
+    return this.declaration.name.getText();
   }
 
   /** Components extends list */
   public get heritage(): string {
-    if (!this.source.heritageClauses) {
+    if (!this.declaration.heritageClauses) {
       return null;
     }
-    return this.source.heritageClauses
+    return this.declaration.heritageClauses
       .filter(({ token }) => token === SyntaxKind.ExtendsKeyword)
       .reduce((a, c) => c, null).getText().slice(8);
   }
@@ -348,13 +322,9 @@ export class Component {
   /** Components static methods map */
   public staticMethods: Map<string, Method> = new Map();
 
-  /** Property decorators */
-  public get decorators(): Array<ParsedDecorator> {
-    return getDecorators(this.source);
-  }
-
-  constructor(public readonly source: ClassDeclaration) {
-    this.source
+  constructor(public readonly declaration: ClassDeclaration) {
+    super();
+    this.declaration
       .members
       .filter(isProperty)
       .filter(notPrivate)
@@ -363,14 +333,14 @@ export class Component {
       .map((property) => this.decorate(property, property.decorators))
       .forEach((property: Property) => this.properties.set(property.name, property));
 
-    this.source
+    this.declaration
       .members
       .filter(isProperty)
       .filter(isStatic)
       .map((property: PropertyDeclaration) => new Property(property, property.name.getText()))
       .forEach((property: Property) => this.staticProperties.set(property.name, property));
 
-    this.source
+    this.declaration
       .members
       .filter(isMethod)
       .filter(notStatic)
@@ -378,7 +348,7 @@ export class Component {
       .map((method) => this.decorate(method, method.decorators))
       .forEach((method: Method) => this.methods.set(method.name, method));
 
-    this.source
+    this.declaration
       .members
       .filter(isMethod)
       .filter(isStatic)
@@ -409,10 +379,10 @@ export class Component {
       this.methods.delete("template");
     }
 
-    const fileName = getRoot(this.source).fileName;
+    const fileName = getRoot(this.declaration).fileName;
     const implicitTemplateName = `${parse(fileName).name}.html`;
     if (!this.template && existsSync(resolve(dirname(fileName), implicitTemplateName))) {
-      this.template = new Link(implicitTemplateName, source as Node);
+      this.template = new Link(implicitTemplateName, declaration as Node);
     }
   }
 

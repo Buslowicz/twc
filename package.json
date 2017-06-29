@@ -2,7 +2,7 @@
   "name": "twc",
   "version": "0.3.0-beta.1",
   "description": "Typed Web Components compiles pure TypeScript classes to native Polymer modules.",
-  "main": "./src/index.js",
+  "main": "./dist/cli.js",
   "scripts": {
     "lint": "tslint -p tsconfig.json",
     "cover": "ts-node node_modules/istanbul/lib/cli.js cover -e .ts  -x \"*.d.ts\" -x \"*.spec.ts\" _mocha -- --compiler ts-node/register -R spec tests/tests.spec.ts",
@@ -10,7 +10,7 @@
     "test": "npm run lint && mocha --require ts-node/register --ui bdd tests/tests.spec.ts"
   },
   "bin": {
-    "twc": "./dist/src/cli.js"
+    "twc": "./dist/cli.js"
   },
   "author": {
     "email": "draccoz+typescript@gmail.com",

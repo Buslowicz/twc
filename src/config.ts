@@ -83,11 +83,14 @@ export interface NPMConfig extends Config {
   author: string | Author;
 }
 
-const twc = readConfigFile(
-  findConfigFile(module.filename, existsSync, "package.json"), (path) => `${readFileSync(path, "utf-8")}`
-).config;
-
-function findRootDir(files) {
+/**
+ * Find rootDir for files (Longest Common Prefix).
+ *
+ * @param files List of files to find rootDir for
+ *
+ * @returns Root directory for the files
+ */
+function findRootDir(files: Array<string>): string {
   const clone = files.concat().sort();
   const first = clone[ 0 ];
   const last = clone[ clone.length - 1 ];
@@ -99,9 +102,18 @@ function findRootDir(files) {
   return first.substring(0, i);
 }
 
-function readFileAsString(path) {
+/**
+ * Read file synchronously and return as a string.
+ *
+ * @param path Path of the file
+ *
+ * @returns File contents
+ */
+function readFileAsString(path: string): string {
   return readFileSync(path, "utf-8").toString();
 }
+
+const twc = readConfigFile( findConfigFile(module.filename, existsSync, "package.json"), readFileAsString ).config;
 
 const { fileNames, options, errors } = parseCommandLine(process.argv.slice(2), readFileAsString);
 
@@ -129,7 +141,7 @@ const paths = {
   bower: process.env.bowerDir || bowerRc.directory || ".."
 };
 
-/** Some features are not yet supported in twc. To not let them break anything or mess up, we need to disable them upfront. */
+// Some features are not yet supported in twc. To not let them break anything or mess up, we need to disable them upfront.
 const twcOverrides: CompilerOptions = {
   sourceMap: false
 };

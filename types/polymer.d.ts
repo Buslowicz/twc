@@ -16,7 +16,7 @@ declare class CustomElementRegistry {
   public define(name: string, definition: { prototype: any }): void;
 }
 
-interface Constructor<T> {
+interface Constructor<T = {}> {
   new (...args: any[]): T;
 }
 
