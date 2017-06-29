@@ -1,47 +1,34 @@
 #!/usr/bin/node
 import { existsSync, mkdirSync, readFileSync, watchFile, writeFileSync } from "fs";
-import { basename, dirname, join, relative, resolve } from "path";
-import { fileExists } from "ts-node/dist";
-import { CompilerOptions, createSourceFile, findConfigFile, MapLike, parseCommandLine, readConfigFile, SourceFile, sys } from "typescript";
+import { dirname, join } from "path";
+import { createSourceFile, MapLike, SourceFile } from "typescript";
 import { Module } from "./builder";
+import { cli, compilerOptions, compileTo, errors, files, twc } from "./config";
 
-const packageJson = readConfigFile(
-  findConfigFile(module.filename, fileExists, "package.json"), (path) => `${readFileSync(path, "utf-8")}`
-).config;
-
-interface Config {
-  compilerOptions: CompilerOptions;
-  include: Array<string>;
-  exclude: Array<string>;
-  files: Array<string>;
-  compileOnSave: boolean;
-  extends: string;
-  typeAcquisition: object;
-  compileTo: "Polymer1" | "Polymer2";
-}
-
-function emitFile(fileName: string, options: Config) {
-  const source: SourceFile = createSourceFile(fileName, readFileSync(fileName).toString(), options.compilerOptions.target, true);
-  const path = join(options.compilerOptions.outDir || "", fileName.replace(/.ts$/, ".html"));
+function emitFile(fileName: string) {
+  const source: SourceFile = createSourceFile(fileName, readFileSync(fileName).toString(), compilerOptions.target, true);
+  const path = join(compilerOptions.outDir || "", fileName.replace(/.ts$/, ".html"));
   if (!existsSync(path)) {
-    dirname(path).split("/").reduce((prev, curr) => {
-      const p = join(prev, curr);
-      if (!existsSync(p)) {
-        mkdirSync(p);
-      }
-      return p;
-    }, "");
+    dirname(path)
+      .split("/")
+      .reduce((prev, curr) => {
+        const p = join(prev, curr);
+        if (!existsSync(p)) {
+          mkdirSync(p);
+        }
+        return p;
+      }, "");
   }
-  writeFileSync(path, new Module(source, options.compilerOptions, options.compileTo || "Polymer1").toString());
+  writeFileSync(path, new Module(source, compilerOptions, compileTo).toString());
 }
 
-function watch(rootFileNames: string[], options: Config) {
+function watch(rootFileNames: string[]) {
   const files: MapLike<{ version: number }> = {};
 
   rootFileNames.forEach((fileName) => {
     files[ fileName ] = { version: 0 };
 
-    emitFile(fileName, options);
+    emitFile(fileName);
 
     watchFile(fileName, { persistent: true, interval: 250 }, (curr, prev) => {
       if (+curr.mtime <= +prev.mtime) {
@@ -49,66 +36,20 @@ function watch(rootFileNames: string[], options: Config) {
       }
       files[ fileName ].version++;
 
-      emitFile(fileName, options);
+      emitFile(fileName);
     });
   });
 }
 
-const config = parseCommandLine(process.argv.slice(2), (path) => readFileSync(path, "utf-8").toString());
-
-const tsConfigLocation = findConfigFile(
-  join(process.cwd(), dirname(config.options.project || "tsconfig.json")),
-  fileExists,
-  basename(config.options.project || "tsconfig.json")
-);
-
-const projectLocation = dirname(tsConfigLocation);
-
-if (!tsConfigLocation) {
-  throw new Error("TSConfig file was not found. Please make sure `twc` was fired in TypeScript project with `tsconfig.json` file present.");
-}
-
-const { config: tsConfig }: { config?: Config } = readConfigFile(tsConfigLocation, (path) => `${readFileSync(path, "utf-8")}`);
-
-/** Some features are not yet supported in twc. To not let them break anything or mess up, we need to disable them upfront. */
-const twcOverrides: CompilerOptions = {
-  sourceMap: false
-};
-
-tsConfig.compilerOptions = Object.assign({}, tsConfig.compilerOptions, config.options, twcOverrides);
-
-if (!tsConfig.exclude) {
-  tsConfig.exclude = [];
-}
-
-if (!tsConfig.include) {
-  tsConfig.include = [];
-}
-
-if (!tsConfig.files) {
-  tsConfig.files = [];
-}
-
-const files = config.fileNames.length ? config.fileNames : sys
-  .readDirectory(
-    dirname(tsConfigLocation),
-    [ "ts", ...(tsConfig.compilerOptions.allowJs ? [ "js" ] : []) ],
-    tsConfig.exclude,
-    tsConfig.include.length === 0 && tsConfig.files.length === 0 ? [ "**/*" ] : tsConfig.include
-  )
-  .concat(tsConfig.files.map((file) => resolve(file)))
-  .filter((path) => !path.endsWith(".d.ts"))
-  .map((path) => relative(join(projectLocation, tsConfig.compilerOptions.baseUrl || ""), path));
-
-if (config.errors.length) {
-  console.error(config.errors.map(({ messageText }) => messageText).join("\n"));
-  process.exit(config.errors[ 0 ].code);
-} else if (config.options.version) {
-  console.log(`Version ${packageJson.version}`);
+if (errors.length) {
+  console.error(errors.map(({ messageText }) => messageText).join("\n"));
+  process.exit(errors[ 0 ].code);
+} else if (cli.version) {
+  console.log(`Version ${twc.version}`);
   process.exit();
-} else if (config.options.help) {
+} else if (cli.help) {
   console.log([
-    `Version ${packageJson.version}`,
+    `Version ${twc.version}`,
     `Syntax:    twc [options [file ...]`,
     "",
     "Examples:  twc my-component.ts",
@@ -125,8 +66,8 @@ if (config.errors.length) {
     " the list of options refer to tsc documentation (you can quickly check it by running `tsc --all`)."
   ].join("\n"));
   process.exit();
-} else if (config.options.watch) {
-  watch(files, tsConfig);
+} else if (cli.watch) {
+  watch(files);
 } else {
-  files.forEach((fileName) => emitFile(fileName, tsConfig));
+  files.forEach((file) => emitFile(file));
 }

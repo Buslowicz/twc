@@ -1,10 +1,11 @@
 import { existsSync } from "fs";
-import { dirname, extname, parse, resolve } from "path";
+import { dirname, extname, join, normalize, parse, relative, resolve } from "path";
 import {
   ClassDeclaration, ClassElement, CompilerOptions, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier,
   InterfaceDeclaration, JSDoc, MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, PropertyDeclaration,
   PropertySignature, SourceFile, Statement, SyntaxKind, TypeLiteralNode, TypeNode
 } from "typescript";
+import { paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
 import {
   getDecorators, getFlatHeritage, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBlock, isClassDeclaration,
@@ -63,6 +64,10 @@ export class Import {
     return [ ".js", ".html", ".css" ].includes(extname(module));
   }
 
+  private get pathToProject() {
+    return relative(dirname(getRoot(this.declaration).fileName), projectRoot);
+  }
+
   constructor(public readonly declaration: ImportDeclaration) {
     const { 1: module, 2: namespace = "" } = declaration.moduleSpecifier.getText().replace(/["']$|^["']/g, "").match(/([^#]+)(?:#(.+))?/);
     this.module = module;
@@ -85,8 +90,18 @@ export class Import {
       case ".css":
         return `<link rel="stylesheet" href="${this.module}">`;
       default:
-        return `<link rel="import" href="${this.module}">`;
+        return `<link rel="import" href="${this.resolveModule()}">`;
     }
+  }
+
+  private resolveModule() {
+    // TODO: make it relative to dist and rootDir
+    if (this.module.startsWith("bower:")) {
+      return normalize(join(this.pathToProject, paths.bower, this.module.substr(6)));
+    } else if (this.module.startsWith("npm:")) {
+      return normalize(join(this.pathToProject, paths.npm, this.module.substr(4)));
+    }
+    return this.module;
   }
 }
 

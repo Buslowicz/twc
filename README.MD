@@ -1,5 +1,6 @@
 # Typed Web Components
 [![Build Status](https://travis-ci.org/Draccoz/twc.svg?branch=master)](https://travis-ci.org/Draccoz/twc)
+[![Coverage Status](https://coveralls.io/repos/github/Draccoz/twc/badge.svg?branch=master)](https://coveralls.io/github/Draccoz/twc?branch=master)
 
 Typed Web Component brings you a boilerplate-less, TypeScript based way,
 to write native Polymer modules (Polymer toolbox friendly). The entire
