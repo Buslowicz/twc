@@ -17,6 +17,7 @@ import {
   getFinalType, getSimpleKind, parseDeclaration, parseDeclarationInitializer, parseDeclarationType, parseExpression,
   parseUnionOrIntersectionType
 } from "../src/type-analyzer";
+import "./config.spec";
 import "./targets/polymer1.spec";
 
 function parse<T>(src: string): T {

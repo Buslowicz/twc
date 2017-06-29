@@ -90,8 +90,11 @@ export interface NPMConfig extends Config {
  *
  * @returns Root directory for the files
  */
-function findRootDir(files: Array<string>): string {
+export function findRootDir(files: Array<string>): string {
   const clone = files.concat().sort();
+  if (clone.length <= 1) {
+    return files[ 0 ] || "";
+  }
   const first = clone[ 0 ];
   const last = clone[ clone.length - 1 ];
   const max = first.length;
@@ -113,7 +116,7 @@ function readFileAsString(path: string): string {
   return readFileSync(path, "utf-8").toString();
 }
 
-const twc = readConfigFile( findConfigFile(module.filename, existsSync, "package.json"), readFileAsString ).config;
+const twc = readConfigFile(findConfigFile(module.filename, existsSync, "package.json"), readFileAsString).config;
 
 const { fileNames, options, errors } = parseCommandLine(process.argv.slice(2), readFileAsString);
 
