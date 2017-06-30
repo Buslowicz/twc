@@ -5,7 +5,9 @@ npm-debug.log*
 build/Release
 node_modules
 .npm
+/coverage
 /tests
+.editorconfig
 .gitignore
 .npmignore
 .travis.yml

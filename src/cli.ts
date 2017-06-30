@@ -1,103 +1,95 @@
-#!/usr/bin/env node
+#!/usr/bin/node
+import { existsSync, mkdirSync, readFileSync, watchFile, writeFileSync } from "fs";
+import { dirname, join } from "path";
+import { createSourceFile, MapLike, SourceFile } from "typescript";
+import { Module } from "./builder";
+import { cli, compilerOptions, compileTo, errors, files, twc } from "./config";
+import { outPath } from "./helpers";
 
-import "typescript/lib/typescriptServices";
-const commandLineArgs = require("command-line-args");
-const commandLineUsage = require("command-line-usage");
-import ReadWriteStream = NodeJS.ReadWriteStream;
-import find = require("find-up");
-import * as If from "gulp-if";
-import * as merge from "merge2";
-import { join } from "path";
-import { existsSync, readFileSync } from "fs";
-import { dest } from "gulp";
-import { createProject } from "gulp-typescript";
-import { StreamParser } from "./StreamParser";
-
-const cliOptions = [
-  {
-    name: "tsConfig",
-    alias: "p",
-    type: String,
-    description: "tsconfig.json file location",
-    typeLabel: "[underline]{path}",
-    defaultValue: "tsconfig.json"
-  },
-  {
-    name: "bowerConfig",
-    alias: "b",
-    type: String,
-    description: "bower.json file location",
-    typeLabel: "[underline]{path}",
-    defaultValue: "bower.json"
-  },
-  {
-    name: "help",
-    alias: "?",
-    type: Boolean,
-    description: "Shows this help"
+/**
+ * Make sure the path exists. If it doesn't, create it.
+ *
+ * @param path Path to ensure
+ *
+ * @returns Ensured path
+ */
+function ensurePath(path: string) {
+  if (!existsSync(path)) {
+    dirname(path)
+      .split("/")
+      .reduce((prev, curr) => {
+        const p = join(prev, curr);
+        if (!existsSync(p)) {
+          mkdirSync(p);
+        }
+        return p;
+      }, "");
   }
-];
-let cli;
-
-try {
-  cli = commandLineArgs(cliOptions);
-} catch (e) {
-  console.error(e.message);
-  process.exit(-1);
+  return path;
 }
 
-if (cli.help) {
-  console.log(commandLineUsage([
-    {
-      header: "Typed Web Components",
-      content: "Convert TypeScript classes into native Polymer components"
-    },
-    {
-      header: "Syntax",
-      content: "twc [options]"
-    },
-    {
-      header: "Examples",
-      content: [
-        "twc",
-        "twc --tsConfig custom-config.json"
-      ].join("\n")
-    },
-    {
-      header: "Options", optionList: cliOptions.slice(0, -1)
-    }
-  ]));
-  process.exit();
+/**
+ * Transpile the file and save on the disk.
+ *
+ * @param fileName Path of the file to transpile
+ */
+function emitFile(fileName: string) {
+  const source: SourceFile = createSourceFile(fileName, readFileSync(fileName).toString(), compilerOptions.target, true);
+  writeFileSync(ensurePath(outPath(fileName.replace(/.ts$/, ".html"))), new Module(source, compilerOptions, compileTo).toString());
 }
 
-const cwd = process.cwd();
-const fullPath = path => path ? join(cwd, path) : undefined;
+/**
+ * Watch provided files for changes. Whenever a chang happens, emit the file.
+ *
+ * @param rootFileNames Array of files to watch
+ */
+function watch(rootFileNames: string[]) {
+  const files: MapLike<{ version: number }> = {};
 
-const bowerRCFilePath = find.sync(".bowerrc");
-const tsConfigPath = cli.tsConfig ? fullPath(cli.tsConfig) : find.sync("tsconfig.json");
-const bowerConfigPath = cli.bowerConfig ? fullPath(cli.bowerConfig) : find.sync("bower.json");
-const tsConfig = require(tsConfigPath);
+  rootFileNames.forEach((fileName) => {
+    files[ fileName ] = { version: 0 };
 
-const { outDir, declaration, declarationDir } = tsConfig.compilerOptions;
+    emitFile(fileName);
 
-let bowerDir: "bower_components";
-if (existsSync(bowerRCFilePath)) {
-  bowerDir = JSON.parse(readFileSync(bowerRCFilePath).toString()).directory;
-}
+    watchFile(fileName, { persistent: true, interval: 250 }, (curr, prev) => {
+      if (+curr.mtime <= +prev.mtime) {
+        return;
+      }
+      files[ fileName ].version++;
 
-console.time("Done");
-const { 1: polymerVersion = 1 } = require(bowerConfigPath).dependencies.polymer.match(/#[\D]*(\d)(?:\.\d)+/) || {};
-const collector = new StreamParser(Number(polymerVersion), tsConfig.compilerOptions.target, bowerDir);
-const tsProject = createProject(tsConfigPath, collector.tsConfig);
-const stream: { js: ReadWriteStream; dts: ReadWriteStream } = tsProject.src()
-  .pipe(collector.collectSources())
-  .pipe(tsProject());
-
-merge([ stream.dts, stream.js ])
-  .pipe(collector.generateOutput())
-  .pipe(If("*.html", dest(outDir || ".")))
-  .pipe(If(({ path }) => declaration && path.endsWith(".d.ts"), dest(declarationDir || outDir || ".")))
-  .on("finish", () => {
-    console.timeEnd("Done");
-    process.exit(0);
+      emitFile(fileName);
+    });
   });
+}
+
+if (errors.length) {
+  console.error(errors.map(({ messageText }) => messageText).join("\n"));
+  process.exit(errors[ 0 ].code);
+} else if (cli.version) {
+  console.log(`Version ${twc.version}`);
+  process.exit();
+} else if (cli.help) {
+  console.log([
+    `Version ${twc.version}`,
+    `Syntax:    twc [options [file ...]`,
+    "",
+    "Examples:  twc",
+    "           twc my-component.ts",
+    "           twc --outDir dist src/*.ts",
+    "",
+    "Options:",
+    " -h, --help                      Print this message.",
+    " -v, --version                   Print the twc version",
+    " -p, --project                   Compile the project given the path to its configuration file, or to a folder with a `tsconfig.json`.",
+    " -w, --watch                     Watch input files for changes.",
+    "",
+    "Compiler options:",
+    "Just as with `tsc` you can pass on the compiler options within the command line. These options will override tsconfig.json file. For" +
+    " the list of options refer to tsc documentation (you can quickly check it by running `tsc --all`)."
+  ].join("\n"));
+  process.exit();
+} else if (cli.watch) {
+  watch(files);
+} else {
+  files.forEach((file) => emitFile(file));
+}

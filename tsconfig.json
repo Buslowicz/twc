@@ -1,19 +1,30 @@
 {
   "compilerOptions": {
     "experimentalDecorators": true,
-    "sourceMap": true,
-    "target": "es5",
-    "pretty": true,
-    "noUnusedLocals": true,
+    "forceConsistentCasingInFileNames": true,
     "module": "commonjs",
+    "moduleResolution": "node",
+    "noImplicitAny": false,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noImplicitUseStrict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "pretty": true,
+    "sourceMap": false,
+    "strictNullChecks": false,
+    "target": "es6",
     "lib": [
-      "dom",
-      "es6"
-    ]
+      "es6",
+      "es7",
+      "dom"
+    ],
+    "outDir": "dist"
   },
   "include": [
-    "tests/**/*.ts",
-    "src/**/*.ts",
-    "types/**/*.d.ts"
+    "src/*",
+    "src/targets/*",
+    "types/*",
+    "*.ts"
   ]
 }

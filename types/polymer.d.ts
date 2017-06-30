@@ -13,10 +13,10 @@ declare interface Window {
 }
 
 declare class CustomElementRegistry {
-  define(name: string, definition: { prototype: any }): void;
+  public define(name: string, definition: { prototype: any }): void;
 }
 
-interface Constructor<T> {
+interface Constructor<T = {}> {
   new (...args: any[]): T;
 }
 
@@ -60,36 +60,36 @@ declare interface PolymerElementConstructor {
 }
 
 declare class PolymerElement extends PolymerMetaEffects {
-  static readonly template: HTMLTemplateElement;
-  static finalized: boolean;
+  public static readonly template: HTMLTemplateElement;
+  public static finalized: boolean;
 
-  static finalize(): void;
+  public static finalize(): void;
 
-  ready(): void;
+  public ready(): void;
 
-  updateStyles(properties: string[]): void;
+  public updateStyles(properties: string[]): void;
 }
 
 declare class PolymerHelpers extends HTMLElement {
-  $: any;
+  public $: any;
 }
 
 declare class PolymerPropertyEffects extends PolymerHelpers {
-  ready(): void;
+  public ready(): void;
 
-  linkPaths(to: string, from: string): void;
+  public linkPaths(to: string, from: string): void;
 
-  unlinkPaths(path: string): void;
+  public unlinkPaths(path: string): void;
 
-  notifySplices(path: string, splices: any[]): void;
+  public notifySplices(path: string, splices: any[]): void;
 
-  get(path: string | (string | number)[], root: any): any;
+  public get(path: string | (string | number)[], root: any): any;
 
-  set(path: string | (string | number)[], value: any): void;
+  public set(path: string | (string | number)[], value: any): void;
 
-  push(path: string, ...items: any[]): any;
+  public push(path: string, ...items: any[]): any;
 
-  pop(path: string): any;
+  public pop(path: string): any;
 }
 
 declare class PolymerBatchedEffects extends PolymerPropertyEffects {
@@ -99,11 +99,15 @@ declare class PolymerBatchedEffects extends PolymerPropertyEffects {
   // _setPropertyFromComputation(prop, value): void;
   // _enqueueClient(client): void;
   // _flushClients(): void;
-  setProperties(props: any): void;
+  public setProperties(props: any): void;
 }
 
 declare class PolymerMetaEffects extends PolymerBatchedEffects {
   // _clearPropagateEffects(): void;
   // _createPropertyFromInfo(name: string, info): void;
   // _setPropertyDefaults(properties): void;
+}
+
+interface Event {
+  model: any;
 }
