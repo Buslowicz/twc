@@ -34,7 +34,7 @@ Annotations will be available at the `@types` npm namespace. Until this happens,
     ...
   ],
   "include": [
-    "node_modules/twc/types/polymer.decoratora.d.ts"
+    "node_modules/twc/types/polymer.decorators.d.ts"
   ]
 }
 ```
