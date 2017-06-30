@@ -127,7 +127,8 @@ export class MyElement extends Polymer.Element {
 ```
 
 The final approach is to leave the class as is and create a template file, with the same name as the ts file. On compile time, twc will pick
-up the file contents and attach it (just like with second approach).
+up the file contents and attach it (just like with second approach). Be careful though! If you don't specify outDir, final modules might
+replace the templates (by default, it will generate html file with the same base name).
 
 **Please note** TWC uses Polymer templates. To read more about templates and binding please refer to
 [this](https://www.polymer-project.org/2.0/docs/devguide/dom-template) docs.

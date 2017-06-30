@@ -1,10 +1,10 @@
 import { readFileSync } from "fs";
 import { dirname, join, relative, resolve } from "path";
 import {
-  BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, Declaration, EnumDeclaration, ExportAssignment,
-  ExportDeclaration, Expression, ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression, GetAccessorDeclaration,
-  HeritageClause, Identifier, ImportDeclaration, InterfaceDeclaration, JSDoc, MethodDeclaration, ModuleDeclaration, NamedImports,
-  NamespaceImport, Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SourceFile, SyntaxKind, TemplateExpression,
+  BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, EnumDeclaration, ExportAssignment, ExportDeclaration, Expression,
+  ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression, GetAccessorDeclaration, HeritageClause, Identifier,
+  ImportDeclaration, InterfaceDeclaration, JSDoc, MethodDeclaration, ModuleDeclaration, NamedDeclaration, NamedImports, NamespaceImport,
+  Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SourceFile, SyntaxKind, TemplateExpression,
   TypeAliasDeclaration, VariableStatement
 } from "typescript";
 import { Constructor } from "../types/index";
@@ -32,6 +32,7 @@ export const methodKinds = [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructo
  */
 export const JSDocMixin = <TBase extends Constructor>(Base: TBase = class {} as TBase) => class extends Base {
   public declaration: Node;
+
   /** JSDoc for the method */
   public get jsDoc(): string {
     const jsDoc = this.declaration && this.declaration[ "jsDoc" ] as Array<JSDoc>;
@@ -60,6 +61,7 @@ export const JSDocMixin = <TBase extends Constructor>(Base: TBase = class {} as 
  */
 export const DecoratorsMixin = <TBase extends Constructor>(Base: TBase = class {} as TBase) => class extends Base {
   public declaration: Node;
+
   public get decorators(): Array<ParsedDecorator> {
     return getDecorators(this.declaration as ClassElement | ClassDeclaration);
   }
@@ -758,7 +760,7 @@ export const getRoot = (node: Node): SourceFile => {
  */
 export const updateImportedRefs = (src: Node, vars: Map<string, ImportedNode>): string => {
   return flattenChildren(src)
-    .filter((node: Node) => node.constructor.name === "IdentifierObject" && (node.parent as Declaration).name !== node)
+    .filter((node: Node) => node.constructor.name === "IdentifierObject" && (node.parent as NamedDeclaration).name !== node)
     .filter((node) => vars.has(node.getText()))
     .sort((a, b) => b.pos - a.pos)
     .reduce((arr, identifier) => {
