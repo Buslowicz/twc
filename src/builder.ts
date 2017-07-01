@@ -9,9 +9,9 @@ import { paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
 import {
   DecoratorsMixin, getFlatHeritage, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBlock, isClassDeclaration,
-  isExportAssignment, isExportDeclaration, isImportDeclaration, isInterfaceDeclaration, isMethod, isModuleDeclaration, isNamedImports,
-  isProperty, isStatic, isTemplateExpression, JSDocMixin, Link, notPrivate, notStatic, outPath, ParsedDecorator, RefUpdaterMixin,
-  stripQuotes
+  isExportAssignment, isExportDeclaration, isGetter, isImportDeclaration, isInterfaceDeclaration, isMethod, isModuleDeclaration,
+  isNamedImports, isOneOf, isProperty, isSetter, isStatic, isTemplateExpression, JSDocMixin, Link, notPrivate, notStatic, outPath,
+  ParsedDecorator, RefUpdaterMixin, stripQuotes
 } from "./helpers";
 import * as buildTargets from "./targets";
 import { parseDeclaration, parseDeclarationType, ValidValue } from "./type-analyzer";
@@ -236,6 +236,11 @@ export class Property extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
  * Representation of a component method
  */
 export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
+  /** Methods accessor (get, set, or none) */
+  public get accessor(): string {
+    const declaration = this.declaration as ClassElement;
+    return isGetter(declaration) && "get " || isSetter(declaration) && "set " || "";
+  }
 
   /** Method arguments list */
   public get arguments(): Array<string> {
@@ -271,8 +276,11 @@ export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   }
 
   public toString() {
-    const name = isStatic(this.declaration as ClassElement) ? "function" : this.name;
-    return `${name}(${this.arguments.join(", ")}) { ${this.statements.join("\n")} }`;
+    return `${this.accessor}${this.name}(${this.arguments.join(", ")}) { ${this.statements.join("\n")} }`;
+  }
+
+  public isStatic() {
+    return isStatic(this.declaration as MethodDeclaration);
   }
 }
 
@@ -342,7 +350,7 @@ export class Component extends JSDocMixin(DecoratorsMixin()) {
 
     this.declaration
       .members
-      .filter(isMethod)
+      .filter(isOneOf(isMethod, isGetter, isSetter))
       .filter(notStatic)
       .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : "constructor"))
       .map((method) => this.decorate(method, method.decorators))
@@ -350,7 +358,7 @@ export class Component extends JSDocMixin(DecoratorsMixin()) {
 
     this.declaration
       .members
-      .filter(isMethod)
+      .filter(isOneOf(isMethod, isGetter, isSetter))
       .filter(isStatic)
       .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : "constructor"))
       .forEach((method: Method) => this.staticMethods.set(method.name, method));

@@ -8,15 +8,19 @@ import { getQuoteChar, updateImportedRefs } from "../helpers";
  */
 export class Polymer1 {
   /** Map v1 lifecycle to v0 lifecycle methods. */
-  private static lifecycleMap = {
+  protected static lifecycleMap = {
     attributeChangedCallback: "attributeChanged",
     connectedCallback: "attached",
     constructor: "created",
     disconnectedCallback: "detached"
   };
 
+  constructor(protected module: Module) {
+    this.validate();
+  }
+
   /** Find first component of the module. */
-  private get component(): Component {
+  protected get component(): Component {
     return this.module.statements.find((statement) => statement instanceof Component) || this.module.statements
         .filter((statement) => statement instanceof Component || statement instanceof Module)
         .reduce((all, statement) => all.concat(statement instanceof Module ? statement.components : statement), [])
@@ -24,7 +28,7 @@ export class Polymer1 {
   }
 
   /** Get all imports from module up to the root module (source file). */
-  private get imports(): Array<Import> {
+  protected get imports(): Array<Import> {
     const imports = [];
     for (let node = this.module; node; node = node.parent) {
       imports.push(...node.imports);
@@ -33,7 +37,7 @@ export class Polymer1 {
   }
 
   /** Get all imported entities. */
-  private get importedRefs(): Map<string, ImportedNode> {
+  protected get importedRefs(): Map<string, ImportedNode> {
     const importedRefs = new Map();
     for (let node = this.module; node; node = node.parent) {
       node.imports
@@ -45,7 +49,7 @@ export class Polymer1 {
   }
 
   /** Convert statements of a module into a string. */
-  private get body(): string {
+  protected get body(): string {
     return this.module.statements
       .filter((statement) => !(statement instanceof Import))
       .map((statement: Statement) => {
@@ -62,7 +66,7 @@ export class Polymer1 {
   }
 
   /** Generate a dom module. */
-  private get domModule(): string {
+  protected get domModule(): string {
     // Forcing ES2015 modules to prevent code pollution with loaders boilerplate code
     const compilerOptions = Object.assign(this.module.compilerOptions, { module: ModuleKind.ES2015 });
     const { body } = this;
@@ -79,13 +83,6 @@ export class Polymer1 {
     </dom-module>` : script}`;
   }
 
-  constructor(private module: Module) {
-    const component = this.component;
-    if (component && component.heritage && component.heritage !== "Polymer.Element") {
-      throw new SyntaxError("Components in Polymer v1 can only extend `Polymer.Element` class.");
-    }
-  }
-
   public toString(): string {
     if (this.module.parent) {
       return `namespace ${this.module.name} {\n${this.body}\n}`;
@@ -96,9 +93,21 @@ export class Polymer1 {
       if (!process.env[ "SILENT" ]) {
         const fac = 1000000;
         const genTime = Math.round((end[ 0 ] * 1000) + (end[ 1 ] / fac)) - Math.round((start[ 0 ] * 1000) + (start[ 1 ] / fac));
-        console.log(`\`${this.component ? this.component.name : "Module"}\` generated in ${genTime}`);
+        console.log(`\`${this.component ? this.component.name : "Module"}\` generated in ${genTime}ms`);
       }
       return html;
+    }
+  }
+
+  /**
+   * Validate the components source
+   *
+   * @throws SyntaxError Will throw an error if class extends something different than Polymer.Element
+   */
+  protected validate(): void {
+    const component = this.component;
+    if (component && component.heritage && component.heritage !== "Polymer.Element") {
+      throw new SyntaxError("Components in Polymer v1 can only extend `Polymer.Element` class.");
     }
   }
 
@@ -109,7 +118,7 @@ export class Polymer1 {
    *
    * @returns Stringified component declaration
    */
-  private componentScript(component: Component): string {
+  protected componentScript(component: Component): string {
     const quote = getQuoteChar(this.module.source);
     return `
       const ${component.name} = Polymer({\n${
@@ -134,7 +143,7 @@ export class Polymer1 {
    *
    * @returns Stringified behaviors declaration
    */
-  private behaviors(component: Component): string {
+  protected behaviors(component: Component): string {
     return component.behaviors.length === 0 ? "" : `behaviors: [
       ${component.behaviors.map((behavior) => `${behavior}`).join(",\n")}
     ]`;
@@ -147,7 +156,7 @@ export class Polymer1 {
    *
    * @returns Stringified observers declaration
    */
-  private observers(component: Component): string {
+  protected observers(component: Component): string {
     const quote = getQuoteChar(this.module.source);
     return component.observers.length === 0 ? "" : `observers: [
       ${component.observers.map((observer) => `${quote}${observer}${quote}`).join(",\n")}
@@ -161,7 +170,7 @@ export class Polymer1 {
    *
    * @returns Stringified properties config
    */
-  private properties(component: Component): string {
+  protected properties(component: Component): string {
     return component.properties.size === 0 ? "" : `properties: {
       ${Array.from(component.properties.values(), (p) => `${p.jsDoc}${p.name}: ${p.provideRefs(this.importedRefs)}`).join(",\n")}
     }`;
@@ -174,7 +183,7 @@ export class Polymer1 {
    *
    * @returns Array of stringified methods
    */
-  private methods(component: Component): Array<string> {
+  protected methods(component: Component): Array<string> {
     return Array
       .from(component.methods.values())
       .map((m) => m.name in Polymer1.lifecycleMap ? new Method(m.declaration, Polymer1.lifecycleMap[ m.name ]) : m)
@@ -188,7 +197,7 @@ export class Polymer1 {
    *
    * @returns Array of stringified static properties
    */
-  private staticProperties(component: Component): Array<string> {
+  protected staticProperties(component: Component): Array<string> {
     return Array
       .from(component.staticProperties.values())
       .map((prop) => `${prop.jsDoc}${component.name}.${prop.name} = ${prop.provideRefs(this.importedRefs)};`);
@@ -201,9 +210,9 @@ export class Polymer1 {
    *
    * @returns Array of stringified static methods
    */
-  private staticMethods(component: Component): Array<string> {
+  protected staticMethods(component: Component): Array<string> {
     return Array
       .from(component.staticMethods.values())
-      .map((method) => `${method.jsDoc}${component.name}.${method.name} = ${method.provideRefs(this.importedRefs)};`);
+      .map((method) => `${method.jsDoc}${component.name}.${method.name} = function ${method.provideRefs(this.importedRefs)};`);
   }
 }

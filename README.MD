@@ -40,8 +40,8 @@ Annotations will be available at the `@types` npm namespace. Until this happens,
 ```
 
 ### Polymer version
-TWC allows to compile the same code into either Polymer 1.x or Polymer 2.x ([WIP](https://github.com/Draccoz/twc/issues/16)).
-Before compiling, `bower.json` is checked for Polymer dependency version and then it is used as a target. For example:
+TWC allows to compile the same code into either Polymer 1.x or Polymer 2.x. Before compiling, `bower.json` is checked
+for Polymer dependency version and then it is used as a target. For example:
 ```
 "polymer": "Polymer/polymer#^1.8.0"
 ```

@@ -7,12 +7,12 @@ import chaiString = require("chai-string");
 
 use(chaiString);
 
-describe("Polymer v1 output", () => {
+describe("Polymer v2 output", () => {
   function transpile(tpl: string) {
     const component = (target: "ES5" | "ES2015") => {
-      const compilerOptions: CompilerOptions = { target: ScriptTarget[ target ], module: ModuleKind.ES2015 };
+      const compilerOptions: CompilerOptions = { target: ScriptTarget[ target ], module: ModuleKind.ES2015, noEmitHelpers: true };
       const source: SourceFile = createSourceFile("sample.ts", tpl, compilerOptions.target, true);
-      return new Module(source, compilerOptions, "Polymer1").toString();
+      return new Module(source, compilerOptions, "Polymer2").toString();
     };
     return {
       get es5() {
@@ -40,19 +40,11 @@ describe("Polymer v1 output", () => {
       <script src="script.js"></script>`
     );
   });
-  it("should allow components without inheritance", () => {
+  it("should throw an error if components do not extend any class", () => {
     const component = transpile(`
       import { CustomElement } from "twc/polymer";
       @CustomElement()
       export class MyElement {}`);
-
-    expect(() => component.es5).to.not.throw(SyntaxError);
-  });
-  it("should throw an error if extending class other than Polymer.Element", () => {
-    const component = transpile(`
-      import { CustomElement } from "twc/polymer";
-      @CustomElement()
-      export class MyElement extends HTMLElement {}`);
 
     expect(() => component.es5).to.throw(SyntaxError);
   });
@@ -68,10 +60,25 @@ describe("Polymer v1 output", () => {
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
         <dom-module is="my-element">
-          <script>
-            var MyElement = Polymer({ is: "my-element" });
-            CustomElement;
-            var test = 10;
+        <script>
+          var MyElement = (function(_super) {
+            __extends(MyElement, _super);
+
+            function MyElement() {
+              return _super !== null && _super.apply(this, arguments) || this;
+            }
+            Object.defineProperty(MyElement, "is", {
+              get: function() {
+                return "my-element";
+              },
+              enumerable: true,
+              configurable: true
+            });
+            return MyElement;
+          }(Polymer.Element));
+          customElements.define(MyElement.is, MyElement);
+          CustomElement;
+          var test = 10;
           </script>
         </dom-module>`
       );
@@ -80,7 +87,10 @@ describe("Polymer v1 output", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
         <dom-module is="my-element">
           <script>
-            const MyElement = Polymer({ is: "my-element" });
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+            }
+            customElements.define(MyElement.is, MyElement);
             CustomElement;
             const test = 10;
           </script>
@@ -150,13 +160,26 @@ describe("Polymer v1 output", () => {
         <link rel="import" href="some.html">
         <link rel="import" href="other.html">
         <dom-module is="my-element">
-          <script>
-            var MyElement = Polymer({
-              is: "my-element",
-              method: function() {
-                return NS.A + NS.B + NS.C + OtherNS.D;
-              }
+        <script>
+          var MyElement = (function(_super) {
+            __extends(MyElement, _super);
+
+            function MyElement() {
+              return _super !== null && _super.apply(this, arguments) || this;
+            }
+            Object.defineProperty(MyElement, "is", {
+              get: function() {
+                return "my-element";
+              },
+              enumerable: true,
+              configurable: true
             });
+            MyElement.prototype.method = function() {
+              return NS.A + NS.B + NS.C + OtherNS.D;
+            };
+            return MyElement;
+          }(Polymer.Element));
+          customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -167,12 +190,14 @@ describe("Polymer v1 output", () => {
         <link rel="import" href="other.html">
         <dom-module is="my-element">
           <script>
-            const MyElement = Polymer({
-              is: "my-element",
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+
               method() {
                 return NS.A + NS.B + NS.C + OtherNS.D;
               }
-            });
+            }
+            customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -199,7 +224,22 @@ describe("Polymer v1 output", () => {
             <h1>Hello World</h1>
           </template>
           <script>
-            var MyElement = Polymer({ is: "my-element" });
+            var MyElement = (function(_super) {
+              __extends(MyElement, _super);
+
+              function MyElement() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(MyElement, "is", {
+                get: function() {
+                  return "my-element";
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return MyElement;
+            }(Polymer.Element));
+            customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -214,7 +254,10 @@ describe("Polymer v1 output", () => {
             <h1>Hello World</h1>
           </template>
           <script>
-            const MyElement = Polymer({ is: "my-element" });
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+            }
+            customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -237,7 +280,22 @@ describe("Polymer v1 output", () => {
             <h1>Hello World</h1>
           </template>
           <script>
-            var MyElement = Polymer({ is: "my-element" });
+            var MyElement = (function(_super) {
+              __extends(MyElement, _super);
+
+              function MyElement() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(MyElement, "is", {
+                get: function() {
+                  return "my-element";
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return MyElement;
+            }(Polymer.Element));
+            customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -249,7 +307,10 @@ describe("Polymer v1 output", () => {
             <h1>Hello World</h1>
           </template>
           <script>
-            const MyElement = Polymer({ is: "my-element" });
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+            }
+            customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -265,7 +326,22 @@ describe("Polymer v1 output", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
         <dom-module is="my-element">
           <script>
-            var MyElement = Polymer({ is: "my-element" });
+            var MyElement = (function(_super) {
+              __extends(MyElement, _super);
+
+              function MyElement() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(MyElement, "is", {
+                get: function() {
+                  return "my-element";
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return MyElement;
+            }(Polymer.Element));
+            customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -274,7 +350,10 @@ describe("Polymer v1 output", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
         <dom-module is="my-element">
           <script>
-            const MyElement = Polymer({ is: "my-element" });
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+            }
+            customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -297,17 +376,36 @@ describe("Polymer v1 output", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
         <dom-module is="my-element">
           <script>
-            var MyElement = Polymer({
-              is: "my-element",
-              properties: {
-                stringProp: String,
-                readOnlyProp: { type: Object, readOnly: true },
-                attribute: { type: Number, reflectToAttribute: true },
-                watched: { type: Boolean, value: false, notify: true },
-                iHaveValue: { type: String, value: "the value" },
-                iHaveComplexValue: { type: Array, value: function() { return [ 1, 2, 3 ]; } }
+            var MyElement = (function(_super) {
+              __extends(MyElement, _super);
+
+              function MyElement() {
+                return _super !== null && _super.apply(this, arguments) || this;
               }
-            });
+              Object.defineProperty(MyElement, "is", {
+                get: function() {
+                  return "my-element";
+                },
+                enumerable: true,
+                configurable: true
+              });
+              Object.defineProperty(MyElement, "properties", {
+                get: function() {
+                  return {
+                    stringProp: String,
+                    readOnlyProp: { type: Object, readOnly: true },
+                    attribute: { type: Number, reflectToAttribute: true },
+                    watched: { type: Boolean, value: false, notify: true },
+                    iHaveValue: { type: String, value: "the value" },
+                    iHaveComplexValue: { type: Array, value: function() { return [ 1, 2, 3 ]; } }
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return MyElement;
+            }(Polymer.Element));
+            customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -316,17 +414,20 @@ describe("Polymer v1 output", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
         <dom-module is="my-element">
           <script>
-            const MyElement = Polymer({
-              is: "my-element",
-              properties: {
-                stringProp: String,
-                readOnlyProp: { type: Object, readOnly: true },
-                attribute: { type: Number, reflectToAttribute: true },
-                watched: { type: Boolean, value: false, notify: true },
-                iHaveValue: { type: String, value: "the value" },
-                iHaveComplexValue: { type: Array, value: function() { return [ 1, 2, 3 ]; } }
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+              static get properties() {
+                return {
+                  stringProp: String,
+                  readOnlyProp: { type: Object, readOnly: true },
+                  attribute: { type: Number, reflectToAttribute: true },
+                  watched: { type: Boolean, value: false, notify: true },
+                  iHaveValue: { type: String, value: "the value" },
+                  iHaveComplexValue: { type: Array, value: function() { return [ 1, 2, 3 ]; } }
+                };
               }
-            });
+            }
+            customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -351,25 +452,43 @@ describe("Polymer v1 output", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
         <dom-module is="my-element">
           <script>
-            var MyElement = Polymer({
-              is: "my-element",
-              properties: {
-                age: Number,
-                isAdult1: { type: Boolean, computed: "_isAdult1Computed(age)" },
-                isAdult2: { type: Boolean, computed: "_isAdult2Computed(age)" },
-                isAdult3: { type: Boolean, computed: "computer(age)" }
-              },
+		        var MyElement = (function(_super) {
+		          __extends(MyElement, _super);
 
-              _isAdult1Computed: function(age) {
+		          function MyElement() {
+		            return _super !== null && _super.apply(this, arguments) || this;
+		          }
+		          Object.defineProperty(MyElement, "is", {
+		            get: function() {
+		              return "my-element";
+		            },
+		            enumerable: true,
+		            configurable: true
+		          });
+              Object.defineProperty(MyElement, "properties", {
+                get: function() {
+                  return {
+                    age: Number,
+                    isAdult1: { type: Boolean, computed: "_isAdult1Computed(age)" },
+                    isAdult2: { type: Boolean, computed: "_isAdult2Computed(age)" },
+                    isAdult3: { type: Boolean, computed: "computer(age)" }
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              MyElement.prototype._isAdult1Computed = function (age) {
                 return age >= 18;
-              },
-              _isAdult2Computed: function(x) {
+              };
+              MyElement.prototype._isAdult2Computed = function (x) {
                 return x >= 18;
-              },
-              computer: function (y) {
+              };
+              MyElement.prototype.computer = function (y) {
                 return y >= 18;
-              }
-            });
+              };
+		          return MyElement;
+		        }(Polymer.Element));
+		        customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -378,25 +497,27 @@ describe("Polymer v1 output", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
         <dom-module is="my-element">
           <script>
-            const MyElement = Polymer({
-              is: "my-element",
-              properties: {
-                age: Number,
-                isAdult1: { type: Boolean, computed: "_isAdult1Computed(age)" },
-                isAdult2: { type: Boolean, computed: "_isAdult2Computed(age)" },
-                isAdult3: { type: Boolean, computed: "computer(age)" }
-              },
-
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+              static get properties() {
+                return {
+                  age: Number,
+                  isAdult1: { type: Boolean, computed: "_isAdult1Computed(age)" },
+                  isAdult2: { type: Boolean, computed: "_isAdult2Computed(age)" },
+                  isAdult3: { type: Boolean, computed: "computer(age)" }
+                };
+              }
               _isAdult1Computed(age) {
                 return age >= 18;
-              },
+              }
               _isAdult2Computed(x) {
                 return x >= 18;
-              },
+              }
               computer (y) {
                 return y >= 18;
               }
-            });
+            }
+            customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -421,30 +542,56 @@ describe("Polymer v1 output", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
         <dom-module is="my-element">
           <script>
-            var MyElement = Polymer({
-              is: "my-element",
-              observers: [
-                "firstNameChange(name.first)",
-                "everything1(age, name)",
-                "everything2(age, name)"
-              ],
-              properties: {
-                age: {
-                  type: Number,
-                  observer: "gettingOlder"
-                },
-                name: {
-                  type: Object,
-                  observer: "nameChange"
-                }
-              },
+		        var MyElement = (function(_super) {
+		          __extends(MyElement, _super);
 
-              gettingOlder: function(age) {},
-              nameChange: function() {},
-              firstNameChange: function() {},
-              everything1: function(age, name) {},
-              everything2: function() {}
-            });
+		          function MyElement() {
+		            return _super !== null && _super.apply(this, arguments) || this;
+		          }
+		          Object.defineProperty(MyElement, "is", {
+		            get: function() {
+		              return "my-element";
+		            },
+		            enumerable: true,
+		            configurable: true
+		          });
+		          Object.defineProperty(MyElement, "observers", {
+		            get: function() {
+		              return [
+                    "firstNameChange(name.first)",
+                    "everything1(age, name)",
+                    "everything2(age, name)"
+                  ];
+		            },
+		            enumerable: true,
+		            configurable: true
+		          });
+		          Object.defineProperty(MyElement, "properties", {
+		            get: function() {
+		              return {
+                    age: {
+                      type: Number,
+                      observer: "gettingOlder"
+                    },
+                    name: {
+                      type: Object,
+                      observer: "nameChange"
+                    }
+                  };
+		            },
+		            enumerable: true,
+		            configurable: true
+		          });
+
+              MyElement.prototype.gettingOlder = function(age) {};
+              MyElement.prototype.nameChange = function() {};
+              MyElement.prototype.firstNameChange = function() {};
+              MyElement.prototype.everything1 = function(age, name) {};
+              MyElement.prototype.everything2 = function() {};
+
+		          return MyElement;
+		        }(Polymer.Element));
+		        customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -453,31 +600,36 @@ describe("Polymer v1 output", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
         <dom-module is="my-element">
           <script>
-            const MyElement = Polymer({
-              is: "my-element",
-              observers: [
-                "firstNameChange(name.first)",
-                "everything1(age, name)",
-                "everything2(age, name)"
-              ],
-              properties: {
-                age: {
-                  type: Number,
-                  observer: "gettingOlder"
-                },
-                name: {
-                  type: Object,
-                  observer: "nameChange"
-                }
-              },
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+              static get observers() {
+                return [
+                  "firstNameChange(name.first)",
+                  "everything1(age, name)",
+                  "everything2(age, name)"
+                ];
+              }
+              static get properties() {
+                return {
+                  age: {
+                    type: Number,
+                    observer: "gettingOlder"
+                  },
+                  name: {
+                    type: Object,
+                    observer: "nameChange"
+                  }
+                };
+              }
 
-              gettingOlder(age) {},
-              nameChange() {},
-              firstNameChange() {},
-              everything1(age, name) {},
+              gettingOlder(age) {}
+              nameChange() {}
+              firstNameChange() {}
+              everything1(age, name) {}
               everything2() {}
-            });
-          </script>
+            }
+           customElements.define(MyElement.is, MyElement);
+         </script>
         </dom-module>`
       );
     });
@@ -505,18 +657,31 @@ describe("Polymer v1 output", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
         <dom-module is="my-element">
           <script>
-            var MyElement = Polymer({
-            /**
-             * @event the-event
-             */
-            /**
-             * Fired when \`element\` changes its awesomeness level.
-             *
-             * @event awesome-change
-             * @param {number} newAwesome New level of awesomeness.
-             */
-              is: "my-element"
-            });
+                /**
+                 * @event the-event
+                 */
+                /**
+                 * Fired when \`element\` changes its awesomeness level.
+                 *
+                 * @event awesome-change
+                 * @param {number} newAwesome New level of awesomeness.
+                 */
+		        var MyElement = (function(_super) {
+		          __extends(MyElement, _super);
+
+		          function MyElement() {
+		            return _super !== null && _super.apply(this, arguments) || this;
+		          }
+		          Object.defineProperty(MyElement, "is", {
+		            get: function() {
+		              return "my-element";
+		            },
+		            enumerable: true,
+		            configurable: true
+		          });
+		          return MyElement;
+		        }(Polymer.Element));
+		        customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -525,7 +690,6 @@ describe("Polymer v1 output", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
         <dom-module is="my-element">
           <script>
-            const MyElement = Polymer({
             /**
              * @event the-event
              */
@@ -535,8 +699,10 @@ describe("Polymer v1 output", () => {
              * @event awesome-change
              * @param {number} newAwesome New level of awesomeness.
              */
-              is: "my-element"
-            });
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+            }
+            customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -567,12 +733,31 @@ describe("Polymer v1 output", () => {
         <link rel="import" href="../../iron-resizable-behavior/iron-resizable-behavior.html">
         <dom-module is="my-element">
           <script>
-            var MyElement = Polymer({
-              is: "my-element",
-              behaviors: [
-                Polymer.IronResizableBehavior
-              ]
-            });
+		        var MyElement = (function(_super) {
+		          __extends(MyElement, _super);
+
+		          function MyElement() {
+		            return _super !== null && _super.apply(this, arguments) || this;
+		          }
+		          Object.defineProperty(MyElement, "is", {
+		            get: function() {
+		              return "my-element";
+		            },
+		            enumerable: true,
+		            configurable: true
+		          });
+		          Object.defineProperty(MyElement, "behaviors", {
+		            get: function() {
+		              return [
+                    Polymer.IronResizableBehavior
+                  ];
+		            },
+		            enumerable: true,
+		            configurable: true
+		          });
+		          return MyElement;
+		        }(Polymer.Element));
+		        customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -583,12 +768,15 @@ describe("Polymer v1 output", () => {
         <link rel="import" href="../../iron-resizable-behavior/iron-resizable-behavior.html">
         <dom-module is="my-element">
           <script>
-            const MyElement = Polymer({
-              is: "my-element",
-              behaviors: [
-                Polymer.IronResizableBehavior
-              ]
-            });
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+              static get behaviors() {
+                return [
+                  Polymer.IronResizableBehavior
+                ];
+              }
+            }
+            customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -619,7 +807,22 @@ describe("Polymer v1 output", () => {
                 return SomeClass;
             }());
 
-            var MyElement = Polymer({ is: "my-element" });
+		        var MyElement = (function(_super) {
+		          __extends(MyElement, _super);
+
+		          function MyElement() {
+		            return _super !== null && _super.apply(this, arguments) || this;
+		          }
+		          Object.defineProperty(MyElement, "is", {
+		            get: function() {
+		              return "my-element";
+		            },
+		            enumerable: true,
+		            configurable: true
+		          });
+		          return MyElement;
+		        }(Polymer.Element));
+		        customElements.define(MyElement.is, MyElement);
 
             function someFunction() {}
           </script>
@@ -633,7 +836,10 @@ describe("Polymer v1 output", () => {
             const test = 10;
             class SomeClass {}
 
-            const MyElement = Polymer({ is: "my-element" });
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+            }
+            customElements.define(MyElement.is, MyElement);
 
             function someFunction() {}
           </script>
@@ -660,12 +866,31 @@ describe("Polymer v1 output", () => {
           <script>
             var Custom;
             (function(Custom) {
-              var MyElement = Polymer({
-                is: "my-element",
-                properties: {
-                  prop: String
+              var MyElement = (function(_super) {
+                __extends(MyElement, _super);
+
+                function MyElement() {
+                  return _super !== null && _super.apply(this, arguments) || this;
                 }
-              });
+                Object.defineProperty(MyElement, "is", {
+                  get: function() {
+                    return "my-element";
+                  },
+                  enumerable: true,
+                  configurable: true
+                });
+                Object.defineProperty(MyElement, "properties", {
+                  get: function() {
+                    return {
+                      prop: String
+                    };
+                  },
+                  enumerable: true,
+                  configurable: true
+                });
+                return MyElement;
+              }(Polymer.Element));
+              customElements.define(MyElement.is, MyElement);
 
               function someFunction() {}
             })(Custom || (Custom = {}));
@@ -679,12 +904,15 @@ describe("Polymer v1 output", () => {
           <script>
             var Custom;
             (function(Custom) {
-              const MyElement = Polymer({
-                is: "my-element",
-                properties: {
-                  prop: String
+              class MyElement extends Polymer.Element {
+                static get is() { return "my-element"; }
+                static get properties() {
+                  return {
+                    prop: String
+                  };
                 }
-              });
+              }
+              customElements.define(MyElement.is, MyElement);
 
               function someFunction() {}
             })(Custom || (Custom = {}));
@@ -710,9 +938,23 @@ describe("Polymer v1 output", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
         <dom-module is="my-element">
           <script>
-            var MyElement = Polymer({ is: "my-element" });
+		        var MyElement = (function(_super) {
+		          __extends(MyElement, _super);
 
-            MyElement.method = function method() {};
+		          function MyElement() {
+		            return _super !== null && _super.apply(this, arguments) || this;
+		          }
+		          Object.defineProperty(MyElement, "is", {
+		            get: function() {
+		              return "my-element";
+		            },
+		            enumerable: true,
+		            configurable: true
+		          });
+              MyElement.method = function () {};
+		          return MyElement;
+		        }(Polymer.Element));
+		        customElements.define(MyElement.is, MyElement);
 
             MyElement.prop1 = undefined;
             MyElement.prop2 = "test";
@@ -725,9 +967,11 @@ describe("Polymer v1 output", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
         <dom-module is="my-element">
           <script>
-            const MyElement = Polymer({ is: "my-element" });
-
-            MyElement.method = function method() {};
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+              static method() {}
+            }
+            customElements.define(MyElement.is, MyElement);
 
             MyElement.prop1 = undefined;
             MyElement.prop2 = "test";
@@ -757,7 +1001,22 @@ describe("Polymer v1 output", () => {
             <h1>Hello World</h1>
           </template>
           <script>
-            var MyElement = Polymer({ is: "my-element" });
+		        var MyElement = (function(_super) {
+		          __extends(MyElement, _super);
+
+		          function MyElement() {
+		            return _super !== null && _super.apply(this, arguments) || this;
+		          }
+		          Object.defineProperty(MyElement, "is", {
+		            get: function() {
+		              return "my-element";
+		            },
+		            enumerable: true,
+		            configurable: true
+		          });
+		          return MyElement;
+		        }(Polymer.Element));
+		        customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );
@@ -771,84 +1030,10 @@ describe("Polymer v1 output", () => {
             <h1>Hello World</h1>
           </template>
           <script>
-            const MyElement = Polymer({ is: "my-element" });
-          </script>
-        </dom-module>`
-      );
-    });
-  });
-  describe("should remove super() calls", () => {
-    const component = transpile(`
-      import { CustomElement } from "twc/polymer";
-      @CustomElement()
-      export class MyElement extends Polymer.Element {
-        constructor() {
-          super();
-        }
-      }`);
-
-    it("es5", () => {
-      expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
-          <script>
-            var MyElement = Polymer({
-                is: "my-element",
-                created: function() {}
-            });
-          </script>
-        </dom-module>`
-      );
-    });
-    it("es6", () => {
-      expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
-          <script>
-            const MyElement = Polymer({
-                is: "my-element",
-                created() {}
-            });
-          </script>
-        </dom-module>`
-      );
-    });
-  });
-  describe("should update lifecycle methods", () => {
-    const component = transpile(`
-      import { CustomElement } from "twc/polymer";
-      @CustomElement()
-      export class MyElement extends Polymer.Element {
-        constructor() {}
-        connectedCallback() {}
-        disconnectedCallback() {}
-        attributeChangedCallback() {}
-      }`);
-
-    it("es5", () => {
-      expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
-          <script>
-            var MyElement = Polymer({
-                is: "my-element",
-                created: function() {},
-                attached: function() {},
-                detached: function() {},
-                attributeChanged: function() {}
-            });
-          </script>
-        </dom-module>`
-      );
-    });
-    it("es6", () => {
-      expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
-          <script>
-            const MyElement = Polymer({
-                is: "my-element",
-                created() {},
-                attached() {},
-                detached() {},
-                attributeChanged() {}
-            });
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+            }
+            customElements.define(MyElement.is, MyElement);
           </script>
         </dom-module>`
       );

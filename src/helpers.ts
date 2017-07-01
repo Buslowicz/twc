@@ -303,6 +303,24 @@ export const hasDecorator = (declaration: ClassElement | ClassDeclaration, decor
 };
 
 /**
+ * Checks if at least one of the filters pass
+ *
+ * @param filters List of filters
+ *
+ * @returns A filter method (to pass to the array filter)
+ */
+export const isOneOf = (...filters) => (item: any): boolean => filters.some((filter) => filter(item));
+
+/**
+ * Checks if all of the filters pass
+ *
+ * @param filters List of filters
+ *
+ * @returns A filter method (to pass to the array filter)
+ */
+export const isAllOf = (...filters) => (item: any): boolean => filters.every((filter) => filter(item));
+
+/**
  * Checks if node is an ImportDeclaration.
  *
  * @param st Node to check
