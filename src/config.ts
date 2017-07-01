@@ -24,7 +24,6 @@ export interface TSConfig {
   files: Array<string>;
   compileOnSave: boolean;
   typeAcquisition: object;
-  compileTo: CompileTarget;
 }
 
 export interface Config {
@@ -137,7 +136,9 @@ const bower: BowerConfig = readConfigFile(join(projectRoot, "bower.json"), readF
 const npm: NPMConfig = readConfigFile(join(projectRoot, "package.json"), readFileAsString).config || {};
 const tsConfig: TSConfig = readConfigFile(tsConfigPath, readFileAsString).config || {};
 
-const { compilerOptions = {}, exclude = [], files: inputFiles = [], include = [], compileTo = "Polymer1" } = tsConfig;
+const { compilerOptions = {}, exclude = [], files: inputFiles = [], include = [] } = tsConfig;
+
+const compileTo: CompileTarget = `Polymer${((bower.dependencies || {})[ "polymer" ] || "").match(/\d/) || 2}` as any;
 
 const paths = {
   npm: process.env.npmDir || "node_modules",

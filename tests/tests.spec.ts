@@ -8,10 +8,10 @@ import {
 import { Component, Method, Property } from "../src/builder";
 import * as decoratorsMap from "../src/decorators";
 import {
-  flatExtends, flattenArray, getDecorators, getText, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBinaryExpression,
-  isBlock, isCallExpression, isExtendsDeclaration, isGetter, isIdentifier, isMethod, isNamedImports, isNamespaceImport,
-  isPrefixUnaryExpression, isPrivate, isProperty, isPublic, isSetter, isStatic, isTransparent, Link, notGetter, notMethod, notPrivate,
-  notProperty, notPublic, notSetter, notStatic, notTransparent, Ref, ReferencedExpression, toProperty, toString
+  flatExtends, flattenArray, getDecorators, getText, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isAllOf,
+  isBinaryExpression, isBlock, isCallExpression, isExtendsDeclaration, isGetter, isIdentifier, isMethod, isNamedImports, isNamespaceImport,
+  isOneOf, isPrefixUnaryExpression, isPrivate, isProperty, isPublic, isSetter, isStatic, isTransparent, Link, notGetter, notMethod,
+  notPrivate, notProperty, notPublic, notSetter, notStatic, notTransparent, Ref, ReferencedExpression, toProperty, toString
 } from "../src/helpers";
 import {
   getFinalType, getSimpleKind, parseDeclaration, parseDeclarationInitializer, parseDeclarationType, parseExpression,
@@ -19,14 +19,17 @@ import {
 } from "../src/type-analyzer";
 import "./config.spec";
 import "./targets/polymer1.spec";
+import "./targets/polymer2.spec";
 
 function parse<T>(src: string): T {
   return createSourceFile("", src, ScriptTarget.ES2015, true).statements[ 0 ] as any;
 }
+
 function parsVars(src: string): PropertyDeclaration {
   const statement: VariableStatement = createSourceFile("", src, ScriptTarget.ES2015, true).statements[ 0 ] as any;
   return statement.declarationList.declarations[ 0 ] as any;
 }
+
 function parseClass(src: string): ClassDeclaration {
   return createSourceFile("", src, ScriptTarget.ES2015, true).statements[ 0 ] as ClassDeclaration;
 }
@@ -123,6 +126,18 @@ describe("helpers", () => {
       expect(hasDecorator(parseClass(`class T { @a() p; }`).members[ 0 ], "a")).to.be.true;
       expect(hasDecorator(parseClass(`class T { @a() p; }`).members[ 0 ], "b")).to.be.false;
       expect(hasDecorator(parseClass(`class T { @a p; }`).members[ 0 ], "b")).to.be.false;
+    });
+  });
+  describe("isOneOf", () => {
+    it("should check if at least one of the filters pass on the item", () => {
+      expect([ 1, 2, 3 ].filter(isOneOf((n) => n === 1, (n) => n === 2))).to.deep.equal([ 1, 2 ]);
+      expect([ 1, 2, 3 ].filter(isOneOf((n) => n === "a", (n) => n === "b", (n) => n === "c"))).to.deep.equal([]);
+    });
+  });
+  describe("isAllOf", () => {
+    it("should check if all of the filters pass on the item", () => {
+      expect([ 1, 2, 3 ].filter(isAllOf((n) => n > 1, (n) => n < 10))).to.deep.equal([ 2, 3 ]);
+      expect([ 1, 2, 3 ].filter(isAllOf((n) => n === 1, (n) => n === 2, (n) => n === 3))).to.deep.equal([]);
     });
   });
   // TODO: write isImportDeclaration tests
