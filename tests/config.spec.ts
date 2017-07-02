@@ -4,13 +4,13 @@ import { findRootDir } from "../src/config";
 describe("config", () => {
   describe("findRootDir", () => {
     it("should find Longest Common Path for list of paths", () => {
-      expect(findRootDir([ "a/b/c", "a/b/c/d", "a/b/d" ])).to.equal("a/b/");
-      expect(findRootDir([ "interspecies", "interstelar", "interstate" ])).to.equal("inters");
-      expect(findRootDir([ "throne", "throne" ])).to.equal("throne");
-      expect(findRootDir([ "throne", "dungeon" ])).to.equal("");
-      expect(findRootDir([ "cheese" ])).to.equal("cheese");
+      expect(findRootDir([ "some/deep/file.ts", "some/deep/awesome/file.ts", "some/deep/file.js" ])).to.equal("some/deep");
+      expect(findRootDir([ "some/deep/file.ts", "some/deep/file.js" ])).to.equal("some/deep");
+      expect(findRootDir([ "some/deep/file.ts", "another/file.ts" ])).to.equal("");
+      expect(findRootDir([ "the/file.ts" ])).to.equal("the");
       expect(findRootDir([])).to.equal("");
-      expect(findRootDir([ "prefix", "suffix" ])).to.equal("");
+      expect(findRootDir([ "file.ts", "file.js" ])).to.equal("");
+      expect(findRootDir([ "file.ts", "deeper/file.js" ])).to.equal("");
     });
   });
 });

@@ -92,7 +92,8 @@ export interface NPMConfig extends Config {
 export function findRootDir(files: Array<string>): string {
   const clone = files.concat().sort();
   if (clone.length <= 1) {
-    return dirname(files[ 0 ] || "");
+    const dir = dirname(files[ 0 ] || "");
+    return dir === "." ? "" : dir;
   }
   const first = clone[ 0 ].split(sep);
   const last = clone[ clone.length - 1 ].split(sep);
