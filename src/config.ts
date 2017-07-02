@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "fs";
-import { basename, dirname, join, relative, resolve } from "path";
+import { basename, dirname, join, relative, resolve, sep } from "path";
 import { CompilerOptions, findConfigFile, parseCommandLine, readConfigFile, sys } from "typescript";
 
 export type ModuleType = "globals" | "amd" | "node" | "es6" | "yui";
@@ -92,16 +92,16 @@ export interface NPMConfig extends Config {
 export function findRootDir(files: Array<string>): string {
   const clone = files.concat().sort();
   if (clone.length <= 1) {
-    return files[ 0 ] || "";
+    return dirname(files[ 0 ] || "");
   }
-  const first = clone[ 0 ];
-  const last = clone[ clone.length - 1 ];
+  const first = clone[ 0 ].split(sep);
+  const last = clone[ clone.length - 1 ].split(sep);
   const max = first.length;
   let i = 0;
   while (i < max && first[ i ] === last[ i ]) {
     i++;
   }
-  return first.substring(0, i);
+  return first.slice(0, i).join(sep);
 }
 
 /**

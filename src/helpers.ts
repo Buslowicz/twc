@@ -795,8 +795,12 @@ export const updateImportedRefs = (src: Node, vars: Map<string, ImportedNode>): 
 /**
  * Create an output path for the file.
  *
- * @param fileName File to create output path for
+ * @param path File path to create output path for
+ * @param outDir Output path
+ * @param rootDir Sources root path (Longest Common Prefix)
  *
  * @returns Path relative to outDir
  */
-export const outPath = (fileName: string): string => join(compilerOptions.outDir || "", relative(compilerOptions.rootDir, fileName));
+export const outPath = (path: string, { outDir = "", rootDir } = compilerOptions) => {
+  return join(outDir, relative(rootDir, path));
+};

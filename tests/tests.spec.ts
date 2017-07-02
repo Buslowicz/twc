@@ -11,7 +11,7 @@ import {
   flatExtends, flattenArray, getDecorators, getText, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isAllOf,
   isBinaryExpression, isBlock, isCallExpression, isExtendsDeclaration, isGetter, isIdentifier, isMethod, isNamedImports, isNamespaceImport,
   isOneOf, isPrefixUnaryExpression, isPrivate, isProperty, isPublic, isSetter, isStatic, isTransparent, Link, notGetter, notMethod,
-  notPrivate, notProperty, notPublic, notSetter, notStatic, notTransparent, Ref, ReferencedExpression, toProperty, toString
+  notPrivate, notProperty, notPublic, notSetter, notStatic, notTransparent, outPath, Ref, ReferencedExpression, toProperty, toString
 } from "../src/helpers";
 import {
   getFinalType, getSimpleKind, parseDeclaration, parseDeclarationInitializer, parseDeclarationType, parseExpression,
@@ -393,6 +393,24 @@ describe("helpers", () => {
   // TODO: write getQuoteChar tests
   // TODO: write getRoot tests
   // TODO: write updateImportedRefs tests
+  describe("outPath()", () => {
+    it("should calculate path with no rootDir and outDir", () => {
+      expect(outPath("file.ts", { rootDir: "" })).to.equal("file.ts");
+      expect(outPath("deep/file.ts", { rootDir: "" })).to.equal("deep/file.ts");
+    });
+    it("should calculate path with outDir set", () => {
+      expect(outPath("file.ts", { rootDir: "", outDir: "dist" })).to.equal("dist/file.ts");
+      expect(outPath("deep/file.ts", { rootDir: "", outDir: "dist" })).to.equal("dist/deep/file.ts");
+    });
+    it("should calculate path with rootDir set", () => {
+      expect(outPath("src/file.ts", { rootDir: "src" })).to.equal("file.ts");
+      expect(outPath("src/deep/file.ts", { rootDir: "src" })).to.equal("deep/file.ts");
+    });
+    it("should calculate path with both rootDir and outDir set", () => {
+      expect(outPath("src/file.ts", { rootDir: "src", outDir: "dist" })).to.equal("dist/file.ts");
+      expect(outPath("src/deep/file.ts", { rootDir: "src", outDir: "dist" })).to.equal("dist/deep/file.ts");
+    });
+  });
 });
 describe("type analyzer", () => {
   describe("parseUnionOrIntersectionType()", () => {
