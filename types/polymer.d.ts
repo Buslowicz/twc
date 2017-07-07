@@ -32,10 +32,13 @@ interface Base {}
 type Mixin<M> =
   <C extends Base>(superclass: Constructor<C>) => Constructor<M & C>;
 
+type P<T> = {[K in keyof T]: T[K]};
+type C<T> = Constructor<T>;
+
 /**
  * The Polymer function and namespace.
  */
-declare var Polymer: {
+declare interface PolymerStatic {
   /**
    * The "Polymer function" for backwards compatibility with Polymer 1.x.
    */
@@ -53,7 +56,36 @@ declare var Polymer: {
   PropertyEffects: Mixin<PolymerPropertyEffects>;
 
   BatchedEffects: Mixin<PolymerBatchedEffects>;
-};
+
+  mixinBehaviors<T, U, P0, P1>(b: [ P<P0>, P<P1> ], base: U & C<T>): U & C<T & P0 & P1>;
+
+  mixinBehaviors<T, U, P0, P1, P2>(b: [ P<P0>, P<P1>, P<P2> ], base: U & C<T>): U & C<T & P0 & P1 & P2>;
+
+  mixinBehaviors<T, U, P0, P1, P2, P3>(b: [ P<P0>, P<P1>, P<P2>, P<P3> ], base: U & C<T>): U & C<T & P0 & P1 & P2 & P3>;
+
+  mixinBehaviors<T, U, P0, P1, P2, P3, P4>(b: [ P<P0>, P<P1>, P<P2>, P<P3>, P<P4> ], base: U & C<T>): U & C<T & P0 & P1 & P2 & P3 & P4>;
+
+  mixinBehaviors<T, U, P0, P1, P2, P3, P4, P5>(
+    b: [ P<P0>, P<P1>, P<P2>, P<P3>, P<P4>, P<P5> ], base: U & C<T>): U & C<T & P0 & P1 & P2 & P3 & P4 & P5>;
+
+  mixinBehaviors<T, U, P0, P1, P2, P3, P4, P5, P6>(
+    b: [ P<P0>, P<P1>, P<P2>, P<P3>, P<P4>, P<P5>, P<P6> ], base: U & C<T>): U & C<T & P0 & P1 & P2 & P3 & P4 & P5 & P6>;
+
+  mixinBehaviors<T, U, P0, P1, P2, P3, P4, P5, P6, P7>(
+    b: [ P<P0>, P<P1>, P<P2>, P<P3>, P<P4>, P<P5>, P<P6>, P<P7> ], base: U & C<T>): U & C<T & P0 & P1 & P2 & P3 & P4 & P5 & P6 & P7>;
+
+  mixinBehaviors<T, U, P0, P1, P2, P3, P4, P5, P6, P7, P8>(
+    b: [ P<P0>, P<P1>, P<P2>, P<P3>, P<P4>, P<P5>, P<P6>, P<P7>, P<P8> ],
+    base: U & C<T>
+  ): U & C<T & P0 & P1 & P2 & P3 & P4 & P5 & P6 & P7 & P8>;
+
+  mixinBehaviors<T, U, P0, P1, P2, P3, P4, P5, P6, P7, P8, P9>(
+    b: [ P<P0>, P<P1>, P<P2>, P<P3>, P<P4>, P<P5>, P<P6>, P<P7>, P<P8>, P<P9> ],
+    base: U & C<T>
+  ): U & C<T & P0 & P1 & P2 & P3 & P4 & P5 & P6 & P7 & P8 & P9>;
+}
+
+declare const Polymer: PolymerStatic;
 
 declare interface PolymerElementConstructor {
   new(): PolymerElement;

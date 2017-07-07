@@ -107,7 +107,8 @@ export class Polymer1 {
    */
   protected validate(): void {
     const component = this.component;
-    if (component && component.heritage && component.heritage !== "Polymer.Element") {
+    const polymerBase = /^Polymer.mixinBehaviors\(\[.*?],Polymer\.Element\)$|^Polymer\.Element$/;
+    if (component && component.heritage && !polymerBase.test(component.heritage.replace(/\s*/g, ""))) {
       throw new SyntaxError("Components in Polymer v1 can only extend `Polymer.Element` class.");
     }
   }
@@ -146,7 +147,7 @@ export class Polymer1 {
    */
   protected behaviors(component: Component): string {
     return component.behaviors.length === 0 ? "" : `behaviors: [
-      ${component.behaviors.map((behavior) => `${behavior}`).join(",\n")}
+      ${component.provideRefs(this.importedRefs, true).behaviors.map((behavior) => `${behavior}`).join(",\n")}
     ]`;
   }
 

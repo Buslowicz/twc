@@ -1,17 +1,18 @@
 import { existsSync } from "fs";
 import { dirname, extname, join, normalize, parse, relative, resolve } from "path";
 import {
-  ClassDeclaration, ClassElement, CompilerOptions, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier,
-  InterfaceDeclaration, isBlock, isClassDeclaration, isExportAssignment, isExportDeclaration, isFunctionLike, isGetAccessorDeclaration,
-  isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration, isNamedImports, isPropertyDeclaration, isSetAccessorDeclaration,
-  isTemplateExpression, MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, PropertyDeclaration, PropertySignature,
-  SourceFile, Statement, SyntaxKind, TypeLiteralNode, TypeNode
+  ArrayLiteralExpression, CallExpression, ClassDeclaration, ClassElement, CompilerOptions, ExpressionStatement, FunctionExpression,
+  HeritageClause, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, isBlock, isCallExpression, isClassDeclaration,
+  isExportAssignment, isExportDeclaration, isFunctionLike, isGetAccessorDeclaration, isImportDeclaration, isInterfaceDeclaration,
+  isModuleDeclaration, isNamedImports, isPropertyDeclaration, isSetAccessorDeclaration, isTemplateExpression, MethodDeclaration,
+  ModuleBlock, ModuleDeclaration, NamespaceImport, Node, PropertyAccessExpression, PropertyDeclaration, PropertySignature, SourceFile,
+  Statement, SyntaxKind, TypeLiteralNode, TypeNode
 } from "typescript";
 import { cache, paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
 import {
-  DecoratorsMixin, getFlatHeritage, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isOneOf, isStatic, JSDocMixin,
-  Link, notPrivate, notStatic, outPath, ParsedDecorator, RefUpdaterMixin, stripQuotes
+  DecoratorsMixin, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isExtendsDeclaration, isOneOf, isStatic,
+  JSDocMixin, Link, notPrivate, notStatic, outPath, ParsedDecorator, RefUpdaterMixin, stripQuotes
 } from "./helpers";
 import * as buildTargets from "./targets";
 import { parseDeclaration, parseDeclarationType, ValidValue } from "./type-analyzer";
@@ -302,14 +303,36 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     ).trim().replace(/^extends\s+/, "");
   }
 
+  /** Components behaviors list */
+  public get behaviors(): Array<Node> {
+    const extend = (this.declaration.heritageClauses || [] as Array<HeritageClause>).find(isExtendsDeclaration);
+    if (!extend) {
+      return [];
+    }
+
+    const mixin = extend.types
+      .map((type) => type.expression)
+      .reduce((p, c) => c) as CallExpression & { expression: PropertyAccessExpression };
+    if (!isCallExpression(mixin)) {
+      return [];
+    }
+    const mixinName = mixin.expression.name;
+    if (!mixinName || mixinName.getText() !== "mixinBehaviors") {
+      return [];
+    }
+    const behaviors = mixin.arguments[ 0 ] as ArrayLiteralExpression;
+    return behaviors.elements.map((behavior) => Object.assign(
+      {},
+      behavior,
+      { toString: this.getText.bind(this, behavior) }
+    ));
+  }
+
   /** Components template */
   public template: string | Link;
 
   /** Components styles */
   public styles: Array<Style> = [];
-
-  /** Components behaviors list */
-  public behaviors: Array<string> = [];
 
   /** Events fired by the component */
   public events: Array<RegisteredEvent> = [];
@@ -490,20 +513,13 @@ export class Module {
         return;
       } else if (isInterfaceDeclaration(statement)) {
         const name = statement.name.getText();
-        if (this.variables.has(name) && this.variables.get(name) instanceof Component) {
-          this.variables.get(name).behaviors.push(...getFlatHeritage(statement, this.variables));
-        } else if (inheritsFrom(statement, "CustomEvent", "Event")) {
+        if (inheritsFrom(statement, "CustomEvent", "Event")) {
           this.variables.set(name, new RegisteredEvent(statement));
         } else {
           this.variables.set(name, statement);
         }
       } else if (isClassDeclaration(statement) && hasDecorator(statement, "CustomElement")) {
         const component = new Component(statement as ClassDeclaration);
-
-        if (this.variables.has(component.name) && !(this.variables.get(component.name) instanceof Component)) {
-          const heritage = getFlatHeritage(this.variables.get(component.name), this.variables);
-          component.behaviors.push(...heritage);
-        }
 
         this.variables.set(component.name, component);
         this.statements.push(component);

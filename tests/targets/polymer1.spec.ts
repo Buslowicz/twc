@@ -65,6 +65,22 @@ describe("Polymer v1 output", () => {
 
     expect(() => component.es5).to.throw(SyntaxError);
   });
+  it("should allow to use behaviors via Polymer.mixinBehaviors mixin", () => {
+    const component = transpile(`
+      import { CustomElement } from "twc/polymer";
+      @CustomElement()
+      export class MyElement extends Polymer.mixinBehaviors([ MyBehavior ], Polymer.Element) {}`);
+
+    expect(() => component.es5).to.not.throw(SyntaxError);
+  });
+  it("should not allow to use different base than Polymer.Element in Polymer.mixinBehaviors mixin", () => {
+    const component = transpile(`
+      import { CustomElement } from "twc/polymer";
+      @CustomElement()
+      export class MyElement extends Polymer.mixinBehaviors([ MyBehavior ], HTMLElement) {}`);
+
+    expect(() => component.es5).to.throw(SyntaxError);
+  });
   describe("should not emit exports", () => {
     const component = transpile(`
       import { CustomElement } from "twc/polymer";
@@ -583,7 +599,7 @@ describe("Polymer v1 output", () => {
             [
               "IronResizableBehavior", {
               name: "IronResizableBehavior",
-              type: "InterfaceDeclaration",
+              type: "VariableDeclaration",
               namespace: "Polymer"
             }
             ]
@@ -596,27 +612,15 @@ describe("Polymer v1 output", () => {
     after(() => {
       cache.files = cachedFiles;
     });
-    const component1 = transpile(`
-      import { CustomElement } from "twc/polymer";
-      import { IronResizableBehavior } from "bower:iron-resizable-behavior/iron-resizable-behavior.html"
-
-      interface MyElement extends IronResizableBehavior {}
-
-      @CustomElement()
-      export class MyElement extends Polymer.Element {}`);
-
-    const component2 = transpile(`
+    const component = transpile(`
       import { CustomElement } from "twc/polymer";
       import { IronResizableBehavior } from "bower:iron-resizable-behavior/iron-resizable-behavior.html"
 
       @CustomElement()
-      export class MyElement extends Polymer.Element {}
-
-      interface MyElement extends IronResizableBehavior {}`);
+      export class MyElement extends Polymer.mixinBehaviors([ IronResizableBehavior ], Polymer.Element) {}`);
 
     it("es5", () => {
-      expect(component1.es5).to.equal(component2.es5);
-      expect(component1.es5).to.equalIgnoreSpaces(`
+      expect(component.es5).to.equalIgnoreSpaces(`
         <link rel="import" href="../../iron-resizable-behavior/iron-resizable-behavior.html">
         <dom-module is="my-element">
           <script>
@@ -631,8 +635,7 @@ describe("Polymer v1 output", () => {
       );
     });
     it("es6", () => {
-      expect(component1.es6).to.equal(component2.es6);
-      expect(component1.es6).to.equalIgnoreSpaces(`
+      expect(component.es6).to.equalIgnoreSpaces(`
         <link rel="import" href="../../iron-resizable-behavior/iron-resizable-behavior.html">
         <dom-module is="my-element">
           <script>
