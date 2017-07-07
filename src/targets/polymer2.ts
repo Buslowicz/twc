@@ -39,7 +39,6 @@ export class Polymer2 extends Polymer1 {
       class ${component.name} extends ${component.heritage} {
       ${[
       `static get is() { return ${quote}${component.name.replace(/([A-Z])/g, (_, l, i) => (i ? "-" : "") + l.toLowerCase())}${quote} }`,
-      this.behaviors(component),
       this.observers(component),
       this.properties(component),
       ...this.methods(component)
@@ -48,19 +47,6 @@ export class Polymer2 extends Polymer1 {
       customElements.define(${component.name}.is, ${component.name});
       ${this.staticProperties(component).join("\n")}
     `;
-  }
-
-  /**
-   * Generate behaviors declaration for component.
-   *
-   * @param component Components metadata
-   *
-   * @returns Stringified behaviors declaration
-   */
-  protected behaviors(component: Component): string {
-    return component.behaviors.length === 0 ? "" : `static get behaviors() {\n return [
-      ${component.behaviors.map((behavior) => `${behavior}`).join(",\n")}
-    ]; }`;
   }
 
   /**

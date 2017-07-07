@@ -119,10 +119,6 @@ export class Link {
 export class Ref {
   constructor(public ref: Identifier) {}
 
-  public getReference(statements: Map<string, any>) {
-    return statements.get(this.ref.getText());
-  }
-
   public toString() {
     return this.ref.getText();
   }

@@ -92,17 +92,18 @@ describe("helpers", () => {
     });
   });
   describe("inheritsFrom", () => {
-    it("should return if class extends specified class", () => {
+    it("should return whether class extends specified class", () => {
       expect(inheritsFrom(parseClass(`class X extends HTMLElement {}`), "HTMLElement")).to.be.true;
       expect(inheritsFrom(parseClass(`class X extends Polymer.Element {}`), "Polymer.Element")).to.be.true;
       expect(inheritsFrom(parseClass(`class X extends Y {}`), "Z")).to.be.false;
+      expect(inheritsFrom(parseClass(`class X {}`), "Z")).to.be.false;
     });
-    it("should return if class extends specified mixin", () => {
+    it("should return whether class extends specified mixin", () => {
       expect(inheritsFrom(parseClass(`class X extends A(B(C(D(E(Polymer.Element))))) {}`), "Polymer.Element")).to.be.true;
       expect(inheritsFrom(parseClass(`class X extends A(B(C(Polymer.Element(E(F))))) {}`), "Polymer.Element")).to.be.true;
       expect(inheritsFrom(parseClass(`class X extends A(B(C(D(E(F))))) {}`), "X")).to.be.false;
     });
-    it("should return if interface extends specified interface", () => {
+    it("should return whether interface extends specified interface", () => {
       expect(inheritsFrom(parseClass(`interface X extends A {}`), "A")).to.be.true;
       expect(inheritsFrom(parseClass(`interface X extends A {}`), "X")).to.be.false;
       expect(inheritsFrom(parseClass(`interface X extends A, B, C, D, E {}`), "B")).to.be.true;
