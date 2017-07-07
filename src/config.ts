@@ -1,99 +1,16 @@
 import { existsSync, readFileSync } from "fs";
 import { basename, dirname, join, relative, resolve, sep } from "path";
 import {
-  BlockLike, CompilerOptions, createProgram, findConfigFile, isClassDeclaration, isFunctionLike, isInterfaceDeclaration, JSDoc,
-  NamedDeclaration, parseCommandLine, readConfigFile, SourceFile, SyntaxKind, sys
+  BlockLike, CompilerOptions, createProgram, findConfigFile, isClassDeclaration, isFunctionLike, isInterfaceDeclaration,
+  isVariableStatement, NamedDeclaration, parseCommandLine, readConfigFile, SourceFile, SyntaxKind, sys, VariableStatement
 } from "typescript";
+import { BowerConfig, BowerRc, CompileTarget, HasJSDoc, NPMConfig, TSConfig } from "../types/index";
 import { isOfKind, isOneOf } from "./helpers";
-
-export type ModuleType = "globals" | "amd" | "node" | "es6" | "yui";
-
-export type CompileTarget = "Polymer1" | "Polymer2";
-
-export interface Author {
-  name?: string;
-  email?: string;
-  homepage?: string;
-}
-
-export interface Repository {
-  type: "git";
-  url: string;
-}
-
-export interface TSConfig {
-  compilerOptions: CompilerOptions;
-  include: Array<string>;
-  exclude: Array<string>;
-  files: Array<string>;
-  compileOnSave: boolean;
-  typeAcquisition: object;
-}
-
-export interface Config {
-  name: string;
-  description: string;
-  main: string | Array<string>;
-  license: string | Array<string>;
-  keywords: string | Array<string>;
-  homepage: string;
-  repository: Repository;
-  dependencies: object;
-  devDependencies: object;
-  private: boolean;
-}
-
-export interface BowerRc {
-  cwd: string;
-  directory: string;
-  registry: string;
-  "shorthand-resolver": string;
-  proxy: string;
-  "https-proxy": string;
-  ca: string;
-  color: true;
-  timeout: number;
-  save: boolean;
-  "save-exact": true;
-  "strict-ssl": true;
-  storage: {
-    packages: string;
-    registry: string;
-    links: string;
-  };
-  interactive: true;
-  resolvers: Array<string>;
-  shallowCloneHosts: Array<string>;
-  scripts: {
-    preinstall: string;
-    postinstall: string;
-    preuninstall: string;
-  };
-  ignoredDependencies: Array<string>;
-}
-
-export interface BowerConfig extends Config {
-  moduleType: ModuleType | Array<ModuleType>;
-  ignore: string | Array<string>;
-  authors: Array<string | Author>;
-  resolutions: object;
-}
-
-export interface NPMConfig extends Config {
-  version: string;
-  scripts: object;
-  bin: object;
-  author: string | Author;
-}
 
 export interface StatementMetaData {
   name: string;
   type: string;
   namespace: string | null;
-}
-
-export interface HasJSDoc {
-  jsDoc?: Array<JSDoc>;
 }
 
 export type ModuleMetaMap = Map<string, StatementMetaData>;
@@ -183,19 +100,26 @@ Object.assign(compilerOptions, options, twcOverrides);
  *
  * @returns Meta data of a statement
  */
-function getStatementMeta(statement: NamedDeclaration & HasJSDoc): StatementMetaData {
-  return {
-    name: statement.name[ "text" ],
-    type: SyntaxKind[ statement.kind ],
-    namespace: statement.jsDoc ? statement.jsDoc
-      .filter((doc) => doc.tags)
-      .map((doc) => doc.tags
-        .filter((tag) => tag.tagName[ "text" ] === "namespace")
-        .map((tag) => tag.comment.trim())
-        .reduce((p, c) => c, null)
-      )
-      .reduce((p, c) => c, null) : null
-  };
+function getStatementMeta(statement: NamedDeclaration | VariableStatement): [ string, StatementMetaData ] {
+  const { jsDoc } = statement as HasJSDoc;
+  let declaration: NamedDeclaration = statement as NamedDeclaration;
+  if (isVariableStatement(statement)) {
+    ({ declarationList: { declarations: [ declaration ] } } = statement);
+  }
+  return [
+    declaration.name[ "text" ], {
+      name: declaration.name[ "text" ],
+      type: SyntaxKind[ declaration.kind ],
+      namespace: jsDoc ? jsDoc
+        .filter((doc) => doc.tags)
+        .map((doc) => doc.tags
+          .filter((tag) => tag.tagName[ "text" ] === "namespace")
+          .map((tag) => tag.comment.trim())
+          .reduce((p, c) => c, null)
+        )
+        .reduce((p, c) => c, null) : null
+    }
+  ];
 }
 
 /**
@@ -207,13 +131,11 @@ function getStatementMeta(statement: NamedDeclaration & HasJSDoc): StatementMeta
  */
 function statementsFromModule(module: { body: BlockLike }): Array<[ string, StatementMetaData ]> {
   const { body: { statements = [] } = {} } = module;
-  return (statements as Array<NamedDeclaration>)
-    .filter(({ modifiers, name }) => name && modifiers && modifiers.find(isOfKind(SyntaxKind.ExportKeyword)))
-    .filter(isOneOf(isFunctionLike, isClassDeclaration, isInterfaceDeclaration))
-    .map((statement: NamedDeclaration & HasJSDoc): [ string, StatementMetaData ] => [
-      statement.name[ "text" ],
-      getStatementMeta(statement)
-    ]);
+  const isExported = isOfKind(SyntaxKind.ExportKeyword);
+  return (statements as Array<NamedDeclaration & VariableStatement>)
+    .filter(({ modifiers, name, declarationList }) => (name || declarationList) && modifiers && modifiers.find(isExported))
+    .filter(isOneOf(isFunctionLike, isClassDeclaration, isInterfaceDeclaration, isVariableStatement))
+    .map(getStatementMeta);
 }
 
 /**
