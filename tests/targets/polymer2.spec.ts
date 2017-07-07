@@ -99,6 +99,50 @@ describe("Polymer v2 output", () => {
       );
     });
   });
+  describe("should accept mixins", () => {
+    const component = transpile(`
+      import { CustomElement, template } from "twc/polymer";
+
+      @CustomElement()
+      export class MyElement extends OtherMixin(MyMixin(Polymer.Element)) {}`);
+
+    it("es5", () => {
+      expect(component.es5).to.equalIgnoreSpaces(`
+        <dom-module is="my-element">
+          <script>
+            var MyElement = (function(_super) {
+              __extends(MyElement, _super);
+
+              function MyElement() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(MyElement, "is", {
+                get: function() {
+                  return "my-element";
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return MyElement;
+            }(OtherMixin(MyMixin(Polymer.Element))));
+            customElements.define(MyElement.is, MyElement);
+          </script>
+        </dom-module>`
+      );
+    });
+    it("es6", () => {
+      expect(component.es6).to.equalIgnoreSpaces(`
+        <dom-module is="my-element">
+          <script>
+            class MyElement extends OtherMixin(MyMixin(Polymer.Element)) {
+              static get is() { return "my-element"; }
+            }
+            customElements.define(MyElement.is, MyElement);
+          </script>
+        </dom-module>`
+      );
+    });
+  });
   describe("should show (not throw) an error if @observe() is called on non-existing property", () => {
     beforeEach(() => sinon.stub(console, "error"));
     afterEach(() => (console.error as SinonSpy).restore());
