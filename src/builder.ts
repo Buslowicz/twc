@@ -311,8 +311,8 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     }
 
     const mixin = extend.types
-      .map((type) => type.expression)
-      .reduce((p, c) => c) as CallExpression & { expression: PropertyAccessExpression };
+      .map((type) => type.expression)[ 0 ] as CallExpression & { expression: PropertyAccessExpression };
+
     if (!isCallExpression(mixin)) {
       return [];
     }

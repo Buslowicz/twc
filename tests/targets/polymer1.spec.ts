@@ -58,12 +58,17 @@ describe("Polymer v1 output", () => {
     expect(() => component.es5).to.throw(SyntaxError);
   });
   it("should throw an error if trying to use a mixin", () => {
-    const component = transpile(`
+    expect(() => transpile(`
       import { CustomElement } from "twc/polymer";
       @CustomElement()
-      export class MyElement extends MyMixin(Polymer.Element) {}`);
+      export class MyElement extends MyMixin(Polymer.Element) {}`).es5
+    ).to.throw(SyntaxError);
 
-    expect(() => component.es5).to.throw(SyntaxError);
+    expect(() => transpile(`
+      import { CustomElement } from "twc/polymer";
+      @CustomElement()
+      export class MyElement extends MyNamespace.MyMixin(Polymer.Element) {}`).es5
+    ).to.throw(SyntaxError);
   });
   it("should allow to use behaviors via Polymer.mixinBehaviors mixin", () => {
     const component = transpile(`
