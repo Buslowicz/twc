@@ -1,11 +1,9 @@
 import { readFileSync } from "fs";
 import { dirname, join, relative, resolve } from "path";
 import {
-  BinaryExpression, Block, CallExpression, ClassDeclaration, ClassElement, EnumDeclaration, ExportAssignment, ExportDeclaration, Expression,
-  ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression, GetAccessorDeclaration, HeritageClause, Identifier,
-  ImportDeclaration, InterfaceDeclaration, JSDoc, MethodDeclaration, ModuleDeclaration, NamedDeclaration, NamedImports, NamespaceImport,
-  Node, PrefixUnaryExpression, PropertyDeclaration, SetAccessorDeclaration, SourceFile, SyntaxKind, TemplateExpression,
-  TypeAliasDeclaration, VariableStatement
+  BinaryExpression, CallExpression, ClassDeclaration, ClassElement, Expression, ExpressionStatement, forEachChild, FunctionExpression,
+  HeritageClause, Identifier, InterfaceDeclaration, isFunctionLike, isGetAccessorDeclaration, isPropertyDeclaration,
+  isSetAccessorDeclaration, JSDoc, NamedDeclaration, Node, PrefixUnaryExpression, SourceFile, SyntaxKind
 } from "typescript";
 import { Constructor } from "../types/index";
 import { ImportedNode, Method } from "./builder";
@@ -164,12 +162,12 @@ export class InitializerWrapper extends RefUpdaterMixin() {
 export class ParsedDecorator {
   /** Name of the decorator */
   public get name(): string {
-    return isCallExpression(this.declaration) ? this.declaration.expression.getText() : this.declaration.getText();
+    return hasArguments(this.declaration) ? this.declaration.expression.getText() : this.declaration.getText();
   }
 
   /** Arguments passed to the decorator */
   public get arguments() {
-    if (!isCallExpression(this.declaration)) {
+    if (!hasArguments(this.declaration)) {
       return void 0;
     }
     return this.declaration.arguments.map((arg) => {
@@ -224,7 +222,7 @@ export const flatExtends = (expression: Node, refs?: Map<string, ImportedNode>):
     return refs ? updateImportedRefs(expr, refs) : expr.getText();
   };
 
-  if (isCallExpression(expression)) {
+  if (hasArguments(expression)) {
     const deepList = [ getText(expression.expression), ...expression.arguments.map((arg) => flatExtends(arg)) ];
     return deepList.reduce((p: Array<string>, c) => p.concat(c), []) as any;
   } else {
@@ -298,7 +296,7 @@ export const hasDecorator = (declaration: ClassElement | ClassDeclaration, decor
     return false;
   }
   return declaration.decorators.some(({ expression }) => {
-    return (isExpressionStatement(expression) ? expression.expression : expression).getText() === decoratorName;
+    return (hasExpression(expression) ? expression.expression : expression).getText() === decoratorName;
   });
 };
 
@@ -321,121 +319,9 @@ export const isOneOf = (...filters) => (item: any): boolean => filters.some((fil
 export const isAllOf = (...filters) => (item: any): boolean => filters.every((filter) => filter(item));
 
 /**
- * Checks if node is an ImportDeclaration.
- *
- * @param st Node to check
- *
- * @returns Whether node is an ImportDeclaration
+ * Check if node is of a given kind
  */
-export const isImportDeclaration = (st: Node): st is ImportDeclaration => st.kind === SyntaxKind.ImportDeclaration;
-
-/**
- * Checks if node is an InterfaceDeclaration.
- *
- * @param st Node to check
- *
- * @returns Whether node is an InterfaceDeclaration
- */
-export const isInterfaceDeclaration = (st: Node): st is InterfaceDeclaration => st.kind === SyntaxKind.InterfaceDeclaration;
-
-/**
- * Checks if node is a ClassDeclaration.
- *
- * @param st Node to check
- *
- * @returns Whether node is a ClassDeclaration
- */
-export const isClassDeclaration = (st: Node): st is ClassDeclaration => st.kind === SyntaxKind.ClassDeclaration;
-
-/**
- * Checks if node is a ModuleDeclaration.
- *
- * @param st Node to check
- *
- * @returns Whether node is a ModuleDeclaration
- */
-export const isModuleDeclaration = (st: Node): st is ModuleDeclaration => st.kind === SyntaxKind.ModuleDeclaration;
-
-/**
- * Checks if node is a TypeAliasDeclaration.
- *
- * @param st Node to check
- *
- * @returns Whether node is a TypeAliasDeclaration
- */
-export const isTypeAliasDeclaration = (st: Node): st is TypeAliasDeclaration => st.kind === SyntaxKind.TypeAliasDeclaration;
-
-/**
- * Checks if node is a VariableStatement.
- *
- * @param st Node to check
- *
- * @returns Whether node is a VariableStatement
- */
-export const isVariableStatement = (st: Node): st is VariableStatement => st.kind === SyntaxKind.VariableStatement;
-
-/**
- * Checks if node is a FunctionDeclaration.
- *
- * @param st Node to check
- *
- * @returns Whether node is a FunctionDeclaration
- */
-export const isFunctionDeclaration = (st: Node): st is FunctionDeclaration => st.kind === SyntaxKind.FunctionDeclaration;
-
-/**
- * Checks if node is an EnumDeclaration.
- *
- * @param st Node to check
- *
- * @returns Whether node is an EnumDeclaration
- */
-export const isEnumDeclaration = (st: Node): st is EnumDeclaration => st.kind === SyntaxKind.EnumDeclaration;
-
-/**
- * Checks if node is an ExportDeclaration.
- *
- * @param st Node to check
- *
- * @returns Whether node is an ExportDeclaration
- */
-export const isExportDeclaration = (st: Node): st is ExportDeclaration => st.kind === SyntaxKind.ExportDeclaration;
-
-/**
- * Checks if node is an ExportAssignment.
- *
- * @param st Node to check
- *
- * @returns Whether node is an ExportAssignment
- */
-export const isExportAssignment = (st: Node): st is ExportAssignment => st.kind === SyntaxKind.ExportAssignment;
-
-/**
- * Checks if expression is a TemplateExpression.
- *
- * @param expr Node to check
- *
- * @returns Whether node is a TemplateExpression
- */
-export const isTemplateExpression = (expr: Node): expr is TemplateExpression => expr.kind === SyntaxKind.TemplateExpression;
-
-/**
- * Checks if expression is a NamespaceImport.
- *
- * @param expr Node to check
- *
- * @returns Whether node is a NamespaceImport
- */
-export const isNamespaceImport = (expr: Node): expr is NamespaceImport => expr.kind === SyntaxKind.NamespaceImport;
-
-/**
- * Checks if expression is a NamedImports.
- *
- * @param expr Node to check
- *
- * @returns Whether node is a NamedImports
- */
-export const isNamedImports = (expr: Node): expr is NamedImports => expr.kind === SyntaxKind.NamedImports;
+export const isOfKind = <T extends Node>(kind) => (st: T): st is T => st.kind === kind;
 
 /**
  * Checks if expression is a BinaryExpression.
@@ -444,7 +330,7 @@ export const isNamedImports = (expr: Node): expr is NamedImports => expr.kind ==
  *
  * @returns Whether node is a BinaryExpression
  */
-export const isBinaryExpression = (expr: Node): expr is BinaryExpression => "operatorToken" in expr;
+export const hasOperatorToken = (expr: Node): expr is BinaryExpression => "operatorToken" in expr;
 
 /**
  * Checks if expression is an ExpressionStatement.
@@ -453,7 +339,7 @@ export const isBinaryExpression = (expr: Node): expr is BinaryExpression => "ope
  *
  * @returns Whether node is an ExpressionStatement
  */
-export const isExpressionStatement = (expr: Node): expr is ExpressionStatement => "expression" in expr;
+export const hasExpression = (expr: Node): expr is ExpressionStatement => "expression" in expr;
 
 /**
  * Checks if expression is a PrefixUnaryExpression.
@@ -462,7 +348,7 @@ export const isExpressionStatement = (expr: Node): expr is ExpressionStatement =
  *
  * @returns Whether node is a PrefixUnaryExpression
  */
-export const isPrefixUnaryExpression = (expr: Node): expr is PrefixUnaryExpression => "operator" in expr;
+export const hasOperator = (expr: Node): expr is PrefixUnaryExpression => "operator" in expr;
 
 /**
  * Checks if expression is a CallExpression.
@@ -471,7 +357,7 @@ export const isPrefixUnaryExpression = (expr: Node): expr is PrefixUnaryExpressi
  *
  * @returns Whether node is a CallExpression
  */
-export const isCallExpression = (expr: Node): expr is CallExpression => "arguments" in expr;
+export const hasArguments = (expr: Node): expr is CallExpression => "arguments" in expr;
 
 /**
  * Checks if expression is an Identifier.
@@ -480,16 +366,7 @@ export const isCallExpression = (expr: Node): expr is CallExpression => "argumen
  *
  * @returns Whether node is an Identifier
  */
-export const isIdentifier = (expr: Node): expr is Identifier => "originalKeywordKind" in expr;
-
-/**
- * Checks if expression is a Block.
- *
- * @param expr Node to check
- *
- * @returns Whether node is a Block
- */
-export const isBlock = (expr: Node): expr is Block => expr.kind === SyntaxKind.Block;
+export const hasOriginalKeywordKind = (expr: Node): expr is Identifier => "originalKeywordKind" in expr;
 
 /**
  * Checks if heritage clause is an ExtendsDeclaration.
@@ -528,42 +405,6 @@ export const isPublic = (el: ClassElement): boolean => hasModifier(el, SyntaxKin
 export const isStatic = (el: ClassElement): boolean => hasModifier(el, SyntaxKind.StaticKeyword);
 
 /**
- * Checks if ClassElement is a property.
- *
- * @param el ClassElement to check
- *
- * @returns Whether element is a property
- */
-export const isProperty = (el: ClassElement): el is PropertyDeclaration => el.kind === SyntaxKind.PropertyDeclaration;
-
-/**
- * Checks if ClassElement is a method.
- *
- * @param el ClassElement to check
- *
- * @returns Whether element is a method
- */
-export const isMethod = (el: ClassElement): el is MethodDeclaration => methodKinds.includes(el.kind);
-
-/**
- * Checks if ClassElement is a getter.
- *
- * @param el ClassElement to check
- *
- * @returns Whether element is a getter
- */
-export const isGetter = (el: ClassElement): el is GetAccessorDeclaration => el.kind === SyntaxKind.GetAccessor;
-
-/**
- * Checks if ClassElement is a setter.
- *
- * @param el ClassElement to check
- *
- * @returns Whether element is a setter
- */
-export const isSetter = (el: ClassElement): el is SetAccessorDeclaration => el.kind === SyntaxKind.SetAccessor;
-
-/**
  * Checks if node is of transparent type.
  *
  * @param el Node to check
@@ -579,7 +420,7 @@ export const isTransparent = (el: Node): boolean => transparentTypes.includes(el
  *
  * @returns Whether element is not private
  */
-export const notPrivate = (el: ClassElement): boolean => !hasModifier(el, SyntaxKind.PrivateKeyword);
+export const notPrivate = (el: ClassElement): boolean => !isPrivate(el);
 
 /**
  * Checks if ClassElement is not public.
@@ -588,7 +429,7 @@ export const notPrivate = (el: ClassElement): boolean => !hasModifier(el, Syntax
  *
  * @returns Whether element is not public
  */
-export const notPublic = (el: ClassElement): boolean => !hasModifier(el, SyntaxKind.PublicKeyword);
+export const notPublic = (el: ClassElement): boolean => !isPublic(el);
 
 /**
  * Checks if ClassElement is not static.
@@ -597,43 +438,7 @@ export const notPublic = (el: ClassElement): boolean => !hasModifier(el, SyntaxK
  *
  * @returns Whether element is not static
  */
-export const notStatic = (el: ClassElement): boolean => !hasModifier(el, SyntaxKind.StaticKeyword);
-
-/**
- * Checks if ClassElement is not a property.
- *
- * @param el ClassElement to check
- *
- * @returns Whether element is not a property
- */
-export const notProperty = (el: ClassElement): boolean => el.kind !== SyntaxKind.PropertyDeclaration;
-
-/**
- * Checks if ClassElement is not a method.
- *
- * @param el ClassElement to check
- *
- * @returns Whether element is not a method
- */
-export const notMethod = (el: ClassElement): boolean => !methodKinds.includes(el.kind);
-
-/**
- * Checks if ClassElement is not a getter.
- *
- * @param el ClassElement to check
- *
- * @returns Whether element is not a getter
- */
-export const notGetter = (el: ClassElement): boolean => el.kind !== SyntaxKind.GetAccessor;
-
-/**
- * Checks if ClassElement is not a setter.
- *
- * @param el ClassElement to check
- *
- * @returns Whether element is not a setter
- */
-export const notSetter = (el: ClassElement): boolean => el.kind !== SyntaxKind.SetAccessor;
+export const notStatic = (el: ClassElement): boolean => !isStatic(el);
 
 /**
  * Checks if node is not of a transparent type.
@@ -643,6 +448,42 @@ export const notSetter = (el: ClassElement): boolean => el.kind !== SyntaxKind.S
  * @returns Whether node is not of a transparent type
  */
 export const notTransparent = (el: Node): boolean => !transparentTypes.includes(el.kind);
+
+/**
+ * Checks if ClassElement is not a property.
+ *
+ * @param el ClassElement to check
+ *
+ * @returns Whether element is not a property
+ */
+export const notPropertyDeclaration = (el: ClassElement): boolean => !isPropertyDeclaration(el);
+
+/**
+ * Checks if ClassElement is not a method.
+ *
+ * @param el ClassElement to check
+ *
+ * @returns Whether element is not a method
+ */
+export const notFunctionLike = (el: ClassElement): boolean => !isFunctionLike(el);
+
+/**
+ * Checks if ClassElement is not a getter.
+ *
+ * @param el ClassElement to check
+ *
+ * @returns Whether element is not a getter
+ */
+export const notGetAccessorDeclaration = (el: ClassElement): boolean => !isGetAccessorDeclaration(el);
+
+/**
+ * Checks if ClassElement is not a setter.
+ *
+ * @param el ClassElement to check
+ *
+ * @returns Whether element is not a setter
+ */
+export const notSetAccessorDeclaration = (el: ClassElement): boolean => !isSetAccessorDeclaration(el);
 
 /**
  * Calls toString on passed object.

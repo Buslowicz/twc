@@ -1,86 +1,26 @@
 import { existsSync, readFileSync } from "fs";
 import { basename, dirname, join, relative, resolve, sep } from "path";
-import { CompilerOptions, findConfigFile, parseCommandLine, readConfigFile, sys } from "typescript";
+import {
+  BlockLike, CompilerOptions, createProgram, findConfigFile, isClassDeclaration, isFunctionLike, isInterfaceDeclaration,
+  isVariableStatement, NamedDeclaration, parseCommandLine, readConfigFile, SourceFile, SyntaxKind, sys, VariableStatement
+} from "typescript";
+import { BowerConfig, BowerRc, CompileTarget, HasJSDoc, NPMConfig, TSConfig } from "../types/index";
+import { isOfKind, isOneOf } from "./helpers";
 
-export type ModuleType = "globals" | "amd" | "node" | "es6" | "yui";
-
-export type CompileTarget = "Polymer1" | "Polymer2";
-
-export interface Author {
-  name?: string;
-  email?: string;
-  homepage?: string;
-}
-
-export interface Repository {
-  type: "git";
-  url: string;
-}
-
-export interface TSConfig {
-  compilerOptions: CompilerOptions;
-  include: Array<string>;
-  exclude: Array<string>;
-  files: Array<string>;
-  compileOnSave: boolean;
-  typeAcquisition: object;
-}
-
-export interface Config {
+export interface StatementMetaData {
   name: string;
-  description: string;
-  main: string | Array<string>;
-  license: string | Array<string>;
-  keywords: string | Array<string>;
-  homepage: string;
-  repository: Repository;
-  dependencies: object;
-  devDependencies: object;
-  private: boolean;
+  type: string;
+  namespace: string | null;
 }
 
-export interface BowerRc {
-  cwd: string;
-  directory: string;
-  registry: string;
-  "shorthand-resolver": string;
-  proxy: string;
-  "https-proxy": string;
-  ca: string;
-  color: true;
-  timeout: number;
-  save: boolean;
-  "save-exact": true;
-  "strict-ssl": true;
-  storage: {
-    packages: string;
-    registry: string;
-    links: string;
-  };
-  interactive: true;
-  resolvers: Array<string>;
-  shallowCloneHosts: Array<string>;
-  scripts: {
-    preinstall: string;
-    postinstall: string;
-    preuninstall: string;
-  };
-  ignoredDependencies: Array<string>;
-}
+export type ModuleMetaMap = Map<string, StatementMetaData>;
 
-export interface BowerConfig extends Config {
-  moduleType: ModuleType | Array<ModuleType>;
-  ignore: string | Array<string>;
-  authors: Array<string | Author>;
-  resolutions: object;
-}
+export type SourceFileMetaMap = Map<string, ModuleMetaMap>;
 
-export interface NPMConfig extends Config {
-  version: string;
-  scripts: object;
-  bin: object;
-  author: string | Author;
-}
+export type FullSourceFile = SourceFile & {
+  getNamedDeclarations?: () => Array<NamedDeclaration>;
+  ambientModuleNames: Array<string>;
+};
 
 /**
  * Find rootDir for files (Longest Common Prefix).
@@ -153,14 +93,112 @@ const twcOverrides: CompilerOptions = {
 
 Object.assign(compilerOptions, options, twcOverrides);
 
-const files = fileNames.length ? fileNames : sys
+/**
+ * Get name, type and namespace of a statement
+ *
+ * @param statement Statement to scan
+ *
+ * @returns Meta data of a statement
+ */
+function getStatementMeta(statement: NamedDeclaration | VariableStatement): [ string, StatementMetaData ] {
+  const { jsDoc } = statement as HasJSDoc;
+  let declaration: NamedDeclaration = statement as NamedDeclaration;
+  if (isVariableStatement(statement)) {
+    ({ declarationList: { declarations: [ declaration ] } } = statement);
+  }
+  return [
+    declaration.name[ "text" ], {
+      name: declaration.name[ "text" ],
+      type: SyntaxKind[ declaration.kind ],
+      namespace: jsDoc ? jsDoc
+        .filter((doc) => doc.tags)
+        .map((doc) => doc.tags
+          .filter((tag) => tag.tagName[ "text" ] === "namespace")
+          .map((tag) => tag.comment.trim())
+          .reduce((p, c) => c, null)
+        )
+        .reduce((p, c) => c, null) : null
+    }
+  ];
+}
+
+/**
+ * Get exported statements meta from a module
+ *
+ * @param module Module to scan
+ *
+ * @returns Array of statements name-meta tuples
+ */
+function statementsFromModule(module: { body: BlockLike }): Array<[ string, StatementMetaData ]> {
+  const { body: { statements = [] } = {} } = module;
+  const isExported = isOfKind(SyntaxKind.ExportKeyword);
+  return (statements as Array<NamedDeclaration & VariableStatement>)
+    .filter(({ modifiers, name, declarationList }) => (name || declarationList) && modifiers && modifiers.find(isExported))
+    .filter(isOneOf(isFunctionLike, isClassDeclaration, isInterfaceDeclaration, isVariableStatement))
+    .map(getStatementMeta);
+}
+
+/**
+ * Generate an Array::map callback to return an array of moduleName-statementsMap tuples for each ambient module in a file
+ *
+ * @param declarations Ambient modules declarations
+ *
+ * @returns Map callback to scan module for statements
+ */
+function getAmbientModulesFrom(declarations): (mod: string) => [ string, ModuleMetaMap ] {
+  return (mod) => [
+    mod,
+    new Map(declarations
+      .get(mod)
+      .map(statementsFromModule)
+      .reduce((def, arr) => arr, [])
+    )
+  ];
+}
+
+/**
+ * Get an array of fileName-modulesMap tuples
+ */
+function toModulesMap(source: FullSourceFile): [ string, SourceFileMetaMap ] {
+  const declarations = source.getNamedDeclarations ? source.getNamedDeclarations() : new Map();
+  const ambientModuleNames = source.ambientModuleNames;
+  return [ source.fileName, new Map(ambientModuleNames.map(getAmbientModulesFrom(declarations))) ];
+}
+
+const projectFiles = sys
   .readDirectory(
     dirname(tsConfigPath),
     [ "ts", ...(compilerOptions.allowJs ? [ "js" ] : []) ],
     exclude,
     include.length === 0 && inputFiles.length === 0 ? [ "**/*" ] : include
   )
-  .concat(inputFiles.map((file) => resolve(file)))
+  .concat(inputFiles.map((file) => resolve(file)));
+
+const program = createProgram(projectFiles, compilerOptions);
+
+const cache = {
+  update(source) {
+    if (!source.ambientModuleNames || !source.ambientModuleNames.length) {
+      if (this.files.has(source.fileName)) {
+        this.files.delete(source.fileName);
+      }
+      return;
+    }
+    const [ fileName, map ] = toModulesMap(source);
+    this.files.set(fileName, map);
+  },
+  files: new Map(
+    program
+      .getSourceFiles()
+      .filter((source: any) => source.ambientModuleNames && source.ambientModuleNames.length)
+      .map(toModulesMap)
+  ),
+  get modules(): Map<string, Map<string, { name: string, type: string, namespace: string | null }>> {
+    return new Map(Array.from(this.files.values()).reduce((list, module) => [ ...list, ...module ], []));
+  }
+};
+
+const files = fileNames.length ? fileNames : projectFiles
   .filter((path) => !path.endsWith(".d.ts"))
   .map((path) => relative(join(projectRoot, compilerOptions.baseUrl || ""), path));
 
@@ -168,4 +206,4 @@ if (!("rootDir" in compilerOptions)) {
   compilerOptions.rootDir = findRootDir(files);
 }
 
-export { twc, tsConfig, npm, bower, compilerOptions, compileTo, options as cli, errors, files, projectRoot, tsConfigPath, paths };
+export { twc, tsConfig, npm, bower, compilerOptions, compileTo, options as cli, errors, files, projectRoot, tsConfigPath, paths, cache };
