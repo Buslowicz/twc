@@ -1,17 +1,15 @@
 /* tslint:disable:no-unused-expression */
 import { expect } from "chai";
 import {
-  BinaryExpression, Block, CallExpression, ClassDeclaration, createSourceFile, ExpressionStatement, Identifier, ImportDeclaration,
-  MethodDeclaration, NamedImports, NamespaceImport, PrefixUnaryExpression, PropertyDeclaration, ScriptTarget, SyntaxKind,
-  UnionOrIntersectionTypeNode, VariableStatement
+  BinaryExpression, CallExpression, ClassDeclaration, createSourceFile, ExpressionStatement, Identifier, isPropertyDeclaration,
+  MethodDeclaration, PrefixUnaryExpression, PropertyDeclaration, ScriptTarget, SyntaxKind, UnionOrIntersectionTypeNode, VariableStatement
 } from "typescript";
 import { Component, Method, Property } from "../src/builder";
 import * as decoratorsMap from "../src/decorators";
 import {
-  flatExtends, flattenArray, getDecorators, getText, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isAllOf,
-  isBinaryExpression, isBlock, isCallExpression, isExtendsDeclaration, isGetter, isIdentifier, isMethod, isNamedImports, isNamespaceImport,
-  isOneOf, isPrefixUnaryExpression, isPrivate, isProperty, isPublic, isSetter, isStatic, isTransparent, Link, notGetter, notMethod,
-  notPrivate, notProperty, notPublic, notSetter, notStatic, notTransparent, outPath, Ref, ReferencedExpression, toProperty, toString
+  flatExtends, flattenArray, getDecorators, getText, hasArguments, hasDecorator, hasModifier, hasOperator, hasOperatorToken,
+  hasOriginalKeywordKind, inheritsFrom, InitializerWrapper, isAllOf, isExtendsDeclaration, isOneOf, isPrivate, isPublic, isStatic,
+  isTransparent, Link, notPrivate, notPublic, notStatic, notTransparent, outPath, Ref, ReferencedExpression, toProperty, toString
 } from "../src/helpers";
 import {
   getFinalType, getSimpleKind, parseDeclaration, parseDeclarationInitializer, parseDeclarationType, parseExpression,
@@ -151,34 +149,10 @@ describe("helpers", () => {
   // TODO: write isExportDeclaration tests
   // TODO: write isExportAssignment tests
   // TODO: write isTemplateExpression tests
-  describe("isNamespaceImport()", () => {
-    it("should check if expression is namespace import", () => {
-      const expr = parse<ImportDeclaration>("import * as test from \"module\";");
-      if (isNamespaceImport(expr.importClause.namedBindings)) {
-        const nsImport: NamespaceImport = expr.importClause.namedBindings;
-        expect(nsImport).to.not.be.null;
-        expect(nsImport).to.contain.keys("name");
-      } else {
-        expect(expr.importClause.namedBindings).to.equal("NamespaceImport");
-      }
-    });
-  });
-  describe("isNamedImports()", () => {
-    it("should check if expression is named imports", () => {
-      const expr = parse<ImportDeclaration>("import { test } from \"module\";");
-      if (isNamedImports(expr.importClause.namedBindings)) {
-        const namedImports: NamedImports = expr.importClause.namedBindings;
-        expect(namedImports).to.not.be.null;
-        expect(namedImports).to.contain.keys("elements");
-      } else {
-        expect(expr.importClause.namedBindings).to.equal("NamedImports");
-      }
-    });
-  });
-  describe("isBinaryExpression()", () => {
+  describe("hasOperatorToken()", () => {
     it("should check if expression is a binary expression", () => {
       const expr = parsVars("let p = 5 * 5;").initializer;
-      if (isBinaryExpression(expr)) {
+      if (hasOperatorToken(expr)) {
         const binExpr: BinaryExpression = expr;
         expect(binExpr).to.not.be.null;
         expect(binExpr).to.contain.keys("operatorToken");
@@ -187,11 +161,11 @@ describe("helpers", () => {
       }
     });
   });
-  // TODO: write isExpressionStatement tests
-  describe("isPrefixUnaryExpression()", () => {
+  // TODO: write hasExpression tests
+  describe("hasOperator()", () => {
     it("should check if expression is prefix unary expression", () => {
       const expr = parsVars("let p = ~5;").initializer;
-      if (isPrefixUnaryExpression(expr)) {
+      if (hasOperator(expr)) {
         const unaryExpr: PrefixUnaryExpression = expr;
         expect(unaryExpr).to.not.be.null;
         expect(unaryExpr).to.contain.keys("operator");
@@ -200,10 +174,10 @@ describe("helpers", () => {
       }
     });
   });
-  describe("isCallExpression()", () => {
+  describe("hasArguments()", () => {
     it("should check if expression is call expression", () => {
       const expr = parsVars("let p = test();").initializer;
-      if (isCallExpression(expr)) {
+      if (hasArguments(expr)) {
         const callExpr: CallExpression = expr;
         expect(callExpr).to.not.be.null;
         expect(callExpr).to.contain.keys("arguments");
@@ -212,27 +186,15 @@ describe("helpers", () => {
       }
     });
   });
-  describe("isIdentifier()", () => {
+  describe("hasOriginalKeywordKind()", () => {
     it("should check if expression is identifier", () => {
       const expr = parsVars("let p = undefined;").initializer;
-      if (isIdentifier(expr)) {
+      if (hasOriginalKeywordKind(expr)) {
         const identifier: Identifier = expr;
         expect(identifier).to.not.be.null;
         expect(identifier).to.contain.keys("originalKeywordKind");
       } else {
         expect(expr).to.equal("Identifier");
-      }
-    });
-  });
-  describe("isBlock()", () => {
-    it("should check if expression is a block", () => {
-      const method = parseClass(`class X { m() { return false; };`).members[ 0 ] as MethodDeclaration;
-      if (isBlock(method.body)) {
-        const body: Block = method.body;
-        expect(body).to.not.be.null;
-        expect(body).to.contain.keys("statements");
-      } else {
-        expect(method.body).to.equal("Block");
       }
     });
   });
@@ -260,34 +222,6 @@ describe("helpers", () => {
       expect(isStatic(parseClass(`class T { static p; }`).members[ 0 ])).to.be.true;
       expect(isStatic(parseClass(`class T { public p; }`).members[ 0 ])).to.be.false;
       expect(isStatic(parseClass(`class T { private static readonly p; }`).members[ 0 ])).to.be.true;
-    });
-  });
-  describe("isProperty()", () => {
-    it("should return true if class member is property", () => {
-      expect(isProperty(parseClass(`class T { p; }`).members[ 0 ])).to.be.true;
-      expect(isProperty(parseClass(`class T { p() {}; }`).members[ 0 ])).to.be.false;
-      expect(isProperty(parseClass(`class T { p = () => true; }`).members[ 0 ])).to.be.true;
-    });
-  });
-  describe("isMethod()", () => {
-    it("should return true if class member is method", () => {
-      expect(isMethod(parseClass(`class T { p() {}; }`).members[ 0 ])).to.be.true;
-      expect(isMethod(parseClass(`class T { p; }`).members[ 0 ])).to.be.false;
-      expect(isMethod(parseClass(`class T { p = () => true; }`).members[ 0 ])).to.be.false;
-    });
-  });
-  describe("isGetter()", () => {
-    it("should return true if class member is getter", () => {
-      expect(isGetter(parseClass(`class T { get p() {}; }`).members[ 0 ])).to.be.true;
-      expect(isGetter(parseClass(`class T { p; }`).members[ 0 ])).to.be.false;
-      expect(isGetter(parseClass(`class T { set p(v) {}; }`).members[ 0 ])).to.be.false;
-    });
-  });
-  describe("isSetter()", () => {
-    it("should return true if class member is setter", () => {
-      expect(isSetter(parseClass(`class T { get p() {}; }`).members[ 0 ])).to.be.false;
-      expect(isSetter(parseClass(`class T { p; }`).members[ 0 ])).to.be.false;
-      expect(isSetter(parseClass(`class T { set p(v) {}; }`).members[ 0 ])).to.be.true;
     });
   });
   describe("isTransparent()", () => {
@@ -322,34 +256,6 @@ describe("helpers", () => {
       expect(notStatic(parseClass(`class T { private p; }`).members[ 0 ])).to.be.true;
       expect(notStatic(parseClass(`class T { static p; }`).members[ 0 ])).to.be.false;
       expect(notStatic(parseClass(`class T { private readonly p; }`).members[ 0 ])).to.be.true;
-    });
-  });
-  describe("notProperty()", () => {
-    it("should return true if class member is not property", () => {
-      expect(notProperty(parseClass(`class T { p; }`).members[ 0 ])).to.be.false;
-      expect(notProperty(parseClass(`class T { p(); }`).members[ 0 ])).to.be.true;
-      expect(notProperty(parseClass(`class T { p = () => true; }`).members[ 0 ])).to.be.false;
-    });
-  });
-  describe("notMethod()", () => {
-    it("should return true if class member is not method", () => {
-      expect(notMethod(parseClass(`class T { p() {}; }`).members[ 0 ])).to.be.false;
-      expect(notMethod(parseClass(`class T { p; }`).members[ 0 ])).to.be.true;
-      expect(notMethod(parseClass(`class T { p = () => true; }`).members[ 0 ])).to.be.true;
-    });
-  });
-  describe("notGetter()", () => {
-    it("should return true if class member is not getter", () => {
-      expect(notGetter(parseClass(`class T { get p() {}; }`).members[ 0 ])).to.be.false;
-      expect(notGetter(parseClass(`class T { p; }`).members[ 0 ])).to.be.true;
-      expect(notGetter(parseClass(`class T { set p(v) {}; }`).members[ 0 ])).to.be.true;
-    });
-  });
-  describe("notSetter()", () => {
-    it("should return true if class member is not setter", () => {
-      expect(notSetter(parseClass(`class T { get p() {}; }`).members[ 0 ])).to.be.true;
-      expect(notSetter(parseClass(`class T { p; }`).members[ 0 ])).to.be.true;
-      expect(notSetter(parseClass(`class T { set p(v) {}; }`).members[ 0 ])).to.be.false;
     });
   });
   describe("notTransparent()", () => {
@@ -682,7 +588,7 @@ describe("builders", () => {
 
       expect(classDeclaration
         .members
-        .filter(isProperty)
+        .filter(isPropertyDeclaration)
         .filter(notPrivate)
         .filter(notStatic)
         .map((property: PropertyDeclaration) => new Property(property, property.name.getText()))

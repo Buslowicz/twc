@@ -2,16 +2,16 @@ import { existsSync } from "fs";
 import { dirname, extname, join, normalize, parse, relative, resolve } from "path";
 import {
   ClassDeclaration, ClassElement, CompilerOptions, ExpressionStatement, FunctionExpression, ImportDeclaration, ImportSpecifier,
-  InterfaceDeclaration, MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, PropertyDeclaration, PropertySignature,
+  InterfaceDeclaration, isBlock, isClassDeclaration, isExportAssignment, isExportDeclaration, isFunctionLike, isGetAccessorDeclaration,
+  isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration, isNamedImports, isPropertyDeclaration, isSetAccessorDeclaration,
+  isTemplateExpression, MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, PropertyDeclaration, PropertySignature,
   SourceFile, Statement, SyntaxKind, TypeLiteralNode, TypeNode
 } from "typescript";
 import { cache, paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
 import {
-  DecoratorsMixin, getFlatHeritage, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isBlock, isClassDeclaration,
-  isExportAssignment, isExportDeclaration, isGetter, isImportDeclaration, isInterfaceDeclaration, isMethod, isModuleDeclaration,
-  isNamedImports, isOneOf, isProperty, isSetter, isStatic, isTemplateExpression, JSDocMixin, Link, notPrivate, notStatic, outPath,
-  ParsedDecorator, RefUpdaterMixin, stripQuotes
+  DecoratorsMixin, getFlatHeritage, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isOneOf, isStatic, JSDocMixin,
+  Link, notPrivate, notStatic, outPath, ParsedDecorator, RefUpdaterMixin, stripQuotes
 } from "./helpers";
 import * as buildTargets from "./targets";
 import { parseDeclaration, parseDeclarationType, ValidValue } from "./type-analyzer";
@@ -236,7 +236,7 @@ export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   /** Methods accessor (get, set, or none) */
   public get accessor(): string {
     const declaration = this.declaration as ClassElement;
-    return isGetter(declaration) && "get " || isSetter(declaration) && "set " || "";
+    return isGetAccessorDeclaration(declaration) && "get " || isSetAccessorDeclaration(declaration) && "set " || "";
   }
 
   /** Method arguments list */
@@ -333,7 +333,7 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     super();
     this.declaration
       .members
-      .filter(isProperty)
+      .filter(isPropertyDeclaration)
       .filter(notPrivate)
       .filter(notStatic)
       .map((property: PropertyDeclaration) => new Property(property, property.name.getText()))
@@ -342,14 +342,14 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
 
     this.declaration
       .members
-      .filter(isProperty)
+      .filter(isPropertyDeclaration)
       .filter(isStatic)
       .map((property: PropertyDeclaration) => new Property(property, property.name.getText()))
       .forEach((property: Property) => this.staticProperties.set(property.name, property));
 
     this.declaration
       .members
-      .filter(isOneOf(isMethod, isGetter, isSetter))
+      .filter(isOneOf(isFunctionLike, isGetAccessorDeclaration, isSetAccessorDeclaration))
       .filter(notStatic)
       .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : "constructor"))
       .map((method) => this.decorate(method, method.decorators))
@@ -357,7 +357,7 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
 
     this.declaration
       .members
-      .filter(isOneOf(isMethod, isGetter, isSetter))
+      .filter(isOneOf(isFunctionLike, isGetAccessorDeclaration, isSetAccessorDeclaration))
       .filter(isStatic)
       .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : "constructor"))
       .forEach((method: Method) => this.staticMethods.set(method.name, method));

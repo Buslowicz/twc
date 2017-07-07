@@ -2,7 +2,7 @@ import {
   BinaryExpression, CallExpression, Expression, LiteralTypeNode, Node, PartiallyEmittedExpression, PropertyDeclaration, SyntaxKind,
   TypeNode, TypeReferenceNode, UnionOrIntersectionTypeNode
 } from "typescript";
-import { InitializerWrapper, isBinaryExpression, isIdentifier, isPrefixUnaryExpression, notTransparent } from "./helpers";
+import { hasOperator, hasOperatorToken, hasOriginalKeywordKind, InitializerWrapper, notTransparent } from "./helpers";
 
 /**
  * Valid value types.
@@ -133,7 +133,7 @@ export function parseExpression(expr: Expression): SyntaxKind {
     SyntaxKind.ExclamationEqualsEqualsToken
   ];
 
-  if (isBinaryExpression(expr)) {
+  if (hasOperatorToken(expr)) {
     if (numberOperators.includes(expr.operatorToken.kind)) {
       return SyntaxKind.NumberKeyword;
     } else if (booleanOperators.includes(expr.operatorToken.kind)) {
@@ -147,7 +147,7 @@ export function parseExpression(expr: Expression): SyntaxKind {
         return SyntaxKind.NumberKeyword;
       }
     }
-  } else if (isPrefixUnaryExpression(expr)) {
+  } else if (hasOperator(expr)) {
     switch (expr.operator) {
       case SyntaxKind.TildeToken:
         return SyntaxKind.NumberKeyword;
@@ -202,7 +202,7 @@ export function parseDeclarationInitializer(declaration: PropertyDeclaration): T
     return { type: SyntaxKind.Unknown };
   }
 
-  switch (isIdentifier(initializer) ? initializer.originalKeywordKind : initializer.kind) {
+  switch (hasOriginalKeywordKind(initializer) ? initializer.originalKeywordKind : initializer.kind) {
     case SyntaxKind.TrueKeyword:
       return { type: SyntaxKind.BooleanKeyword, value: true };
     case SyntaxKind.FalseKeyword:
