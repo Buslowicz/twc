@@ -187,13 +187,10 @@ If there is a namespace declared in the definitions, it will automatically upgra
 
 #### Generating types for Polymer elements/behaviors
 To generate the type declarations from existing behaviors/components, use the [potts](https://github.com/Draccoz/potts) tool.
-Simply install it globally (`npm install potts -g`) and run `potts path/to/component.html`. Declarations will be saved under the `types`
-directory by default (configurable via `--outDir` or `-d` flag). This will generate declarations for html module and all its dependencies.
+Simply install it globally (`npm install potts -g`) and run `potts` in the project root directory. Declarations will be saved
+to the `potts.d.ts` file by default (configurable via `--outFile` or `-o` flag). This will generate declarations for all html
+files listen in `main` section of `bower.json` file of every bower dependency.
 All modules will be declared to match the importable path (for example `bower:polymer/polymer.html`).
-
-Further improvement of `potts` tool will generate types of every bower dependency installed via bower.
-
-**For generating types out of internal components/behaviors please allow [this](https://github.com/Draccoz/twc/issues/48) issue to be resolved.**
 
 ### Documenting events
 Every solid project should have a proper documentation. This also includes documenting events fired by the component. TWC lets you do it
@@ -254,8 +251,16 @@ export class MyElement {
 }
 ```
 
-### Behaviors and Mixins
-Work in Progress
+### Mixins
+ES Mixins are supported since TypeScript 2.2. You can read more about them [here](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-2.html).
+
+**Mixins are NOT supported by Polymer v1**
+
+### Behaviors
+Behaviors are the first approach to sharing functionality in Polymer (now replaced with ES Mixins). They are defined as plain
+objects with Polymer properties and methods listed just as with Polymer v1 config object.
+To add a behavior, use the `Polymer.mixinBehaviors()` mixin (more info [here](https://www.polymer-project.org/2.0/docs/upgrade#using-hybrid-behaviors-with-class-style-elements)).
+For Polymer v1, they will be added to behaviors config, while Polymer v2 will use them with above mixin.
 
 ### Decorators
 As mentioned before, not everything can be done with keywords. This is why TWC comes with a set of design-time annotations.
@@ -356,14 +361,12 @@ Typed Web Components is in an early phase and needs your feedback. Please try it
 Also, do not hesitate to also post ideas!
 
 ## Roadmap
-* Polymer v2 compile target
-* Analysing included files on-the-fly to fetch namespaces and all the necessary details
-* Make mixins and behaviors work properly
-* Importing events interfaces (to avoid redeclaration
-* Make relative imports not break if outDir changes the files structure
 * Warn on using reserved property/method name (like `classList`)
 * Allow expressions in the templates
+* Importing events interfaces (to avoid redeclaration
+* Make relative imports not break if outDir changes the files structure
 * Generate valid source maps
+* Create PolymerTS compatible decorators and workflow
 
 ## Running tests on Windows
 
