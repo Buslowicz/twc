@@ -321,6 +321,11 @@ export const isOneOf = (...filters) => (item: any): boolean => filters.some((fil
 export const isAllOf = (...filters) => (item: any): boolean => filters.every((filter) => filter(item));
 
 /**
+ * Check if node is of a given kind
+ */
+export const isOfKind = <T extends Node>(kind) => (st: T): st is T => st.kind === kind;
+
+/**
  * Checks if node is an ImportDeclaration.
  *
  * @param st Node to check

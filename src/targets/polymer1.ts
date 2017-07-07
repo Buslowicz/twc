@@ -21,10 +21,11 @@ export class Polymer1 {
 
   /** Find first component of the module. */
   protected get component(): Component {
-    return this.module.statements.find((statement) => statement instanceof Component) || this.module.statements
-        .filter((statement) => statement instanceof Component || statement instanceof Module)
-        .reduce((all, statement) => all.concat(statement instanceof Module ? statement.components : statement), [])
-        .find((statement) => statement instanceof Component);
+    const component: Component = this.module.statements.find((statement) => statement instanceof Component) || this.module.statements
+      .filter((statement) => statement instanceof Component || statement instanceof Module)
+      .reduce((all, statement) => all.concat(statement instanceof Module ? statement.components : statement), [])
+      .find((statement) => statement instanceof Component);
+    return component ? component.provideRefs(this.importedRefs) : component;
   }
 
   /** Get all imports from module up to the root module (source file). */

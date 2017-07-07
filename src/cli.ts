@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, watchFile, writeFileSync } from "f
 import { dirname, join } from "path";
 import { createSourceFile, MapLike, SourceFile } from "typescript";
 import { Module } from "./builder";
-import { cli, compilerOptions, compileTo, errors, files, twc } from "./config";
+import { cache, cli, compilerOptions, compileTo, errors, files, twc } from "./config";
 import { outPath } from "./helpers";
 
 /**
@@ -35,6 +35,7 @@ function ensurePath(path: string) {
  */
 function emitFile(fileName: string) {
   const source: SourceFile = createSourceFile(fileName, readFileSync(fileName).toString(), compilerOptions.target, true);
+  cache.update(source);
   writeFileSync(ensurePath(outPath(fileName.replace(/.ts$/, ".html"))), new Module(source, compilerOptions, compileTo).toString());
 }
 

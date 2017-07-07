@@ -3,6 +3,7 @@ import * as sinon from "sinon";
 import { SinonSpy } from "sinon";
 import { CompilerOptions, createSourceFile, ModuleKind, ScriptTarget, SourceFile } from "typescript";
 import { Module } from "../../src/builder";
+import { cache } from "../../src/config";
 import chaiString = require("chai-string");
 
 use(chaiString);
@@ -143,6 +144,26 @@ describe("Polymer v2 output", () => {
     });
   });
   describe("should update namespaces", () => {
+    let cachedFiles;
+    before(() => {
+      cachedFiles = cache.files;
+      cache.files = new Map([
+        [
+          "sample.file", new Map([
+          [
+            "some.html", new Map([
+            [ "A", { name: "A", type: "VariableDeclaration", namespace: "NS" } ],
+            [ "B", { name: "B", type: "VariableDeclaration", namespace: "NS" } ],
+            [ "C", { name: "C", type: "VariableDeclaration", namespace: "NS" } ]
+          ])
+          ]
+        ])
+        ]
+      ]);
+    });
+    after(() => {
+      cache.files = cachedFiles;
+    });
     const component = transpile(`
       import { CustomElement } from "twc/polymer";
       import { A, B, C } from "some.html#NS";
@@ -175,7 +196,7 @@ describe("Polymer v2 output", () => {
               configurable: true
             });
             MyElement.prototype.method = function() {
-              return NS.A + NS.B + NS.C + OtherNS.D;
+              return NS.A + NS.B + NS.C + D;
             };
             return MyElement;
           }(Polymer.Element));
@@ -194,7 +215,7 @@ describe("Polymer v2 output", () => {
               static get is() { return "my-element"; }
 
               method() {
-                return NS.A + NS.B + NS.C + OtherNS.D;
+                return NS.A + NS.B + NS.C + D;
               }
             }
             customElements.define(MyElement.is, MyElement);
@@ -709,9 +730,33 @@ describe("Polymer v2 output", () => {
     });
   });
   describe("should add behaviors to the component declaration", () => {
+    let cachedFiles;
+    before(() => {
+      cachedFiles = cache.files;
+      cache.files = new Map([
+        [
+          "sample.file", new Map([
+          [
+            "bower:iron-resizable-behavior/iron-resizable-behavior.html", new Map([
+            [
+              "IronResizableBehavior", {
+              name: "IronResizableBehavior",
+              type: "InterfaceDeclaration",
+              namespace: "Polymer"
+            }
+            ]
+          ])
+          ]
+        ])
+        ]
+      ]);
+    });
+    after(() => {
+      cache.files = cachedFiles;
+    });
     const component1 = transpile(`
       import { CustomElement } from "twc/polymer";
-      import { IronResizableBehavior } from "bower:iron-resizable-behavior/iron-resizable-behavior.html#Polymer"
+      import { IronResizableBehavior } from "bower:iron-resizable-behavior/iron-resizable-behavior.html"
 
       interface MyElement extends IronResizableBehavior {}
 
@@ -720,7 +765,7 @@ describe("Polymer v2 output", () => {
 
     const component2 = transpile(`
       import { CustomElement } from "twc/polymer";
-      import { IronResizableBehavior } from "bower:iron-resizable-behavior/iron-resizable-behavior.html#Polymer"
+      import { IronResizableBehavior } from "bower:iron-resizable-behavior/iron-resizable-behavior.html"
 
       @CustomElement()
       export class MyElement extends Polymer.Element {}

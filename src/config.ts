@@ -1,6 +1,10 @@
 import { existsSync, readFileSync } from "fs";
 import { basename, dirname, join, relative, resolve, sep } from "path";
-import { CompilerOptions, findConfigFile, parseCommandLine, readConfigFile, sys } from "typescript";
+import {
+  BlockLike, CompilerOptions, createProgram, findConfigFile, isClassDeclaration, isFunctionLike, isInterfaceDeclaration, JSDoc,
+  NamedDeclaration, parseCommandLine, readConfigFile, SourceFile, SyntaxKind, sys
+} from "typescript";
+import { isOfKind, isOneOf } from "./helpers";
 
 export type ModuleType = "globals" | "amd" | "node" | "es6" | "yui";
 
@@ -82,6 +86,25 @@ export interface NPMConfig extends Config {
   author: string | Author;
 }
 
+export interface StatementMetaData {
+  name: string;
+  type: string;
+  namespace: string | null;
+}
+
+export interface HasJSDoc {
+  jsDoc?: Array<JSDoc>;
+}
+
+export type ModuleMetaMap = Map<string, StatementMetaData>;
+
+export type SourceFileMetaMap = Map<string, ModuleMetaMap>;
+
+export type FullSourceFile = SourceFile & {
+  getNamedDeclarations?: () => Array<NamedDeclaration>;
+  ambientModuleNames: Array<string>;
+};
+
 /**
  * Find rootDir for files (Longest Common Prefix).
  *
@@ -153,14 +176,107 @@ const twcOverrides: CompilerOptions = {
 
 Object.assign(compilerOptions, options, twcOverrides);
 
-const files = fileNames.length ? fileNames : sys
+/**
+ * Get name, type and namespace of a statement
+ *
+ * @param statement Statement to scan
+ *
+ * @returns Meta data of a statement
+ */
+function getStatementMeta(statement: NamedDeclaration & HasJSDoc): StatementMetaData {
+  return {
+    name: statement.name[ "text" ],
+    type: SyntaxKind[ statement.kind ],
+    namespace: statement.jsDoc ? statement.jsDoc
+      .filter((doc) => doc.tags)
+      .map((doc) => doc.tags
+        .filter((tag) => tag.tagName[ "text" ] === "namespace")
+        .map((tag) => tag.comment.trim())
+        .reduce((p, c) => c, null)
+      )
+      .reduce((p, c) => c, null) : null
+  };
+}
+
+/**
+ * Get exported statements meta from a module
+ *
+ * @param module Module to scan
+ *
+ * @returns Array of statements name-meta tuples
+ */
+function statementsFromModule(module: { body: BlockLike }): Array<[ string, StatementMetaData ]> {
+  const { body: { statements = [] } = {} } = module;
+  return (statements as Array<NamedDeclaration>)
+    .filter(({ modifiers, name }) => name && modifiers && modifiers.find(isOfKind(SyntaxKind.ExportKeyword)))
+    .filter(isOneOf(isFunctionLike, isClassDeclaration, isInterfaceDeclaration))
+    .map((statement: NamedDeclaration & HasJSDoc): [ string, StatementMetaData ] => [
+      statement.name[ "text" ],
+      getStatementMeta(statement)
+    ]);
+}
+
+/**
+ * Generate an Array::map callback to return an array of moduleName-statementsMap tuples for each ambient module in a file
+ *
+ * @param declarations Ambient modules declarations
+ *
+ * @returns Map callback to scan module for statements
+ */
+function getAmbientModulesFrom(declarations): (mod: string) => [ string, ModuleMetaMap ] {
+  return (mod) => [
+    mod,
+    new Map(declarations
+      .get(mod)
+      .map(statementsFromModule)
+      .reduce((def, arr) => arr, [])
+    )
+  ];
+}
+
+/**
+ * Get an array of fileName-modulesMap tuples
+ */
+function toModulesMap(source: FullSourceFile): [ string, SourceFileMetaMap ] {
+  const declarations = source.getNamedDeclarations ? source.getNamedDeclarations() : new Map();
+  const ambientModuleNames = source.ambientModuleNames;
+  return [ source.fileName, new Map(ambientModuleNames.map(getAmbientModulesFrom(declarations))) ];
+}
+
+const projectFiles = sys
   .readDirectory(
     dirname(tsConfigPath),
     [ "ts", ...(compilerOptions.allowJs ? [ "js" ] : []) ],
     exclude,
     include.length === 0 && inputFiles.length === 0 ? [ "**/*" ] : include
   )
-  .concat(inputFiles.map((file) => resolve(file)))
+  .concat(inputFiles.map((file) => resolve(file)));
+
+const program = createProgram(projectFiles, compilerOptions);
+
+const cache = {
+  update(source) {
+    if (!source.ambientModuleNames || !source.ambientModuleNames.length) {
+      if (this.files.has(source.fileName)) {
+        this.files.delete(source.fileName);
+      }
+      return;
+    }
+    const [ fileName, map ] = toModulesMap(source);
+    this.files.set(fileName, map);
+  },
+  files: new Map(
+    program
+      .getSourceFiles()
+      .filter((source: any) => source.ambientModuleNames && source.ambientModuleNames.length)
+      .map(toModulesMap)
+  ),
+  get modules(): Map<string, Map<string, { name: string, type: string, namespace: string | null }>> {
+    return new Map(Array.from(this.files.values()).reduce((list, module) => [ ...list, ...module ], []));
+  }
+};
+
+const files = fileNames.length ? fileNames : projectFiles
   .filter((path) => !path.endsWith(".d.ts"))
   .map((path) => relative(join(projectRoot, compilerOptions.baseUrl || ""), path));
 
@@ -168,4 +284,4 @@ if (!("rootDir" in compilerOptions)) {
   compilerOptions.rootDir = findRootDir(files);
 }
 
-export { twc, tsConfig, npm, bower, compilerOptions, compileTo, options as cli, errors, files, projectRoot, tsConfigPath, paths };
+export { twc, tsConfig, npm, bower, compilerOptions, compileTo, options as cli, errors, files, projectRoot, tsConfigPath, paths, cache };
