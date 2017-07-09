@@ -136,6 +136,39 @@ export class Style {
  * Representation of a template with all the necessary logic
  */
 export class Template {
+  /**
+   * Create a template from method returning a string
+   *
+   * @param fun Method to use as a declaration source
+   *
+   * @returns New template
+   */
+  public static fromMethod(fun: MethodDeclaration): Template {
+    return new Template((fun.body.statements.reduce((p, c) => c) as ExpressionStatement).expression as TemplateExpression);
+  }
+
+  /**
+   * Create a template from a link
+   *
+   * @param link Link to use to fetch the source
+   *
+   * @returns New template
+   */
+  public static fromLink(link: Link): Template {
+    return Object.assign(new Template(null), { link });
+  }
+
+  /**
+   * Create a template from a string
+   *
+   * @param src String source to use as a template
+   *
+   * @returns New template
+   */
+  public static fromString(src: string): Template {
+    return Object.assign(new Template(null), { src });
+  }
+
   public methods: Map<string, Method> = new Map();
   private link: Link;
   private src: string;
@@ -160,18 +193,13 @@ export class Template {
     );
   }
 
-  public static fromMethod(fun: MethodDeclaration) {
-    return new Template((fun.body.statements.reduce((p, c) => c) as ExpressionStatement).expression as TemplateExpression);
-  }
-
-  public static fromLink(link: Link) {
-    return Object.assign(new Template(null), { link });
-  }
-
-  public static fromString(src: string) {
-    return Object.assign(new Template(null), { src });
-  }
-
+  /**
+   * Parse an expression to a valid template binding
+   *
+   * @param expr Expression to parse
+   *
+   * @returns Template binding as a string
+   */
   public parseExpression(expr: Expression): string {
     if (isPropertyAccessExpression(expr) && expr.expression.kind === SyntaxKind.ThisKeyword) {
       return `{{${expr.name.text}}}`;
@@ -190,12 +218,10 @@ export class Template {
         }, this.declaration.head.text);
       }
       return stripQuotes(this.declaration.getText());
-    } else if (this.src) {
-      return this.src;
     } else if (this.link) {
       return this.link.toString();
     }
-    return "";
+    return this.src || "";
   }
 }
 
