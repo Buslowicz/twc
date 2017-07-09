@@ -188,6 +188,7 @@ export class Polymer1 {
   protected methods(component: Component): Array<string> {
     return Array
       .from(component.methods.values())
+      .concat(component.template ? Array.from(component.template.methods.values()) : [])
       .map((m) => m.name in Polymer1.lifecycleMap ? new Method(m.declaration, Polymer1.lifecycleMap[ m.name ]) : m)
       .map((m) => `${m.jsDoc}${m.provideRefs(this.importedRefs, true)}`);
   }

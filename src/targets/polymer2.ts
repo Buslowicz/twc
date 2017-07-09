@@ -84,9 +84,13 @@ export class Polymer2 extends Polymer1 {
    * @returns Array of stringified methods
    */
   protected methods(component: Component): Array<string> {
-    const staticFlag = (method) => method.isStatic() ? "static " : "";
+    const staticFlag = (method) => method.isStatic ? "static " : "";
     const getOrderIdentifier = (method) => accessorsOrder[ (staticFlag(method) + method.accessor).trim() ];
-    return [ ...component.methods.values(), ...component.staticMethods.values() ]
+    return [
+      ...component.methods.values(),
+      ...(component.template ? component.template.methods.values() : []),
+      ...component.staticMethods.values()
+    ]
       .sort((a, b) => getOrderIdentifier(a) - getOrderIdentifier(b))
       .map((method) => `${method.jsDoc}${staticFlag(method)}${method.provideRefs(this.importedRefs, false)}`);
   }

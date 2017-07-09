@@ -1,12 +1,13 @@
 import { existsSync } from "fs";
 import { dirname, extname, join, normalize, parse, relative, resolve } from "path";
 import {
-  ArrayLiteralExpression, CallExpression, ClassDeclaration, ClassElement, CompilerOptions, ExpressionStatement, FunctionExpression,
-  HeritageClause, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, isBlock, isCallExpression, isClassDeclaration,
-  isExportAssignment, isExportDeclaration, isFunctionLike, isGetAccessorDeclaration, isImportDeclaration, isInterfaceDeclaration,
-  isModuleDeclaration, isNamedImports, isPropertyDeclaration, isSetAccessorDeclaration, isTemplateExpression, MethodDeclaration,
-  ModuleBlock, ModuleDeclaration, NamespaceImport, Node, PropertyAccessExpression, PropertyDeclaration, PropertySignature, SourceFile,
-  Statement, SyntaxKind, TypeLiteralNode, TypeNode
+  ArrayLiteralExpression, BinaryExpression, CallExpression, ClassDeclaration, CompilerOptions, Expression, ExpressionStatement,
+  forEachChild, FunctionLikeDeclaration, HeritageClause, Identifier, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, isBlock,
+  isCallExpression, isClassDeclaration, isExportAssignment, isExportDeclaration, isFunctionLike, isGetAccessorDeclaration,
+  isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration, isNamedImports, isPropertyAccessExpression, isPropertyDeclaration,
+  isSetAccessorDeclaration, isTemplateExpression, MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node,
+  NoSubstitutionTemplateLiteral, PropertyAccessExpression, PropertyDeclaration, PropertySignature, SourceFile, Statement, StringLiteral,
+  SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
 } from "typescript";
 import { cache, paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
@@ -132,6 +133,73 @@ export class Style {
 }
 
 /**
+ * Representation of a template with all the necessary logic
+ */
+export class Template {
+  public methods: Map<string, Method> = new Map();
+  private link: Link;
+  private src: string;
+
+  constructor(public declaration?: StringLiteral | TemplateExpression | NoSubstitutionTemplateLiteral) {
+    if (!this.declaration || !isTemplateExpression(this.declaration)) {
+      return;
+    }
+    this.methods = new Map(
+      this.declaration.templateSpans
+        .filter(({ expression }) => !isPropertyAccessExpression(expression))
+        .map(({ expression }, i): [ string, Method ] => {
+          const args = [];
+          forEachChild(expression, (node) => {
+            if (isPropertyAccessExpression(node) && node.expression.kind === SyntaxKind.ThisKeyword) {
+              args.push(node.name);
+            }
+          });
+          const method = new Method(expression as BinaryExpression, `_expr${i}`, args);
+          return [ expression.getText(), method ];
+        })
+    );
+  }
+
+  public static fromMethod(fun: MethodDeclaration) {
+    return new Template((fun.body.statements.reduce((p, c) => c) as ExpressionStatement).expression as TemplateExpression);
+  }
+
+  public static fromLink(link: Link) {
+    return Object.assign(new Template(null), { link });
+  }
+
+  public static fromString(src: string) {
+    return Object.assign(new Template(null), { src });
+  }
+
+  public parseExpression(expr: Expression): string {
+    if (isPropertyAccessExpression(expr) && expr.expression.kind === SyntaxKind.ThisKeyword) {
+      return `{{${expr.name.text}}}`;
+    } else {
+      const expressionText = expr.getText();
+      const method = this.methods.get(expressionText);
+      return method ? `[[${method.name}(${method.arguments.join(", ")})]]` : expressionText;
+    }
+  }
+
+  public toString() {
+    if (this.declaration) {
+      if (isTemplateExpression(this.declaration)) {
+        return this.declaration.templateSpans.reduce((tpl, span) => {
+          return tpl + this.parseExpression(span.expression) + span.literal.text;
+        }, this.declaration.head.text);
+      }
+      return stripQuotes(this.declaration.getText());
+    } else if (this.src) {
+      return this.src;
+    } else if (this.link) {
+      return this.link.toString();
+    }
+    return "";
+  }
+}
+
+/**
  * Representation of a custom event interface declaration.
  */
 export class RegisteredEvent {
@@ -234,51 +302,67 @@ export class Property extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
  * Representation of a component method
  */
 export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
+  constructor(
+    public readonly declaration: FunctionLikeDeclaration | Expression,
+    public readonly name = "function",
+    private args?: Array<Identifier>
+  ) {
+    super();
+  }
+
   /** Methods accessor (get, set, or none) */
   public get accessor(): string {
-    const declaration = this.declaration as ClassElement;
-    return isGetAccessorDeclaration(declaration) && "get " || isSetAccessorDeclaration(declaration) && "set " || "";
+    return isGetAccessorDeclaration(this.declaration) && "get " || isSetAccessorDeclaration(this.declaration) && "set " || "";
   }
 
   /** Method arguments list */
   public get arguments(): Array<string> {
-    if (!this.declaration.parameters) {
+    if (isFunctionLike(this.declaration) && this.declaration.parameters) {
+      return this.declaration.parameters.map((param) => param.getText());
+    } else if (this.args) {
+      return this.args.map(({ text }) => text);
+    } else {
       return [];
     }
-    return this.declaration.parameters.map((param) => param.getText());
   }
 
   /** Method arguments names list (without type declaration) */
   public get argumentsNoType(): Array<string> {
-    if (!this.declaration.parameters) {
+    if (isFunctionLike(this.declaration) && this.declaration.parameters) {
+      return this.declaration.parameters.map((param) => param.name.getText());
+    } else if (this.args) {
+      return this.args.map(({ text }) => text);
+    } else {
       return [];
     }
-    return this.declaration.parameters.map((param) => param.name.getText());
+  }
+
+  /**
+   * Whether the method is static
+   */
+  public get isStatic() {
+    return isStatic(this.declaration as MethodDeclaration);
   }
 
   /** List of method body statements */
   private get statements(): Array<string> {
-    if (isBlock(this.declaration.body)) {
-      const statements = this.declaration.body.statements.map(this.getText);
-      if (this.skipSuper) {
-        return statements.filter((statement) => !/\ssuper\(.*?\);?/.test(statement));
+    if (isFunctionLike(this.declaration)) {
+      if (isBlock(this.declaration.body)) {
+        const statements = this.declaration.body.statements.map(this.getText);
+        if (this.skipSuper) {
+          return statements.filter((statement) => !/\ssuper\(.*?\);?/.test(statement));
+        }
+        return statements;
+      } else {
+        return [ `return ${this.getText(this.declaration.body)};` ];
       }
-      return statements;
     } else {
-      return [ `return ${this.getText(this.declaration.body as MethodDeclaration)};` ];
+      return [ `return ${this.getText(this.declaration)};` ];
     }
-  }
-
-  constructor(public readonly declaration: MethodDeclaration | FunctionExpression, public readonly name = "function") {
-    super();
   }
 
   public toString() {
     return `${this.accessor}${this.name}(${this.arguments.join(", ")}) { ${this.statements.join("\n")} }`;
-  }
-
-  public isStatic() {
-    return isStatic(this.declaration as MethodDeclaration);
   }
 }
 
@@ -329,7 +413,7 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   }
 
   /** Components template */
-  public template: string | Link;
+  public template: Template;
 
   /** Components styles */
   public styles: Array<Style> = [];
@@ -388,23 +472,7 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     this.decorate(this, this.decorators);
 
     if (this.methods.has("template")) {
-      // todo: improve and test
-      this.template = this.methods.get("template")
-        .declaration.body.statements
-        .map((statement: ExpressionStatement) => {
-          const tpl = statement.expression;
-          if (isTemplateExpression(tpl)) {
-            return `${tpl.head.text}${
-              tpl
-                .templateSpans
-                .map((span) => `{{${span.expression.getText().replace("this.", "")}}}${span.literal.text}`)
-                .join("")
-              }`;
-          } else {
-            return stripQuotes(tpl.getText());
-          }
-        })
-        .join("");
+      this.template = Template.fromMethod(this.methods.get("template").declaration as MethodDeclaration);
 
       this.methods.delete("template");
     }
@@ -412,7 +480,7 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     const fileName = getRoot(this.declaration).fileName;
     const implicitTemplateName = `${parse(fileName).name}.html`;
     if (!this.template && existsSync(resolve(dirname(fileName), implicitTemplateName))) {
-      this.template = new Link(implicitTemplateName, declaration as Node);
+      this.template = Template.fromLink(new Link(implicitTemplateName, declaration as Node));
     }
   }
 

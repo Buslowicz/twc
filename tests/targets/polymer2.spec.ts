@@ -49,6 +49,88 @@ describe("Polymer v2 output", () => {
 
     expect(() => component.es5).to.throw(SyntaxError);
   });
+  describe("should allow simple expressions in the templates", () => {
+    const component = transpile(`
+      import { CustomElement } from "twc/polymer";
+      @CustomElement()
+      export class MyElement extends Polymer.Element {
+        name: string;
+        template() {
+          return \`<h1 title="$\{document.title + this.name}">Hello $\{this.name === "test" ? "default" : this.name}</h1>\`;
+        }
+      }`);
+
+    it("es5", () => {
+      expect(component.es5).to.equalIgnoreSpaces(`
+        <dom-module is="my-element">
+          <template>
+            <h1 title="[[_expr0(name)]]">Hello [[_expr1(name)]]</h1>
+          </template>
+          <script>
+            var MyElement = (function(_super) {
+              __extends(MyElement, _super);
+
+              function MyElement() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(MyElement, "is", {
+                get: function() {
+                  return "my-element";
+                },
+                enumerable: true,
+                configurable: true
+              });
+              Object.defineProperty(MyElement, "properties", {
+                get: function() {
+                  return {
+                    name: String
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              MyElement.prototype._expr0 = function(name) {
+                return document.title + this.name;
+              };
+              MyElement.prototype._expr1 = function(name) {
+                return this.name === "test" ? "default" : this.name;
+              };
+              return MyElement;
+            }(Polymer.Element));
+            customElements.define(MyElement.is, MyElement);
+          </script>
+        </dom-module>`
+      );
+    });
+    it("es6", () => {
+      expect(component.es6).to.equalIgnoreSpaces(`
+        <dom-module is="my-element">
+          <template>
+            <h1 title="[[_expr0(name)]]">Hello [[_expr1(name)]]</h1>
+          </template>
+          <script>
+            class MyElement extends Polymer.Element {
+              static get is() {
+                return "my-element";
+              }
+              static get properties() {
+                return {
+                  name: String
+                };
+              }
+              _expr0(name) {
+                return document.title + this.name;
+              }
+              _expr1(name) {
+                return this.name === "test" ? "default" : this.name;
+              }
+            }
+            customElements.define(MyElement.is, MyElement);
+          </script>
+        </dom-module>`
+      );
+    });
+  });
   describe("should not emit exports", () => {
     const component = transpile(`
       import { CustomElement } from "twc/polymer";
