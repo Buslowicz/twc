@@ -999,6 +999,9 @@ describe("template", () => {
         t3() {
           return \`<h1>Hello $\{this.prop} World $\{this.prop + "test"} ! $\{this.prop === "test"}</h1>\`;
         }
+        t4() {
+          return \`{{$\{this.prop}}} [[$\{this.prop}]] {{$\{this.prop + 1}}} [[$\{this.prop + 1}]] {{$\{document}}} [[$\{document}]]\`;
+        }
       }`) as any as { members: NodeArray<MethodDeclaration> };
 
       const template1 = new Template((members[ 1 ].body.statements.reduce((p, c) => c) as ExpressionStatement).expression as any);
@@ -1014,6 +1017,11 @@ describe("template", () => {
       expect(template3.methods.size).to.equal(2);
       expect(template3.methods.get("this.prop + \"test\"").toString()).to.deep.equal("_expr0(prop) { return this.prop + \"test\"; }");
       expect(template3.methods.get("this.prop === \"test\"").toString()).to.deep.equal("_expr1(prop) { return this.prop === \"test\"; }");
+
+      const template4 = new Template((members[ 4 ].body.statements.reduce((p, c) => c) as ExpressionStatement).expression as any);
+      expect(template4.toString()).to.equal("{{prop}} [[prop]] {{_expr1(prop)}} [[_expr1(prop)]] {{document}} [[document]]");
+      expect(template4.methods.size).to.equal(1);
+      expect(template4.methods.get("this.prop + 1").toString()).to.deep.equal("_expr1(prop) { return this.prop + 1; }");
     });
   });
 });

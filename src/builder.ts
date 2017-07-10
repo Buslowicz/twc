@@ -2,12 +2,12 @@ import { existsSync } from "fs";
 import { dirname, extname, join, normalize, parse, relative, resolve } from "path";
 import {
   ArrayLiteralExpression, BinaryExpression, CallExpression, ClassDeclaration, CompilerOptions, Expression, ExpressionStatement,
-  forEachChild, FunctionLikeDeclaration, HeritageClause, Identifier, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, isBlock,
-  isCallExpression, isClassDeclaration, isExportAssignment, isExportDeclaration, isFunctionLike, isGetAccessorDeclaration,
-  isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration, isNamedImports, isPropertyAccessExpression, isPropertyDeclaration,
-  isSetAccessorDeclaration, isTemplateExpression, MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node,
-  NoSubstitutionTemplateLiteral, PropertyAccessExpression, PropertyDeclaration, PropertySignature, SourceFile, Statement, StringLiteral,
-  SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
+  forEachChild, FunctionLikeDeclaration, HeritageClause, Identifier, ImportDeclaration, ImportSpecifier, InterfaceDeclaration,
+  isBinaryExpression, isBlock, isCallExpression, isClassDeclaration, isConditionalExpression, isExportAssignment, isExportDeclaration,
+  isFunctionLike, isGetAccessorDeclaration, isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration, isNamedImports,
+  isPropertyAccessExpression, isPropertyDeclaration, isSetAccessorDeclaration, isTemplateExpression, MethodDeclaration, ModuleBlock,
+  ModuleDeclaration, NamespaceImport, Node, NoSubstitutionTemplateLiteral, PropertyAccessExpression, PropertyDeclaration, PropertySignature,
+  SourceFile, Statement, StringLiteral, SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
 } from "typescript";
 import { cache, paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
@@ -179,7 +179,7 @@ export class Template {
     }
     this.methods = new Map(
       this.declaration.templateSpans
-        .filter(({ expression }) => !isPropertyAccessExpression(expression))
+        .filter(({ expression }) => isBinaryExpression(expression) || isConditionalExpression(expression))
         .map(({ expression }, i): [ string, Method ] => {
           const args = [];
           forEachChild(expression, (node) => {
@@ -197,16 +197,20 @@ export class Template {
    * Parse an expression to a valid template binding
    *
    * @param expr Expression to parse
+   * @param binding Binding used around the variable
    *
    * @returns Template binding as a string
    */
-  public parseExpression(expr: Expression): string {
+  public parseExpression(expr: Expression, binding: [ string, string ]): string {
+    const hasBinding = [ "{{", "[[" ].includes(binding[ 0 ]) && [ "}}", "]]" ].includes(binding[ 1 ]);
+    const bindOneWay = (entity) => hasBinding ? entity : `[[${entity}]]`;
+    const bindTwoWay = (entity) => hasBinding ? entity : `{{${entity}}}`;
     if (isPropertyAccessExpression(expr) && expr.expression.kind === SyntaxKind.ThisKeyword) {
-      return `{{${expr.name.text}}}`;
+      return bindTwoWay(expr.name.text);
     } else {
       const expressionText = expr.getText();
       const method = this.methods.get(expressionText);
-      return method ? `[[${method.name}(${method.arguments.join(", ")})]]` : expressionText;
+      return method ? bindOneWay(`${method.name}(${method.arguments.join(", ")})`) : bindTwoWay(expressionText);
     }
   }
 
@@ -214,7 +218,7 @@ export class Template {
     if (this.declaration) {
       if (isTemplateExpression(this.declaration)) {
         return this.declaration.templateSpans.reduce((tpl, span) => {
-          return tpl + this.parseExpression(span.expression) + span.literal.text;
+          return tpl + this.parseExpression(span.expression, [ tpl.slice(-2), span.literal.text.slice(0, 2) ]) + span.literal.text;
         }, this.declaration.head.text);
       }
       return stripQuotes(this.declaration.getText());
