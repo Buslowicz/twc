@@ -2,9 +2,10 @@
 import { expect } from "chai";
 import {
   BinaryExpression, CallExpression, ClassDeclaration, createSourceFile, ExpressionStatement, Identifier, isPropertyDeclaration,
-  MethodDeclaration, PrefixUnaryExpression, PropertyDeclaration, ScriptTarget, SyntaxKind, UnionOrIntersectionTypeNode, VariableStatement
+  MethodDeclaration, NodeArray, PrefixUnaryExpression, PropertyDeclaration, ScriptTarget, SyntaxKind, UnionOrIntersectionTypeNode,
+  VariableStatement
 } from "typescript";
-import { Component, Method, Property } from "../src/builder";
+import { Component, Method, Property, Template } from "../src/builder";
 import * as decoratorsMap from "../src/decorators";
 import {
   flatExtends, flattenArray, getDecorators, getText, hasArguments, hasDecorator, hasModifier, hasOperator, hasOperatorToken,
@@ -631,7 +632,7 @@ describe("builders", () => {
         template() {
           return \`<h1>\${this.lastName}</h1> <h2>\${this.name}</h2>\`;
         }
-      }`)).template).to.equal("<h1>{{lastName}}</h1> <h2>{{name}}</h2>");
+      }`)).template.toString()).to.equal("<h1>{{lastName}}</h1> <h2>{{name}}</h2>");
     });
     it("should parsVars class correctly and build valid properties and methods", () => {
       let element = new Component(parseClass(`class Test {
@@ -972,7 +973,7 @@ describe("decorators", () => {
     it("should set template to be a Link if provided html file path", () => {
       const component = {} as Component;
       decoratorsMap.template.call(null, component, "template.html");
-      const template = component.template as Link;
+      const template = component.template[ "link" ] as Link;
       expect(template).to.be.instanceof(Link);
       expect(template.uri).to.equal("template.html");
     });
@@ -980,7 +981,47 @@ describe("decorators", () => {
     it("should set template to be as provided", () => {
       const component = {} as Component;
       decoratorsMap.template.call(null, component, "<h1>Hello World</h1>");
-      expect(component.template).to.equal("<h1>Hello World</h1>");
+      expect(component.template.toString()).to.equal("<h1>Hello World</h1>");
+    });
+  });
+});
+describe("template", () => {
+  describe("expression binding", () => {
+    it("should recognize expressions", () => {
+      const { members } = parseClass(`class Test {
+        prop: string;
+        t1() {
+          return \`<h1>Hello World</h1>\`;
+        }
+        t2() {
+          return "<h1>Hello World</h1>";
+        }
+        t3() {
+          return \`<h1>Hello $\{this.prop} World $\{this.prop + "test"} ! $\{this.prop === "test"}</h1>\`;
+        }
+        t4() {
+          return \`{{$\{this.prop}}} [[$\{this.prop}]] {{$\{this.prop + 1}}} [[$\{this.prop + 1}]] {{$\{document}}} [[$\{document}]]\`;
+        }
+      }`) as any as { members: NodeArray<MethodDeclaration> };
+
+      const template1 = new Template((members[ 1 ].body.statements.reduce((p, c) => c) as ExpressionStatement).expression as any);
+      expect(template1.toString()).to.equal("<h1>Hello World</h1>");
+      expect(template1.methods.size).to.equal(0);
+
+      const template2 = new Template((members[ 2 ].body.statements.reduce((p, c) => c) as ExpressionStatement).expression as any);
+      expect(template2.toString()).to.equal("<h1>Hello World</h1>");
+      expect(template2.methods.size).to.equal(0);
+
+      const template3 = new Template((members[ 3 ].body.statements.reduce((p, c) => c) as ExpressionStatement).expression as any);
+      expect(template3.toString()).to.equal("<h1>Hello {{prop}} World [[_expr0(prop)]] ! [[_expr1(prop)]]</h1>");
+      expect(template3.methods.size).to.equal(2);
+      expect(template3.methods.get("this.prop + \"test\"").toString()).to.deep.equal("_expr0(prop) { return this.prop + \"test\"; }");
+      expect(template3.methods.get("this.prop === \"test\"").toString()).to.deep.equal("_expr1(prop) { return this.prop === \"test\"; }");
+
+      const template4 = new Template((members[ 4 ].body.statements.reduce((p, c) => c) as ExpressionStatement).expression as any);
+      expect(template4.toString()).to.equal("{{prop}} [[prop]] {{_expr1(prop)}} [[_expr1(prop)]] {{document}} [[document]]");
+      expect(template4.methods.size).to.equal(1);
+      expect(template4.methods.get("this.prop + 1").toString()).to.deep.equal("_expr1(prop) { return this.prop + 1; }");
     });
   });
 });

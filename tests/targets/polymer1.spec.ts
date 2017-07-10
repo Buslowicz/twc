@@ -86,6 +86,64 @@ describe("Polymer v1 output", () => {
 
     expect(() => component.es5).to.throw(SyntaxError);
   });
+  describe("should allow simple expressions in the templates", () => {
+    const component = transpile(`
+      import { CustomElement } from "twc/polymer";
+      @CustomElement()
+      export class MyElement extends Polymer.Element {
+        name: string;
+        template() {
+          return \`<h1 title="$\{document.title + this.name}">Hello $\{this.name === "test" ? "default" : this.name}</h1>\`;
+        }
+      }`);
+
+    it("es5", () => {
+      expect(component.es5).to.equalIgnoreSpaces(`
+        <dom-module is="my-element">
+          <template>
+            <h1 title="[[_expr0(name)]]">Hello [[_expr1(name)]]</h1>
+          </template>
+          <script>
+            var MyElement = Polymer({
+              is: "my-element",
+              properties: {
+                name: String
+              },
+              _expr0: function(name) {
+                return document.title + this.name;
+              },
+              _expr1: function(name) {
+                return this.name === "test" ? "default" : this.name;
+              }
+            });
+          </script>
+        </dom-module>`
+      );
+    });
+    it("es6", () => {
+      expect(component.es6).to.equalIgnoreSpaces(`
+        <dom-module is="my-element">
+          <template>
+            <h1 title="[[_expr0(name)]]">Hello [[_expr1(name)]]</h1>
+          </template>
+          <script>
+            const MyElement = Polymer({
+              is: "my-element",
+              properties: {
+                name: String
+              },
+              _expr0(name) {
+                return document.title + this.name;
+              },
+              _expr1(name) {
+                return this.name === "test" ? "default" : this.name;
+              }
+            });
+          </script>
+        </dom-module>`
+      );
+    });
+  });
   describe("should not emit exports", () => {
     const component = transpile(`
       import { CustomElement } from "twc/polymer";

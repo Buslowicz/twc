@@ -1,4 +1,4 @@
-import { Component, Method, Property, Style } from "./builder";
+import { Component, Method, Property, Style, Template } from "./builder";
 import { getQuoteChar, Link, ParsedDecorator } from "./helpers";
 
 /**
@@ -98,5 +98,5 @@ export function style(this: ParsedDecorator, component: Component, ...styles: Ar
  * @param src Source of the template
  */
 export function template(this: ParsedDecorator, component: Component, src: string): void {
-  component.template = src.endsWith(".html") ? new Link(src, this.declaration) : src;
+  component.template = src.endsWith(".html") ? Template.fromLink(new Link(src, this.declaration)) : Template.fromString(src);
 }
