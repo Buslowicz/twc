@@ -1,9 +1,9 @@
 import { readFileSync } from "fs";
 import { dirname, join, relative, resolve } from "path";
 import {
-  BinaryExpression, CallExpression, ClassDeclaration, ClassElement, Expression, ExpressionStatement, forEachChild, FunctionExpression,
-  HeritageClause, Identifier, InterfaceDeclaration, isFunctionLike, isGetAccessorDeclaration, isPropertyDeclaration,
-  isSetAccessorDeclaration, JSDoc, NamedDeclaration, Node, PrefixUnaryExpression, SourceFile, SyntaxKind
+  BinaryExpression, CallExpression, ClassDeclaration, ClassElement, ExpressionStatement, forEachChild, FunctionExpression, HeritageClause,
+  Identifier, InterfaceDeclaration, isFunctionLike, isGetAccessorDeclaration, isIdentifier, isPropertyDeclaration, isSetAccessorDeclaration,
+  JSDoc, NamedDeclaration, Node, PrefixUnaryExpression, PropertyAccessExpression, SourceFile, SyntaxKind
 } from "typescript";
 import { Constructor } from "../types/index";
 import { ImportedNode, Method } from "./builder";
@@ -125,17 +125,6 @@ export class Ref {
 }
 
 /**
- * Reference to an expression, which cannot be converted to a function expression due to external references.
- */
-export class ReferencedExpression {
-  constructor(public expr: Expression) {}
-
-  public toString() {
-    return this.expr.getText();
-  }
-}
-
-/**
  * Class holding a node, which stringified can be wrapped with an anonymous function.
  */
 export class InitializerWrapper extends RefUpdaterMixin() {
@@ -155,7 +144,7 @@ export class InitializerWrapper extends RefUpdaterMixin() {
 /**
  * Parsed decorator, extracting name and arguments list from a decorator declaration.
  */
-export class ParsedDecorator {
+export class ParsedDecorator extends RefUpdaterMixin() {
   /** Name of the decorator */
   public get name(): string {
     return hasArguments(this.declaration) ? this.declaration.expression.getText() : this.declaration.getText();
@@ -174,16 +163,17 @@ export class ParsedDecorator {
         case SyntaxKind.Identifier:
           return new Ref(arg as Identifier);
         default:
-          try {
-            return new Function(`return ${arg.getText()}`)();
-          } catch (err) {
-            return new ReferencedExpression(arg);
-          }
+          const args = flattenChildren(arg)
+            .filter(isIdentifier)
+            .filter((node: Identifier & { parent: PropertyAccessExpression }) => node !== node.parent.name);
+          return new Function(...args.map((node) => node.getText()), `return ${arg.getText()}`)(...args);
       }
     });
   }
 
-  constructor(public readonly declaration: Identifier | CallExpression, private readonly variable: Identifier) {}
+  constructor(public readonly declaration: Identifier | CallExpression, private readonly variable: Identifier) {
+    super();
+  }
 
   public valueOf(): { name: string, arguments: Array<any> } {
     return { name: this.name, arguments: this.arguments };

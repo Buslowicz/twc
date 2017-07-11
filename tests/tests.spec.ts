@@ -10,7 +10,7 @@ import * as decoratorsMap from "../src/decorators";
 import {
   flatExtends, flattenArray, getDecorators, getText, hasArguments, hasDecorator, hasModifier, hasOperator, hasOperatorToken,
   hasOriginalKeywordKind, inheritsFrom, InitializerWrapper, isAllOf, isExtendsDeclaration, isOneOf, isPrivate, isPublic, isStatic,
-  isTransparent, Link, notPrivate, notPublic, notStatic, notTransparent, outPath, Ref, ReferencedExpression, toProperty, toString
+  isTransparent, Link, notPrivate, notPublic, notStatic, notTransparent, outPath, Ref, toProperty, toString
 } from "../src/helpers";
 import {
   getFinalType, getSimpleKind, parseDeclaration, parseDeclarationInitializer, parseDeclarationType, parseExpression,
@@ -80,8 +80,8 @@ describe("helpers", () => {
     });
     it("should handle expressions with references as a decorator argument", () => {
       const expr = getDecorators(parseClass(`class T { @a({ name: nameRef, value: valueRef }) p; }`).members[ 0 ])[ 0 ].arguments[ 0 ];
-      expect(expr).to.be.instanceof(ReferencedExpression);
-      expect(expr.toString()).to.equal("{ name: nameRef, value: valueRef }");
+      expect(expr.name.text).to.equal("nameRef");
+      expect(expr.value.text).to.equal("valueRef");
     });
   });
   describe("flatExtends", () => {

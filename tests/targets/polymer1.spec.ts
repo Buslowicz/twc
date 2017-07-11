@@ -62,13 +62,13 @@ describe("Polymer v1 output", () => {
       import { CustomElement } from "twc/polymer";
       @CustomElement()
       export class MyElement extends MyMixin(Polymer.Element) {}`).es5
-    ).to.throw(SyntaxError);
+    ).to.throw("Components in Polymer v1 can only extend `Polymer.Element` class.");
 
     expect(() => transpile(`
       import { CustomElement } from "twc/polymer";
       @CustomElement()
       export class MyElement extends MyNamespace.MyMixin(Polymer.Element) {}`).es5
-    ).to.throw(SyntaxError);
+    ).to.throw("Components in Polymer v1 can only extend `Polymer.Element` class.");
   });
   it("should allow to use behaviors via Polymer.mixinBehaviors mixin", () => {
     const component = transpile(`
@@ -99,7 +99,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <template>
             <h1 title="[[_expr0(name)]]">Hello [[_expr1(name)]]</h1>
           </template>
@@ -122,7 +122,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <template>
             <h1 title="[[_expr0(name)]]">Hello [[_expr1(name)]]</h1>
           </template>
@@ -155,7 +155,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             var MyElement = Polymer({ is: "my-element" });
             CustomElement;
@@ -166,7 +166,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             const MyElement = Polymer({ is: "my-element" });
             CustomElement;
@@ -257,7 +257,7 @@ describe("Polymer v1 output", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
         <link rel="import" href="some.html">
         <link rel="import" href="other.html">
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             var MyElement = Polymer({
               is: "my-element",
@@ -273,7 +273,7 @@ describe("Polymer v1 output", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
         <link rel="import" href="some.html">
         <link rel="import" href="other.html">
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             const MyElement = Polymer({
               is: "my-element",
@@ -302,7 +302,7 @@ describe("Polymer v1 output", () => {
         <!--
         This is a custom element
         -->
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <template>
             <h1>Hello World</h1>
           </template>
@@ -317,7 +317,7 @@ describe("Polymer v1 output", () => {
         <!--
         This is a custom element
         -->
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <template>
             <h1>Hello World</h1>
           </template>
@@ -340,7 +340,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <template>
             <h1>Hello World</h1>
           </template>
@@ -352,7 +352,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <template>
             <h1>Hello World</h1>
           </template>
@@ -371,7 +371,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             var MyElement = Polymer({ is: "my-element" });
           </script>
@@ -380,7 +380,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             const MyElement = Polymer({ is: "my-element" });
           </script>
@@ -403,7 +403,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             var MyElement = Polymer({
               is: "my-element",
@@ -422,7 +422,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             const MyElement = Polymer({
               is: "my-element",
@@ -457,7 +457,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             var MyElement = Polymer({
               is: "my-element",
@@ -484,7 +484,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             const MyElement = Polymer({
               is: "my-element",
@@ -527,7 +527,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             var MyElement = Polymer({
               is: "my-element",
@@ -559,7 +559,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             const MyElement = Polymer({
               is: "my-element",
@@ -611,7 +611,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             var MyElement = Polymer({
             /**
@@ -631,7 +631,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             const MyElement = Polymer({
             /**
@@ -685,7 +685,7 @@ describe("Polymer v1 output", () => {
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
         <link rel="import" href="../../iron-resizable-behavior/iron-resizable-behavior.html">
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             var MyElement = Polymer({
               is: "my-element",
@@ -700,7 +700,7 @@ describe("Polymer v1 output", () => {
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
         <link rel="import" href="../../iron-resizable-behavior/iron-resizable-behavior.html">
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             const MyElement = Polymer({
               is: "my-element",
@@ -730,7 +730,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             var test = 10;
             var SomeClass = (function() {
@@ -747,7 +747,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             const test = 10;
             class SomeClass {}
@@ -775,7 +775,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             var Custom;
             (function(Custom) {
@@ -794,7 +794,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             var Custom;
             (function(Custom) {
@@ -827,7 +827,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             var MyElement = Polymer({ is: "my-element" });
 
@@ -842,7 +842,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             const MyElement = Polymer({ is: "my-element" });
 
@@ -869,7 +869,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <template>
             <style>:host { color: red; }</style>
             <style include="shared-style"></style>
@@ -883,7 +883,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <template>
             <style>:host { color: red; }</style>
             <style include="shared-style"></style>
@@ -908,7 +908,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             var MyElement = Polymer({
                 is: "my-element",
@@ -920,7 +920,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             const MyElement = Polymer({
                 is: "my-element",
@@ -944,7 +944,7 @@ describe("Polymer v1 output", () => {
 
     it("es5", () => {
       expect(component.es5).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             var MyElement = Polymer({
                 is: "my-element",
@@ -959,7 +959,7 @@ describe("Polymer v1 output", () => {
     });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
-        <dom-module is="my-element">
+        <dom-module id="my-element">
           <script>
             const MyElement = Polymer({
                 is: "my-element",
@@ -971,6 +971,147 @@ describe("Polymer v1 output", () => {
           </script>
         </dom-module>`
       );
+    });
+  });
+  describe("Config", () => {
+    it("should throw an error if trying to set mutableData for Polymer v1", () => {
+      expect(() => transpile(`
+      import { CustomElement } from "twc/polymer";
+      @CustomElement({mutableData: "on"})
+      export class MyElement extends Polymer.Element {}`).es5
+      ).to.throw("MutableData is not available in Polymer v1");
+
+      expect(() => transpile(`
+      import { CustomElement } from "twc/polymer";
+      @CustomElement({mutableData: "optional"})
+      export class MyElement extends Polymer.Element {}`).es5
+      ).to.throw("MutableData is not available in Polymer v1");
+    });
+    describe("should override implicit name", () => {
+      const component = transpile(`
+      import { CustomElement, template } from "twc/polymer";
+
+      @CustomElement({name: "other-name"})
+      export class MyElement extends Polymer.Element {}`);
+
+      it("es5", () => {
+        expect(component.es5).to.equalIgnoreSpaces(`
+        <dom-module id="other-name">
+          <script>
+            var MyElement = Polymer({ is: "other-name" });
+          </script>
+        </dom-module>`
+        );
+      });
+      it("es6", () => {
+        expect(component.es6).to.equalIgnoreSpaces(`
+        <dom-module id="other-name">
+          <script>
+            const MyElement = Polymer({ is: "other-name" });
+          </script>
+        </dom-module>`
+        );
+      });
+    });
+    describe("should allow to provide a template", () => {
+      const component = transpile(`
+      import { CustomElement, template } from "twc/polymer";
+
+      @CustomElement({template: "<h1>Hello World</h1>"})
+      export class MyElement extends Polymer.Element {}`);
+
+      it("es5", () => {
+        expect(component.es5).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <template>
+            <h1>Hello World</h1>
+          </template>
+          <script>
+            var MyElement = Polymer({ is: "my-element" });
+          </script>
+        </dom-module>`
+        );
+      });
+      it("es6", () => {
+        expect(component.es6).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <template>
+            <h1>Hello World</h1>
+          </template>
+          <script>
+            const MyElement = Polymer({ is: "my-element" });
+          </script>
+        </dom-module>`
+        );
+      });
+    });
+    describe("should allow to provide styles", () => {
+      const component = transpile(`
+      import { CustomElement, template } from "twc/polymer";
+
+      @CustomElement({template: "<h1>Hello World</h1>", styles: [":host {color: red;}", "shared-style"]})
+      export class MyElement extends Polymer.Element {}`);
+
+      it("es5", () => {
+        expect(component.es5).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <template>
+            <style>:host { color: red; }</style>
+            <style include="shared-style"></style>
+            <h1>Hello World</h1>
+          </template>
+          <script>
+            var MyElement = Polymer({ is: "my-element" });
+          </script>
+        </dom-module>`
+        );
+      });
+      it("es6", () => {
+        expect(component.es6).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <template>
+            <style>:host { color: red; }</style>
+            <style include="shared-style"></style>
+            <h1>Hello World</h1>
+          </template>
+          <script>
+            const MyElement = Polymer({ is: "my-element" });
+          </script>
+        </dom-module>`
+        );
+      });
+    });
+    describe("should allow to set Polymer `strip-whitespace` option", () => {
+      const component = transpile(`
+      import { CustomElement, template } from "twc/polymer";
+
+      @CustomElement({template: "<h1>Hello World</h1>", stripWhitespace: true})
+      export class MyElement extends Polymer.Element {}`);
+
+      it("es5", () => {
+        expect(component.es5).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <template strip-whitespace>
+            <h1>Hello World</h1>
+          </template>
+          <script>
+            var MyElement = Polymer({ is: "my-element" });
+          </script>
+        </dom-module>`
+        );
+      });
+      it("es6", () => {
+        expect(component.es6).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <template strip-whitespace>
+            <h1>Hello World</h1>
+          </template>
+          <script>
+            const MyElement = Polymer({ is: "my-element" });
+          </script>
+        </dom-module>`
+        );
+      });
     });
   });
 });

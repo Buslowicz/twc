@@ -1,5 +1,6 @@
 import { existsSync } from "fs";
 import { dirname, extname, join, normalize, parse, relative, resolve } from "path";
+import { CustomElementOptions } from "twc/polymer";
 import {
   ArrayLiteralExpression, BinaryExpression, CallExpression, ClassDeclaration, CompilerOptions, Expression, ExpressionStatement,
   forEachChild, FunctionLikeDeclaration, HeritageClause, Identifier, ImportDeclaration, ImportSpecifier, InterfaceDeclaration,
@@ -400,6 +401,11 @@ export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
  * Representation of a component
  */
 export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
+  public config: CustomElementOptions = {
+    stripWhitespace: false,
+    autoRegisterProperties: true
+  };
+
   /** Components name */
   public get name(): string {
     return this.declaration.name.getText();
@@ -410,11 +416,19 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     if (!this.declaration.heritageClauses) {
       return null;
     }
-    return this.getText(
+    const heritage = this.getText(
       this.declaration.heritageClauses
         .filter(({ token }) => token === SyntaxKind.ExtendsKeyword)
         .reduce((a, c) => c, null)
     ).trim().replace(/^extends\s+/, "");
+    switch (this.config.mutableData) {
+      case "on":
+        return `Polymer.MutableData(${heritage})`;
+      case "optional":
+        return `Polymer.OptionalMutableData(${heritage})`;
+      default:
+        return heritage;
+    }
   }
 
   /** Components behaviors list */
@@ -468,14 +482,16 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
 
   constructor(public readonly declaration: ClassDeclaration) {
     super();
-    this.declaration
-      .members
-      .filter(isPropertyDeclaration)
-      .filter(notPrivate)
-      .filter(notStatic)
-      .map((property: PropertyDeclaration) => new Property(property, property.name.getText()))
-      .map((property) => this.decorate(property, property.decorators))
-      .forEach((property: Property) => this.properties.set(property.name, property));
+    if (this.config.autoRegisterProperties) {
+      this.declaration
+        .members
+        .filter(isPropertyDeclaration)
+        .filter(notPrivate)
+        .filter(notStatic)
+        .map((property: PropertyDeclaration) => new Property(property, property.name.getText()))
+        .map((property) => this.decorate(property, property.decorators))
+        .forEach((property: Property) => this.properties.set(property.name, property));
+    }
 
     this.declaration
       .members
