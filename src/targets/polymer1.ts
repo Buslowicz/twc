@@ -70,15 +70,15 @@ export class Polymer1 {
   protected get domModule(): string {
     // Forcing ES2015 modules to prevent code pollution with loaders boilerplate code
     const compilerOptions = Object.assign(this.module.compilerOptions, { module: ModuleKind.ES2015 });
-    const { body } = this;
+    const { body, component, imports } = this;
     const script = body ? `<script>${transpileModule(body, { compilerOptions }).outputText}</script>` : "";
 
-    return `${this.imports.join("\n")}${this.component ? `${this.component.htmlDoc}
-    <dom-module is="${this.component.name.replace(/([A-Z])/g, (_, l, i) => (i ? "-" : "") + l.toLowerCase())}">${
-      this.component.template ? `
-      <template>
-        ${this.component.styles.join("\n")}
-        ${this.component.template.toString().trim()}
+    return `${imports.join("\n")}${component ? `${component.htmlDoc}
+    <dom-module id="${component.config.name || component.name.replace(/([A-Z])/g, (_, l, i) => (i ? "-" : "") + l.toLowerCase())}">${
+      component.template ? `
+      <template${component.config.stripWhitespace ? " strip-whitespace" : ""}>
+        ${component.styles.join("\n")}
+        ${component.template.toString().trim()}
       </template>` : ""}
       ${script}
     </dom-module>` : script}`;
@@ -108,7 +108,15 @@ export class Polymer1 {
   protected validate(): void {
     const component = this.component;
     const polymerBase = /^Polymer.mixinBehaviors\(\[.*?],Polymer\.Element\)$|^Polymer\.Element$/;
-    if (component && component.heritage && !polymerBase.test(component.heritage.replace(/\s*/g, ""))) {
+    const mutableMixin = /^Polymer.(?:Optional)?MutableData/;
+    if (!component || typeof component.heritage !== "string") {
+      return;
+    }
+    const heritage = component.heritage.replace(/\s*/g, "");
+    if (mutableMixin.test(heritage)) {
+      throw new SyntaxError("MutableData is not available in Polymer v1.");
+    }
+    if (!polymerBase.test(heritage)) {
       throw new SyntaxError("Components in Polymer v1 can only extend `Polymer.Element` class.");
     }
   }
@@ -126,7 +134,7 @@ export class Polymer1 {
       const ${component.name} = Polymer({\n${
       component.events.join("\n")
       }${[
-      `is: ${quote}${component.name.replace(/([A-Z])/g, (_, l, i) => (i ? "-" : "") + l.toLowerCase())}${quote}`,
+      `is: ${quote}${component.config.name || component.name.replace(/([A-Z])/g, (_, l, i) => (i ? "-" : "") + l.toLowerCase())}${quote}`,
       this.behaviors(component),
       this.observers(component),
       this.properties(component),

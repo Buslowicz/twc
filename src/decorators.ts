@@ -1,3 +1,4 @@
+import { CustomElementOptions } from "twc/polymer";
 import { Component, Method, Property, Style, Template } from "./builder";
 import { getQuoteChar, Link, ParsedDecorator } from "./helpers";
 
@@ -99,4 +100,25 @@ export function style(this: ParsedDecorator, component: Component, ...styles: Ar
  */
 export function template(this: ParsedDecorator, component: Component, src: string): void {
   component.template = src.endsWith(".html") ? Template.fromLink(new Link(src, this.declaration)) : Template.fromString(src);
+}
+
+/**
+ * Optional component config
+ *
+ * @param component Component to add styles to
+ * @param config Config object
+ */
+export function CustomElement(this: ParsedDecorator, component: Component, config?: CustomElementOptions): void {
+  if (!config) {
+    return;
+  }
+  Object.assign(component.config, config);
+
+  if (config.template) {
+    template.call(this, component, config.template);
+  }
+
+  if (config.styles) {
+    style.call(this, component, ...(Array.isArray(config.styles) ? config.styles : [ config.styles ]));
+  }
 }

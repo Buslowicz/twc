@@ -2,8 +2,8 @@ import { readFileSync } from "fs";
 import { dirname, join, relative, resolve } from "path";
 import {
   BinaryExpression, CallExpression, ClassDeclaration, ClassElement, Expression, ExpressionStatement, forEachChild, FunctionExpression,
-  HeritageClause, Identifier, InterfaceDeclaration, isFunctionLike, isGetAccessorDeclaration, isPropertyDeclaration,
-  isSetAccessorDeclaration, JSDoc, NamedDeclaration, Node, PrefixUnaryExpression, SourceFile, SyntaxKind
+  HeritageClause, Identifier, InterfaceDeclaration, isFunctionLike, isGetAccessorDeclaration, isIdentifier, isPropertyDeclaration,
+  isSetAccessorDeclaration, JSDoc, NamedDeclaration, Node, PrefixUnaryExpression, PropertyAccessExpression, SourceFile, SyntaxKind
 } from "typescript";
 import { Constructor } from "../types/index";
 import { ImportedNode, Method } from "./builder";
@@ -155,7 +155,7 @@ export class InitializerWrapper extends RefUpdaterMixin() {
 /**
  * Parsed decorator, extracting name and arguments list from a decorator declaration.
  */
-export class ParsedDecorator {
+export class ParsedDecorator extends RefUpdaterMixin() {
   /** Name of the decorator */
   public get name(): string {
     return hasArguments(this.declaration) ? this.declaration.expression.getText() : this.declaration.getText();
@@ -175,7 +175,10 @@ export class ParsedDecorator {
           return new Ref(arg as Identifier);
         default:
           try {
-            return new Function(`return ${arg.getText()}`)();
+            const args = flattenChildren(arg)
+              .filter(isIdentifier)
+              .filter((node: Identifier & { parent: PropertyAccessExpression }) => node !== node.parent.name);
+            return new Function(...args.map((node) => node.getText()), `return ${arg.getText()}`)(...args);
           } catch (err) {
             return new ReferencedExpression(arg);
           }
@@ -183,7 +186,9 @@ export class ParsedDecorator {
     });
   }
 
-  constructor(public readonly declaration: Identifier | CallExpression, private readonly variable: Identifier) {}
+  constructor(public readonly declaration: Identifier | CallExpression, private readonly variable: Identifier) {
+    super();
+  }
 
   public valueOf(): { name: string, arguments: Array<any> } {
     return { name: this.name, arguments: this.arguments };

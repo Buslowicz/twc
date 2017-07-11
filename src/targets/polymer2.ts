@@ -38,7 +38,9 @@ export class Polymer2 extends Polymer1 {
     return `${component.events.join("\n")}
       class ${component.name} extends ${component.heritage} {
       ${[
-      `static get is() { return ${quote}${component.name.replace(/([A-Z])/g, (_, l, i) => (i ? "-" : "") + l.toLowerCase())}${quote} }`,
+      `static get is() { return ${quote}${
+      component.config.name || component.name.replace(/([A-Z])/g, (_, l, i) => (i ? "-" : "") + l.toLowerCase())
+        }${quote} }`,
       this.observers(component),
       this.properties(component),
       ...this.methods(component)

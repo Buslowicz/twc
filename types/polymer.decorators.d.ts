@@ -1,6 +1,15 @@
 /// <reference path="polymer.d.ts"/>
 
 declare module "twc/polymer" {
+  export interface CustomElementOptions {
+    name?: string;
+    template?: string;
+    stripWhitespace: boolean;
+    styles?: Array<string> | string;
+    mutableData?: "on" | "off" | "optional";
+    autoRegisterProperties?: boolean;
+  }
+
   /**
    * Register the class as a component.
    *
@@ -8,7 +17,7 @@ declare module "twc/polymer" {
    * @CustomElement()
    * class MyElement {}
    */
-  export function CustomElement(): ClassDecorator;
+  export function CustomElement(config?: CustomElementOptions): ClassDecorator;
 
   /**
    * Add a template to the component.
