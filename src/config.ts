@@ -56,7 +56,7 @@ function readFileAsString(path: string): string {
   return readFileSync(path, "utf-8").toString();
 }
 
-const twc = readConfigFile(findConfigFile(module.filename, existsSync, "package.json"), readFileAsString).config;
+const twc = JSON.parse(readFileSync(join(__dirname, "..", "package.json")).toString());
 
 const { fileNames, options, errors } = parseCommandLine(process.argv.slice(2), readFileAsString);
 
