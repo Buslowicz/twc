@@ -1,4 +1,4 @@
-#!/usr/bin/node
+#!/usr/bin/env node
 import { existsSync, mkdirSync, readFileSync, watchFile, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { createSourceFile, MapLike, SourceFile } from "typescript";
