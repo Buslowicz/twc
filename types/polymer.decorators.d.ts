@@ -1,12 +1,59 @@
 /// <reference path="polymer.d.ts"/>
 
 declare module "twc/polymer" {
+  /**
+   * Polymer property configuration interface.
+   * @see https://www.polymer-project.org/2.0/docs/devguide/properties
+   */
+  export interface PolymerPropertyConfig {
+    /** Boolean, Date, Number, String, Array or Object. */
+    type?: any;
+    /** Default value for the property. */
+    value?: any;
+    /** Should the property reflect to attribute. */
+    reflectToAttribute?: boolean;
+    /** Marks property as read-only. */
+    readonly?: boolean;
+    /** If set to true, will trigger "propname-changed". */
+    notify?: boolean;
+    /** Computed function call (as string). */
+    computed?: string;
+    /** Observer function call (as string). */
+    observer?: string;
+  }
+
+  /**
+   * Custom element options interface.
+   */
   export interface CustomElementOptions {
+    /**
+     * Override component tag name.
+     */
     name?: string;
+    /**
+     * Provide a template for the component.
+     * @see https://www.polymer-project.org/2.0/docs/devguide/dom-template
+     */
     template?: string;
-    stripWhitespace: boolean;
+    /**
+     * Provide styles for the component.
+     * @see https://www.polymer-project.org/2.0/docs/devguide/style-shadow-dom
+     */
     styles?: Array<string> | string;
+    /**
+     * Strip whitespace from the component template.
+     * @see https://www.polymer-project.org/2.0/docs/devguide/dom-template#strip-whitespace
+     */
+    stripWhitespace: boolean;
+    /**
+     * Set MutableData or OptionalMutableData on the component (Polymer V2 only).
+     * @version ^2.0.0
+     * @see https://www.polymer-project.org/2.0/docs/devguide/data-system#mutable-data
+     */
     mutableData?: "on" | "off" | "optional";
+    /**
+     * Automatically register all public properties.
+     */
     autoRegisterProperties?: boolean;
   }
 
@@ -21,6 +68,7 @@ declare module "twc/polymer" {
 
   /**
    * Add a template to the component.
+   * @see https://www.polymer-project.org/2.0/docs/devguide/dom-template
    *
    * @example
    * @CustomElement()
@@ -37,6 +85,7 @@ declare module "twc/polymer" {
 
   /**
    * Add styles to the component.
+   * @see https://www.polymer-project.org/2.0/docs/devguide/style-shadow-dom
    *
    * @example
    * @CustomElement()
@@ -56,6 +105,7 @@ declare module "twc/polymer" {
 
   /**
    * Make the JS property reflect to HTML attribute.
+   * @see https://www.polymer-project.org/2.0/docs/devguide/properties
    *
    * @example
    * @CustomElement()
@@ -67,6 +117,7 @@ declare module "twc/polymer" {
 
   /**
    * Make property fire an event whenever its value changes. Event name will match "property-name-changed" pattern.
+   * @see https://www.polymer-project.org/2.0/docs/devguide/properties
    *
    * @example
    * @CustomElement()
@@ -79,6 +130,7 @@ declare module "twc/polymer" {
   /**
    * Make the property value to be computed using provided method (or its name) and arguments (optional when providing method with arguments
    * matching class properties).
+   * @see https://www.polymer-project.org/2.0/docs/devguide/observers#computed-properties
    *
    * @example
    * @CustomElement()
@@ -98,6 +150,7 @@ declare module "twc/polymer" {
   /**
    * Make the property value to be computed using provided method (or its name) and arguments (optional when providing method with arguments
    * matching class properties).
+   * @see https://www.polymer-project.org/2.0/docs/devguide/observers#computed-properties
    *
    * @example
    * @CustomElement()
@@ -114,7 +167,8 @@ declare module "twc/polymer" {
   export function compute(method: Function, args?: [ string ]): PropertyDecorator;
 
   /**
-   * Make the method be run whenever any of provided properties change
+   * Make the method be run whenever any of provided properties change.
+   * @see https://www.polymer-project.org/2.0/docs/devguide/observers
    *
    * @example
    * @CustomElement()
@@ -127,4 +181,19 @@ declare module "twc/polymer" {
    * @param props List of properties to observe
    */
   export function observe(...props: Array<string>): MethodDecorator;
+
+  /**
+   * Manually register a property
+   * @see https://www.polymer-project.org/2.0/docs/devguide/properties
+   *
+   * @example
+   * @CustomElement({ autoRegisterProperties: false })
+   * class MyElement {
+   *  @property() prop1: string;
+   *  @property({ readOnly: true, value: 10, reflectToAttribute: true }) prop2: number;
+   * }
+   *
+   * @param config Polymer property configuration
+   */
+  export function property(config?: PolymerPropertyConfig): PropertyDecorator;
 }

@@ -298,8 +298,12 @@ export class Property extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   public observer?: string;
 
   /** Whether property has a read only access */
+  public set readOnly(readOnly) {
+    this[ " isReadOnly" ] = readOnly;
+  }
+
   public get readOnly(): boolean {
-    return hasModifier(this.declaration, SyntaxKind.ReadonlyKeyword);
+    return " isReadOnly" in this ? this[ " isReadOnly" ] : hasModifier(this.declaration, SyntaxKind.ReadonlyKeyword);
   }
 
   constructor(public readonly declaration: PropertyDeclaration, public readonly name: string) {
@@ -482,16 +486,17 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
 
   constructor(public readonly declaration: ClassDeclaration) {
     super();
-    if (this.config.autoRegisterProperties) {
-      this.declaration
-        .members
-        .filter(isPropertyDeclaration)
-        .filter(notPrivate)
-        .filter(notStatic)
-        .map((property: PropertyDeclaration) => new Property(property, property.name.getText()))
-        .map((property) => this.decorate(property, property.decorators))
-        .forEach((property: Property) => this.properties.set(property.name, property));
-    }
+
+    this.decorate(this, this.decorators);
+
+    this.declaration
+      .members
+      .filter(isPropertyDeclaration)
+      .filter(notPrivate)
+      .filter(notStatic)
+      .map((property: PropertyDeclaration) => new Property(property, property.name.getText()))
+      .map((property) => this.decorate(property, property.decorators))
+      .forEach((property: Property) => this.config.autoRegisterProperties ? this.properties.set(property.name, property) : null);
 
     this.declaration
       .members
@@ -514,8 +519,6 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
       .filter(isStatic)
       .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : "constructor"))
       .forEach((method: Method) => this.staticMethods.set(method.name, method));
-
-    this.decorate(this, this.decorators);
 
     if (this.methods.has("template")) {
       this.template = Template.fromMethod(this.methods.get("template").declaration as MethodDeclaration);

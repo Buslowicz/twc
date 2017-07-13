@@ -1184,7 +1184,7 @@ describe("Polymer v2 output", () => {
     });
   });
   describe("Config", () => {
-    describe("should throw an error if trying to set mutableData for Polymer v1", () => {
+    describe("should use MutableData or OptionalMutableData according to config", () => {
       const component1 = transpile(`
       import { CustomElement, template } from "twc/polymer";
 
@@ -1426,6 +1426,150 @@ describe("Polymer v2 output", () => {
             class MyElement extends Polymer.Element {
               static get is() {
                 return "my-element";
+              }
+            }
+            customElements.define(MyElement.is, MyElement);
+          </script>
+        </dom-module>`
+        );
+      });
+    });
+    describe("should allow to disable properties auto registration", () => {
+      const component = transpile(`
+      import { CustomElement, template } from "twc/polymer";
+
+      @CustomElement({autoRegisterProperties: false})
+      export class MyElement extends Polymer.Element {
+        prop: string;
+      }`);
+
+      it("es5", () => {
+        expect(component.es5).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <script>
+            var MyElement = (function(_super) {
+              __extends(MyElement, _super);
+
+              function MyElement() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(MyElement, "is", {
+                get: function() {
+                  return "my-element";
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return MyElement;
+            }(Polymer.Element));
+            customElements.define(MyElement.is, MyElement);
+          </script>
+        </dom-module>`
+        );
+      });
+      it("es6", () => {
+        expect(component.es6).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <script>
+            class MyElement extends Polymer.Element {
+              static get is() {
+                return "my-element";
+              }
+            }
+            customElements.define(MyElement.is, MyElement);
+          </script>
+        </dom-module>`
+        );
+      });
+    });
+    describe("should allow to enable single properties registration via @property decorator", () => {
+      const component = transpile(`
+      import { CustomElement, template } from "twc/polymer";
+
+      @CustomElement({autoRegisterProperties: false})
+      export class MyElement extends Polymer.Element {
+        prop1: string;
+        @property({readOnly: true}) prop2: string;
+        @property() @notify() prop3: string;
+        @notify() @property() @attr() prop4: string;
+        @notify() @property({reflectToAttribute: false, notify: false}) @attr() prop5: string;
+      }`);
+
+      it("es5", () => {
+        expect(component.es5).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <script>
+            var MyElement = (function(_super) {
+              __extends(MyElement, _super);
+
+              function MyElement() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(MyElement, "is", {
+                get: function() {
+                  return "my-element";
+                },
+                enumerable: true,
+                configurable: true
+              });
+              Object.defineProperty(MyElement, "properties", {
+                get: function() {
+                  return {
+                    prop2: {
+                      type: String,
+                      readOnly: true
+                    },
+                    prop3: {
+                      type: String,
+                      notify: true
+                    },
+                    prop4: {
+                      type: String,
+                      reflectToAttribute: true,
+                      notify: true
+                    },
+                    prop5: {
+                      type: String,
+                      reflectToAttribute: true
+                    }
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return MyElement;
+            }(Polymer.Element));
+            customElements.define(MyElement.is, MyElement);
+          </script>
+        </dom-module>`
+        );
+      });
+      it("es6", () => {
+        expect(component.es6).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <script>
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+              static get properties() {
+                return {
+                  prop2: {
+                    type: String,
+                    readOnly: true
+                  },
+                  prop3: {
+                    type: String,
+                    notify: true
+                  },
+                  prop4: {
+                    type: String,
+                    reflectToAttribute: true,
+                    notify: true
+                  },
+                  prop5: {
+                    type: String,
+                    reflectToAttribute: true
+                  }
+                };
               }
             }
             customElements.define(MyElement.is, MyElement);

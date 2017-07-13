@@ -1081,6 +1081,107 @@ describe("Polymer v1 output", () => {
         );
       });
     });
+    describe("should allow to disable properties auto registration", () => {
+      const component = transpile(`
+      import { CustomElement, template } from "twc/polymer";
+
+      @CustomElement({autoRegisterProperties: false})
+      export class MyElement extends Polymer.Element {
+        prop: string;
+      }`);
+
+      it("es5", () => {
+        expect(component.es5).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <script>
+            var MyElement = Polymer({ is: "my-element" });
+          </script>
+        </dom-module>`
+        );
+      });
+      it("es6", () => {
+        expect(component.es6).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <script>
+            const MyElement = Polymer({ is: "my-element" });
+          </script>
+        </dom-module>`
+        );
+      });
+    });
+    describe("should allow to enable single properties registration via @property decorator", () => {
+      const component = transpile(`
+      import { CustomElement, template } from "twc/polymer";
+
+      @CustomElement({autoRegisterProperties: false})
+      export class MyElement extends Polymer.Element {
+        prop1: string;
+        @property({readOnly: true}) prop2: string;
+        @property() @notify() prop3: string;
+        @notify() @property() @attr() prop4: string;
+        @notify() @property({reflectToAttribute: false, notify: false}) @attr() prop5: string;
+      }`);
+
+      it("es5", () => {
+        expect(component.es5).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <script>
+            var MyElement = Polymer({
+              is: "my-element",
+              properties: {
+                prop2: {
+                  type: String,
+                  readOnly: true
+                },
+                prop3: {
+                  type: String,
+                  notify: true
+                },
+                prop4: {
+                  type: String,
+                  reflectToAttribute: true,
+                  notify: true
+                },
+                prop5: {
+                  type: String,
+                  reflectToAttribute: true
+                }
+              }
+            });
+          </script>
+        </dom-module>`
+        );
+      });
+      it("es6", () => {
+        expect(component.es6).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <script>
+            const MyElement = Polymer({
+              is: "my-element",
+              properties: {
+                prop2: {
+                  type: String,
+                  readOnly: true
+                },
+                prop3: {
+                  type: String,
+                  notify: true
+                },
+                prop4: {
+                  type: String,
+                  reflectToAttribute: true,
+                  notify: true
+                },
+                prop5: {
+                type: String,
+                reflectToAttribute: true}
+              }
+            });
+          </script>
+        </dom-module>`
+        );
+      });
+    });
     describe("should allow to set Polymer `strip-whitespace` option", () => {
       const component = transpile(`
       import { CustomElement, template } from "twc/polymer";

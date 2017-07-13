@@ -6,9 +6,20 @@ import { getQuoteChar, Link, ParsedDecorator } from "./helpers";
  * Additional meta data returned from a decorator (extra methods, properties and observers)
  */
 interface DecoratorExtras {
-  methods?: Array<Method>;
-  properties?: Array<{ name: string, observer: string }>;
+  methods?: Array<{[K in keyof Method]?: Method[K]}>;
+  properties?: Array<{[K in keyof Property]?: Property[K]}>;
   observers?: Array<string>;
+}
+
+/**
+ * Manually register a property
+ *
+ * @this ParsedDecorator
+ * @param property Property to decorate
+ * @param config Property configuration object
+ */
+export function property(this: ParsedDecorator, property: Property, config: object): DecoratorExtras {
+  return { properties: [ Object.assign(property, config) ] };
 }
 
 /**
