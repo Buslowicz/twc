@@ -1,14 +1,26 @@
 import { CustomElementOptions } from "twc/polymer";
-import { Component, Method, Property, Style, Template } from "./builder";
+import { Component, Method, MethodHook, Property, Style, Template } from "./builder";
 import { getQuoteChar, Link, ParsedDecorator } from "./helpers";
 
 /**
  * Additional meta data returned from a decorator (extra methods, properties and observers)
  */
-interface DecoratorExtras {
-  methods?: Array<Method>;
-  properties?: Array<{ name: string, observer: string }>;
+export interface DecoratorExtras {
+  methods?: Array<{[K in keyof Method]?: Method[K]}>;
+  properties?: Array<{[K in keyof Property]?: Property[K]}>;
   observers?: Array<string>;
+  hooks?: Map<string, MethodHook>;
+}
+
+/**
+ * Manually register a property
+ *
+ * @this ParsedDecorator
+ * @param property Property to decorate
+ * @param config Property configuration object
+ */
+export function property(this: ParsedDecorator, property: Property, config: object): DecoratorExtras {
+  return { properties: [ Object.assign(property, config) ] };
 }
 
 /**
@@ -73,6 +85,35 @@ export function observe(this: ParsedDecorator, method: Method, ...args: Array<st
     return { properties: [ { name: args[ 0 ], observer: `${quote}${method.name}${quote}` } ] };
   }
   return { observers: [ `${method.name}(${args.join(", ")})` ] };
+}
+
+/**
+ * Add listeners to connectedCallback and remove them on disconnectedCallback (eventually remove them in first callback if `once` is set).
+ *
+ * @this ParsedDecorator
+ * @param method Method to set as an event handler
+ * @param eventName Event to bind add listener to
+ * @param [once=false] Should listener be removed after first call?
+ *
+ * @returns Map with method names and hooks for them
+ */
+export function listen(this: ParsedDecorator, method: Method, eventName: string, once: boolean = false): DecoratorExtras {
+  const gestureEvents = [ "down", "up", "track", "tap" ];
+  const removeEvent = gestureEvents.includes(eventName) ?
+    `Polymer.Gestures.removeListener(this, "${eventName}", this._${method.name}Bound);` :
+    `this.removeEventListener("${eventName}", this._${method.name}Bound);`;
+  const eventHandler = once ? `(...args) => { this.${method.name}(...args); ${removeEvent} }` : `this.${method.name}.bind(this)`;
+  const addEvent = gestureEvents.includes(eventName) ?
+    `Polymer.Gestures.addListener(this, "${eventName}", this._${method.name}Bound = ${eventHandler});` :
+    `this.addEventListener("${eventName}", this._${method.name}Bound = ${eventHandler});`;
+  return {
+    hooks: once ? new Map([
+      [ "connectedCallback", { place: "afterbegin" as any, statement: addEvent } ]
+    ]) : new Map([
+      [ "connectedCallback", { place: "afterbegin" as any, statement: addEvent } ],
+      [ "disconnectedCallback", { place: "afterbegin" as any, statement: removeEvent } ]
+    ])
+  };
 }
 
 /**

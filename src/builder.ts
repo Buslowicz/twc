@@ -2,22 +2,31 @@ import { existsSync } from "fs";
 import { dirname, extname, join, normalize, parse, relative, resolve } from "path";
 import { CustomElementOptions } from "twc/polymer";
 import {
-  ArrayLiteralExpression, BinaryExpression, CallExpression, ClassDeclaration, CompilerOptions, Expression, ExpressionStatement,
-  forEachChild, FunctionLikeDeclaration, HeritageClause, Identifier, ImportDeclaration, ImportSpecifier, InterfaceDeclaration,
-  isBinaryExpression, isBlock, isCallExpression, isClassDeclaration, isConditionalExpression, isExportAssignment, isExportDeclaration,
-  isFunctionLike, isGetAccessorDeclaration, isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration, isNamedImports,
-  isPropertyAccessExpression, isPropertyDeclaration, isSetAccessorDeclaration, isTemplateExpression, MethodDeclaration, ModuleBlock,
-  ModuleDeclaration, NamespaceImport, Node, NoSubstitutionTemplateLiteral, PropertyAccessExpression, PropertyDeclaration, PropertySignature,
-  SourceFile, Statement, StringLiteral, SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
+  ArrayLiteralExpression, BinaryExpression, CallExpression, ClassDeclaration, CompilerOptions, createBlock, createFunctionDeclaration,
+  Expression, ExpressionStatement, forEachChild, FunctionLikeDeclaration, HeritageClause, Identifier, ImportDeclaration, ImportSpecifier,
+  InterfaceDeclaration, isBinaryExpression, isBlock, isCallExpression, isClassDeclaration, isConditionalExpression, isExportAssignment,
+  isExportDeclaration, isFunctionLike, isGetAccessorDeclaration, isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration,
+  isNamedImports, isPropertyAccessExpression, isPropertyDeclaration, isSetAccessorDeclaration, isTemplateExpression, MethodDeclaration,
+  ModuleBlock, ModuleDeclaration, NamespaceImport, Node, NoSubstitutionTemplateLiteral, PropertyAccessExpression, PropertyDeclaration,
+  PropertySignature, SourceFile, Statement, StringLiteral, SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
 } from "typescript";
 import { cache, paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
+import { DecoratorExtras } from "./decorators";
 import {
   DecoratorsMixin, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isExtendsDeclaration, isOneOf, isStatic,
   JSDocMixin, Link, notPrivate, notStatic, outPath, ParsedDecorator, RefUpdaterMixin, stripQuotes
 } from "./helpers";
 import * as buildTargets from "./targets";
 import { parseDeclaration, parseDeclarationType, ValidValue } from "./type-analyzer";
+
+/**
+ * Method hook interface
+ */
+export interface MethodHook {
+  place: "beforeend" | "afterbegin";
+  statement: string;
+}
 
 /**
  * Map of TypeScript kind to JavaScript type.
@@ -298,8 +307,12 @@ export class Property extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   public observer?: string;
 
   /** Whether property has a read only access */
+  public set readOnly(readOnly) {
+    this[ " isReadOnly" ] = readOnly;
+  }
+
   public get readOnly(): boolean {
-    return hasModifier(this.declaration, SyntaxKind.ReadonlyKeyword);
+    return " isReadOnly" in this ? this[ " isReadOnly" ] : hasModifier(this.declaration, SyntaxKind.ReadonlyKeyword);
   }
 
   constructor(public readonly declaration: PropertyDeclaration, public readonly name: string) {
@@ -333,13 +346,11 @@ export class Property extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
  * Representation of a component method
  */
 export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
-  constructor(
-    public readonly declaration: FunctionLikeDeclaration | Expression,
-    public readonly name = "function",
-    private args?: Array<Identifier>
-  ) {
-    super();
-  }
+  /**
+   * Additional statements to be injected at the beginning or the end of method body.
+   * Hooks will always be placed after `super` calls and before `return`
+   */
+  public hooks: Array<MethodHook> = [];
 
   /** Methods accessor (get, set, or none) */
   public get accessor(): string {
@@ -377,19 +388,85 @@ export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
 
   /** List of method body statements */
   private get statements(): Array<string> {
+    const applyHooks = (statements) => (hook) => {
+      switch (hook.place) {
+        case "beforeend":
+          statements.splice(
+            statements.length - statements
+              .slice()
+              .sort((a, b) => b - a)
+              .findIndex((statement) => statement.startsWith("return")) + 1,
+            0,
+            hook.statement
+          );
+          break;
+        case "afterbegin":
+          statements.splice(
+            statements.findIndex((statement) => statement.startsWith("super")) + 1,
+            0,
+            hook.statement
+          );
+          break;
+        default:
+          break;
+      }
+    };
     if (isFunctionLike(this.declaration)) {
       if (isBlock(this.declaration.body)) {
         const statements = this.declaration.body.statements.map(this.getText);
+        this.hooks.forEach(applyHooks(statements));
         if (this.skipSuper) {
-          return statements.filter((statement) => !/\ssuper\(.*?\);?/.test(statement));
+          return statements.filter((statement) => !/\s*super\(.*?\);?/.test(statement));
         }
         return statements;
       } else {
-        return [ `return ${this.getText(this.declaration.body)};` ];
+        const statements = [];
+        this.hooks.forEach(applyHooks(statements));
+        return [ ...statements, `return ${this.getText(this.declaration.body)};` ];
       }
     } else {
-      return [ `return ${this.getText(this.declaration)};` ];
+      const statements = [];
+      this.hooks.forEach(applyHooks(statements));
+      return [ ...statements, `return ${this.getText(this.declaration)};` ];
     }
+  }
+
+  constructor(
+    public readonly declaration: FunctionLikeDeclaration | Expression,
+    public readonly name = "function",
+    public args?: Array<Identifier>
+  ) {
+    super();
+  }
+
+  /**
+   * Return a method clone
+   *
+   * @returns Cloned method
+   */
+  public clone(): Method {
+    return Object.assign(new Method(null, null), this);
+  }
+
+  /**
+   * Update method with provided data
+   *
+   * @params data Data to override method with
+   *
+   * @returns Reference to this instance (to allow chaining)
+   */
+  public update(data: {[K in keyof Method]?: Method[K]}) {
+    Object
+      .keys(data)
+      .map((key) => [ key, data[ key ] ])
+      .forEach(([ key, value ]) => {
+        if (Array.isArray(value)) {
+          this[ key ] = this[ key ].concat(value);
+        } else {
+          Object.assign(this, { [key]: value });
+        }
+      });
+    return this;
   }
 
   public toString() {
@@ -482,16 +559,17 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
 
   constructor(public readonly declaration: ClassDeclaration) {
     super();
-    if (this.config.autoRegisterProperties) {
-      this.declaration
-        .members
-        .filter(isPropertyDeclaration)
-        .filter(notPrivate)
-        .filter(notStatic)
-        .map((property: PropertyDeclaration) => new Property(property, property.name.getText()))
-        .map((property) => this.decorate(property, property.decorators))
-        .forEach((property: Property) => this.properties.set(property.name, property));
-    }
+
+    this.decorate(this, this.decorators);
+
+    this.declaration
+      .members
+      .filter(isPropertyDeclaration)
+      .filter(notPrivate)
+      .filter(notStatic)
+      .map((property: PropertyDeclaration) => new Property(property, property.name.getText()))
+      .map((property) => this.decorate(property, property.decorators))
+      .forEach((property: Property) => this.config.autoRegisterProperties ? this.properties.set(property.name, property) : null);
 
     this.declaration
       .members
@@ -506,7 +584,13 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
       .filter(notStatic)
       .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : "constructor"))
       .map((method) => this.decorate(method, method.decorators))
-      .forEach((method: Method) => this.methods.set(method.name, method));
+      .forEach((method: Method) => {
+        if (this.methods.has(method.name)) {
+          this.methods.get(method.name).update(method);
+        } else {
+          this.methods.set(method.name, method);
+        }
+      });
 
     this.declaration
       .members
@@ -514,8 +598,6 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
       .filter(isStatic)
       .map((method: MethodDeclaration) => new Method(method, method.name ? method.name.getText() : "constructor"))
       .forEach((method: Method) => this.staticMethods.set(method.name, method));
-
-    this.decorate(this, this.decorators);
 
     if (this.methods.has("template")) {
       this.template = Template.fromMethod(this.methods.get("template").declaration as MethodDeclaration);
@@ -541,11 +623,11 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   private decorate(member: Property | Method | Component, decorators: Array<ParsedDecorator>): Property | Method | Component {
     decorators.forEach((decor) => {
       if (decor.name in decoratorsMap) {
-        const { methods = [], properties = [], observers = [] } = decoratorsMap[ decor.name ].call(
+        const { methods = [], properties = [], observers = [], hooks = new Map() } = (decoratorsMap[ decor.name ].call(
           decor,
           member,
           ...(decor.arguments || [])
-        ) || {};
+        ) || {}) as DecoratorExtras;
         properties.forEach((property) => {
           if (this.properties.has(property.name)) {
             Object.assign(this.properties.get(property.name), property);
@@ -565,10 +647,16 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
           if (this.methods.has(method.name)) {
             Object.assign(this.methods.get(method.name), method);
           } else {
-            this.methods.set(method.name, method);
+            this.methods.set(method.name, method as Method);
           }
         });
         observers.forEach((observer) => this.observers.push(observer));
+        hooks.forEach((hook, name) => {
+          if (!this.methods.has(name)) {
+            this.methods.set(name, new Method(createFunctionDeclaration([], [], null, name, [], [], null, createBlock([])), name));
+          }
+          this.methods.get(name).update({ hooks: [ hook ] });
+        });
       }
     });
     return member;
