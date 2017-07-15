@@ -456,13 +456,16 @@ export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
    * @returns Reference to this instance (to allow chaining)
    */
   public update(data: {[K in keyof Method]?: Method[K]}) {
-    Object.entries(data).forEach(([ key, value ]) => {
-      if (Array.isArray(value)) {
-        this[ key ] = this[ key ].concat(value);
-      } else {
-        Object.assign(this, { [key]: value });
-      }
-    });
+    Object
+      .keys(data)
+      .map((key) => [ key, data[ key ] ])
+      .forEach(([ key, value ]) => {
+        if (Array.isArray(value)) {
+          this[ key ] = this[ key ].concat(value);
+        } else {
+          Object.assign(this, { [key]: value });
+        }
+      });
     return this;
   }
 
