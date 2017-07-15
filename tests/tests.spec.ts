@@ -608,13 +608,33 @@ describe("builders", () => {
     });
   });
   describe("Method()", () => {
-    const method = parsVars(`let x = function(a, b) { return a + b; }`).initializer as any as MethodDeclaration;
+    const method = parsVars(`let x = function(a, b) { log(); return a + b; }`).initializer as any as MethodDeclaration;
+    const array = parsVars(`let x = (a, b) => { log(); return a + b; }`).initializer as any as MethodDeclaration;
+    const oneLiner = parsVars(`let x = (a, b) => a + b`).initializer as any as MethodDeclaration;
+    const superMethod = parsVars(`let x = function(a, b) { super.fun(); return a + b; }`).initializer as any as MethodDeclaration;
     it("should parsVars a function expression and return a function", () => {
-      expect(new Method(method).toString()).to.equal(`function(a, b) { return a + b; }`);
+      expect(new Method(method).toString()).to.equalIgnoreSpaces(`function(a, b) { log(); return a + b; }`);
+      expect(new Method(array).toString()).to.equalIgnoreSpaces(`function(a, b) { log(); return a + b; }`);
+      expect(new Method(oneLiner).toString()).to.equalIgnoreSpaces(`function(a, b) { return a + b; }`);
     });
     it("should name a function if name was provided", () => {
-      expect(new Method(method, "testFun").toString()).to.equal(`testFun(a, b) { return a + b; }`);
+      expect(new Method(method, "testFun").toString()).to.equalIgnoreSpaces(`testFun(a, b) { log(); return a + b; }`);
+      expect(new Method(array, "testFun").toString()).to.equalIgnoreSpaces(`testFun(a, b) { log(); return a + b; }`);
+      expect(new Method(oneLiner, "testFun").toString()).to.equalIgnoreSpaces(`testFun(a, b) { return a + b; }`);
       expect(new Method(method, "testFun").name).to.equal("testFun");
+      expect(new Method(array, "testFun").name).to.equal("testFun");
+      expect(new Method(oneLiner, "testFun").name).to.equal("testFun");
+    });
+    it("should apply hooks to the method body", () => {
+      const hooks = { hooks: [ { place: "afterbegin", statement: "hook1();" }, { place: "beforeend", statement: "hook2();" } ] };
+      expect(Object.assign(new Method(method), hooks).toString())
+        .to.equalIgnoreSpaces(`function(a, b) { hook1(); log(); hook2(); return a + b; }`);
+      expect(Object.assign(new Method(array), hooks).toString())
+        .to.equalIgnoreSpaces(`function(a, b) { hook1(); log(); hook2(); return a + b; }`);
+      expect(Object.assign(new Method(oneLiner), hooks).toString())
+        .to.equalIgnoreSpaces(`function(a, b) { hook1(); hook2(); return a + b; }`);
+      expect(Object.assign(new Method(superMethod), hooks).toString())
+        .to.equalIgnoreSpaces(`function(a, b) { super.fun(); hook1(); hook2(); return a + b; }`);
     });
   });
   describe("Component()", () => {
@@ -767,7 +787,6 @@ describe("builders", () => {
           }
         }
 
-        @listen("keydown")
         keyShortcuts(ev: KeyboardEvent): void {
           if (ev.ctrlKey && ev.keyCode === 90) {
             this.undo();
@@ -890,6 +909,76 @@ describe("decorators", () => {
       const expression = parse<ExpressionStatement>("(a, b) => a + b)").expression as any;
       decoratorsMap.compute.call({ declaration }, prop, new Method(expression, "computed"));
       expect(prop.computed).to.equal("\"computed(a, b)\"");
+    });
+  });
+  describe("@listen", () => {
+    it("should add a hook to connectedCallback/disconnectedCallback registering/unregistering the event listener", () => {
+      const declaration = parse<Identifier>(`let x = "a"`);
+      const { hooks } = decoratorsMap.listen.call({ declaration }, { name: "handler" } as Method, "click");
+      expect(Array.from(hooks.entries())).to.deep.equal([
+        [
+          "connectedCallback",
+          {
+            place: "afterbegin",
+            statement: "this.addEventListener(\"click\", this._handlerBound = this.handler.bind(this));"
+          }
+        ],
+        [
+          "disconnectedCallback",
+          {
+            place: "afterbegin",
+            statement: "this.removeEventListener(\"click\", this._handlerBound);"
+          }
+        ]
+      ]);
+    });
+    it("should automatically remove event listener if `once` flag is passed", () => {
+      const declaration = parse<Identifier>(`let x = "a"`);
+      const { hooks } = decoratorsMap.listen.call({ declaration }, { name: "handler" } as Method, "click", true);
+      expect(Array.from(hooks.entries())).to.deep.equal([
+        [
+          "connectedCallback",
+          {
+            place: "afterbegin",
+            statement: "this.addEventListener(\"click\", this._handlerBound = (...args) => { " +
+            "this.handler(...args); this.removeEventListener(\"click\", this._handlerBound); });"
+          }
+        ]
+      ]);
+    });
+    it("should use `Polymer.Gestures` to handle `down`, `up`, `tap` and `track` events", () => {
+      const declaration = parse<Identifier>(`let x = "a"`);
+      const { hooks } = decoratorsMap.listen.call({ declaration }, { name: "handler" } as Method, "tap");
+      expect(Array.from(hooks.entries())).to.deep.equal([
+        [
+          "connectedCallback",
+          {
+            place: "afterbegin",
+            statement: "Polymer.Gestures.addListener(this, \"tap\", this._handlerBound = this.handler.bind(this));"
+          }
+        ],
+        [
+          "disconnectedCallback",
+          {
+            place: "afterbegin",
+            statement: "Polymer.Gestures.removeListener(this, \"tap\", this._handlerBound);"
+          }
+        ]
+      ]);
+    });
+    it("should automatically remove event listener if `once` flag is passed for gestures", () => {
+      const declaration = parse<Identifier>(`let x = "a"`);
+      const { hooks } = decoratorsMap.listen.call({ declaration }, { name: "handler" } as Method, "tap", true);
+      expect(Array.from(hooks.entries())).to.deep.equal([
+        [
+          "connectedCallback",
+          {
+            place: "afterbegin",
+            statement: "Polymer.Gestures.addListener(this, \"tap\", this._handlerBound = (...args) => { " +
+            "this.handler(...args); Polymer.Gestures.removeListener(this, \"tap\", this._handlerBound); });"
+          }
+        ]
+      ]);
     });
   });
   describe("@notify()", () => {

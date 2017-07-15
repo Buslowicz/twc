@@ -16,6 +16,7 @@
     "lib": [
       "es6",
       "es7",
+      "es2017.object",
       "dom"
     ],
     "outDir": "dist"

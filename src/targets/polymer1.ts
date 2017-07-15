@@ -1,6 +1,6 @@
 import * as pretty from "pretty";
 import { ModuleKind, Statement, transpileModule } from "typescript";
-import { Component, Import, ImportedNode, Method, Module } from "../builder";
+import { Component, Import, ImportedNode, Module } from "../builder";
 import { getQuoteChar, updateImportedRefs } from "../helpers";
 
 /**
@@ -197,7 +197,7 @@ export class Polymer1 {
     return Array
       .from(component.methods.values())
       .concat(component.template ? Array.from(component.template.methods.values()) : [])
-      .map((m) => m.name in Polymer1.lifecycleMap ? new Method(m.declaration, Polymer1.lifecycleMap[ m.name ]) : m)
+      .map((m) => m.name in Polymer1.lifecycleMap ? m.clone().update({ name: Polymer1.lifecycleMap[ m.name ] }) : m)
       .map((m) => `${m.jsDoc}${m.provideRefs(this.importedRefs, true)}`);
   }
 
