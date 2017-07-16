@@ -26,21 +26,6 @@ describe("Polymer v2 output", () => {
     };
   }
 
-  it("should add imports", () => {
-    const component = transpile(`
-      import { CustomElement, template } from "twc/polymer";
-      import "bower:polymer/polymer.html";
-      import { prop } from "bower:some/component.html#NS";
-      import "style.css";
-      import "script.js";`);
-
-    expect(component.es5).to.equalIgnoreSpaces(`
-      <link rel="import" href="../../polymer/polymer.html">
-      <link rel="import" href="../../some/component.html">
-      <link rel="stylesheet" href="style.css">
-      <script src="script.js"></script>`
-    );
-  });
   it("should throw an error if components do not extend any class", () => {
     const component = transpile(`
       import { CustomElement } from "twc/polymer";
