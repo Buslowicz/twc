@@ -70,7 +70,7 @@ export class Import {
 
   /** Checks if module is importable (module path ends with .js, .html or .css) */
   public get isImportable() {
-    return [ ".js", ".html", ".css" ].includes(extname(this.module));
+    return [ ".js", ".html", ".css" ].includes(extname(this.module)) || /^\.\.?\//.test(this.module);
   }
 
   /** Calculate path from file to project root */
@@ -118,6 +118,8 @@ export class Import {
       modulePath = join(repo, path);
     } else if (path.startsWith("~")) {
       modulePath = path.substr(1);
+    } else if (/^\.\.?\//.test(path)) {
+      return `${path}.html`;
     } else {
       return path;
     }
