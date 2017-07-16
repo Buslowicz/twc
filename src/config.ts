@@ -46,6 +46,22 @@ export function findRootDir(files: Array<string>): string {
 }
 
 /**
+ * Create an output path for the file.
+ *
+ * @param path File path to create output path for
+ * @param outDir Output path
+ * @param rootDir Sources root path (Longest Common Prefix)
+ *
+ * @returns Path relative to outDir
+ */
+export function outPath(path: string, { outDir, rootDir } = compilerOptions) {
+  if (outDir) {
+    return join(outDir, relative(rootDir, path));
+  }
+  return path;
+}
+
+/**
  * Read file synchronously and return as a string.
  *
  * @param path Path of the file

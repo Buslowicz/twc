@@ -10,12 +10,12 @@ import {
   ModuleBlock, ModuleDeclaration, NamespaceImport, Node, NoSubstitutionTemplateLiteral, PropertyAccessExpression, PropertyDeclaration,
   PropertySignature, SourceFile, Statement, StringLiteral, SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
 } from "typescript";
-import { cache, paths, projectRoot } from "./config";
+import { cache, outPath, paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
 import { DecoratorExtras } from "./decorators";
 import {
   DecoratorsMixin, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isExtendsDeclaration, isOneOf, isStatic,
-  JSDocMixin, Link, notPrivate, notStatic, outPath, ParsedDecorator, RefUpdaterMixin, stripQuotes
+  JSDocMixin, Link, notPrivate, notStatic, ParsedDecorator, RefUpdaterMixin, stripQuotes
 } from "./helpers";
 import * as buildTargets from "./targets";
 import { parseDeclaration, parseDeclarationType, ValidValue } from "./type-analyzer";

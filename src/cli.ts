@@ -3,8 +3,7 @@ import { existsSync, mkdirSync, readFileSync, watchFile, writeFileSync } from "f
 import { dirname, join } from "path";
 import { createSourceFile, MapLike, SourceFile } from "typescript";
 import { Module } from "./builder";
-import { cache, cli, compilerOptions, compileTo, errors, files, twc } from "./config";
-import { outPath } from "./helpers";
+import { cache, cli, compilerOptions, compileTo, errors, files, outPath, twc } from "./config";
 
 /**
  * Make sure the path exists. If it doesn't, create it.
