@@ -1,5 +1,5 @@
 import { readFileSync } from "fs";
-import { dirname, join, relative, resolve } from "path";
+import { dirname, resolve } from "path";
 import {
   BinaryExpression, CallExpression, ClassDeclaration, ClassElement, ExpressionStatement, forEachChild, FunctionExpression, HeritageClause,
   Identifier, InterfaceDeclaration, isFunctionLike, isGetAccessorDeclaration, isIdentifier, isPropertyDeclaration, isSetAccessorDeclaration,
@@ -7,7 +7,6 @@ import {
 } from "typescript";
 import { Constructor } from "../types/index";
 import { ImportedNode, Method } from "./builder";
-import { compilerOptions } from "./config";
 
 /**
  * List of types that do not change the overall type.
@@ -617,17 +616,4 @@ export const updateImportedRefs = (src: Node, vars: Map<string, ImportedNode>): 
       ];
     }, src.getFullText().split(""))
     .join("");
-};
-
-/**
- * Create an output path for the file.
- *
- * @param path File path to create output path for
- * @param outDir Output path
- * @param rootDir Sources root path (Longest Common Prefix)
- *
- * @returns Path relative to outDir
- */
-export const outPath = (path: string, { outDir = "", rootDir } = compilerOptions) => {
-  return join(outDir, relative(rootDir, path));
 };

@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { createSourceFile, ScriptTarget } from "typescript";
-import { cache, findRootDir } from "../src/config";
+import { cache, findRootDir, outPath } from "../src/config";
 
 describe("config", () => {
   describe("findRootDir", () => {
@@ -62,6 +62,25 @@ describe("config", () => {
       source[ "ambientModuleNames" ] = [];
       cache.update(source);
       expect(cache.modules.has("bower:some.html")).to.equal(false);
+    });
+  });
+  describe("outPath()", () => {
+    it("should calculate path with no rootDir and outDir", () => {
+      expect(outPath("file.ts", { rootDir: "" })).to.equal("file.ts");
+      expect(outPath("deep/file.ts", { rootDir: "" })).to.equal("deep/file.ts");
+    });
+    it("should calculate path with rootDir set", () => {
+      expect(outPath("src/file.ts", { rootDir: "src" })).to.equal("src/file.ts");
+      expect(outPath("src/deep/file.ts", { rootDir: "src" })).to.equal("src/deep/file.ts");
+    });
+    it("should calculate path with outDir set", () => {
+      expect(outPath("file.ts", { rootDir: "", outDir: "dist" })).to.equal("dist/file.ts");
+      expect(outPath("deep/file.ts", { rootDir: "", outDir: "dist" })).to.equal("dist/deep/file.ts");
+    });
+    it("should calculate path with both rootDir and outDir set", () => {
+      expect(outPath("src/file.ts", { rootDir: "src", outDir: "dist" })).to.equal("dist/file.ts");
+      expect(outPath("src/deep/file.ts", { rootDir: "src", outDir: "dist" })).to.equal("dist/deep/file.ts");
+      expect(outPath("src/deep/file.ts", { rootDir: "src/deep", outDir: "dist" })).to.equal("dist/file.ts");
     });
   });
 });
