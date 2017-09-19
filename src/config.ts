@@ -99,7 +99,8 @@ const compileTo: CompileTarget = `Polymer${((bower.dependencies || {})[ "polymer
 
 const paths = {
   npm: process.env.npmDir || "node_modules",
-  bower: process.env.bowerDir || bowerRc.directory || ".."
+  bower: process.env.bowerDir || bowerRc.directory || "..",
+  yarn: process.env.yarnDir || "node_modules"
 };
 
 // Some features are not yet supported in twc. To not let them break anything or mess up, we need to disable them upfront.
