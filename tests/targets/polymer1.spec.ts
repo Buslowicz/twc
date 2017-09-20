@@ -40,7 +40,7 @@ describe("Polymer v1 output", () => {
 
     expect(component.es5).to.equalIgnoreSpaces(`
       <link rel="import" href="../../polymer/polymer.html">
-      <link rel="import" href="../yarn/polymer/polymer.html">
+      <link rel="import" href="../node_modules/polymer/polymer.html">
       <link rel="import" href="../bower_components/polymer/polymer.html">
       <link rel="import" href="../../some/component.html">
       <link rel="stylesheet" href="style.css">
