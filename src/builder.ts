@@ -100,7 +100,7 @@ export class Import {
       case ".css":
         return `<link rel="stylesheet" href="${this.resolveModule()}">`;
       default:
-        return `<link rel="import" href="${this.resolveModule()}">`;
+        return `<link rel="import" href="${this.resolveModule(".html")}">`;
     }
   }
 
@@ -109,8 +109,8 @@ export class Import {
    *
    * @returns Resolved module/component path
    */
-  private resolveModule() {
-    const [ , repo = "", path = this.module ] = this.module.match(/(?:([a-z]+):)?(.*)/) || [];
+  private resolveModule(ext = "") {
+    const [ , repo = "", path = this.module ] = this.module.match(/(?:([a-z]+):)?(.*?(\.[\w\d]+)?)$/) || [];
     let modulePath = path;
     if (repo in paths) {
       modulePath = join(paths[ repo ], path);
@@ -119,7 +119,7 @@ export class Import {
     } else if (path.startsWith("~")) {
       modulePath = path.substr(1);
     } else if (/^\.\.?\//.test(path)) {
-      return `${path}.html`;
+      return `${path}${ext}`;
     } else {
       return path;
     }

@@ -27,27 +27,36 @@ describe("Polymer v1 output", () => {
   }
 
   it("should add imports", () => {
-    const component = transpile(`
-      import { CustomElement, template } from "twc/polymer";
-      import "bower:polymer/polymer.html";
-      import "yarn:polymer/polymer.html";
-      import "~bower_components/polymer/polymer.html";
-      import { prop } from "bower:some/component.html#NS";
-      import "style.css";
-      import "script.js";
-      import "./module";
-      import "../module";`);
+    expect(transpile(`import { CustomElement, template } from "twc/polymer";`).es5)
+      .to.equal("\n");
 
-    expect(component.es5).to.equalIgnoreSpaces(`
-      <link rel="import" href="../../polymer/polymer.html">
-      <link rel="import" href="../node_modules/polymer/polymer.html">
-      <link rel="import" href="../bower_components/polymer/polymer.html">
-      <link rel="import" href="../../some/component.html">
-      <link rel="stylesheet" href="style.css">
-      <script src="script.js"></script>
-      <link rel="import" href="./module.html">
-      <link rel="import" href="../module.html">`
-    );
+    expect(transpile(`import "bower:polymer/polymer.html";`).es5)
+      .to.equal(`<link rel="import" href="../../polymer/polymer.html">\n`);
+
+    expect(transpile(`import "yarn:polymer/polymer.html";`).es5)
+      .to.equal(`<link rel="import" href="../node_modules/polymer/polymer.html">\n`);
+
+    expect(transpile(`import "~bower_components/polymer/polymer.html";`).es5)
+      .to.equal(`<link rel="import" href="../bower_components/polymer/polymer.html">\n`);
+
+    expect(transpile(`import { prop } from "bower:some/component.html#NS";`).es5)
+      .to.equal(`<link rel="import" href="../../some/component.html">\n`);
+
+    expect(transpile(`import "style.css";`).es5)
+      .to.equal(`<link rel="stylesheet" href="style.css">\n`);
+
+    expect(transpile(`import "script.js";`).es5)
+      .to.equal(`<script src="script.js"></script>\n`);
+
+    expect(transpile(`import './path/script.js';`).es5)
+      .to.equal(`<script src="./path/script.js"></script>\n`);
+
+    expect(transpile(`import "./module";`).es5)
+      .to.equal(`<link rel="import" href="./module.html">\n`);
+
+    expect(transpile(`import "../module";`).es5)
+      .to.equal(`<link rel="import" href="../module.html">\n`);
+
   });
   it("should allow components without inheritance", () => {
     const component = transpile(`
