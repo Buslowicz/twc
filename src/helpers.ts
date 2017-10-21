@@ -617,3 +617,12 @@ export const updateImportedRefs = (src: Node, vars: Map<string, ImportedNode>): 
     }, src.getFullText().split(""))
     .join("");
 };
+
+/**
+ * Convert a system path to web URL
+ *
+ * @param path Path to convert
+ *
+ * @returns URL
+ */
+export const pathToURL = (path: string): string => path.replace(/\\/g, "/");

@@ -15,7 +15,7 @@ import * as decoratorsMap from "./decorators";
 import { DecoratorExtras } from "./decorators";
 import {
   DecoratorsMixin, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isExtendsDeclaration, isOneOf, isStatic,
-  JSDocMixin, Link, notPrivate, notStatic, ParsedDecorator, RefUpdaterMixin, stripQuotes
+  JSDocMixin, Link, notPrivate, notStatic, ParsedDecorator, pathToURL, RefUpdaterMixin, stripQuotes
 } from "./helpers";
 import * as buildTargets from "./targets";
 import { parseDeclaration, parseDeclarationType, ValidValue } from "./type-analyzer";
@@ -119,11 +119,11 @@ export class Import {
     } else if (path.startsWith("~")) {
       modulePath = path.substr(1);
     } else if (/^\.\.?\//.test(path)) {
-      return `${path}${ext}`;
+      return pathToURL(`${path}${ext}`);
     } else {
-      return path;
+      return pathToURL(path);
     }
-    return normalize(join(this.rootPath, modulePath));
+    return pathToURL(normalize(join(this.rootPath, modulePath)));
   }
 }
 
