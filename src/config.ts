@@ -1,11 +1,11 @@
 import { existsSync, readFileSync } from "fs";
-import { basename, dirname, join, relative, resolve, sep } from "path";
+import { basename, dirname, join, relative, resolve } from "path";
 import {
   BlockLike, CompilerOptions, createProgram, findConfigFile, isClassDeclaration, isFunctionLike, isInterfaceDeclaration,
   isVariableStatement, NamedDeclaration, parseCommandLine, readConfigFile, SourceFile, SyntaxKind, sys, VariableStatement
 } from "typescript";
 import { BowerConfig, BowerRc, CompileTarget, HasJSDoc, NPMConfig, TSConfig } from "../types/index";
-import { isOfKind, isOneOf } from "./helpers";
+import { isOfKind, isOneOf, pathToURL } from "./helpers";
 
 export interface StatementMetaData {
   name: string;
@@ -35,14 +35,14 @@ export function findRootDir(files: Array<string>): string {
     const dir = dirname(files[ 0 ] || "");
     return dir === "." ? "" : dir;
   }
-  const first = clone[ 0 ].split(sep);
-  const last = clone[ clone.length - 1 ].split(sep);
+  const first = clone[ 0 ].split("/");
+  const last = clone[ clone.length - 1 ].split("/");
   const max = first.length;
   let i = 0;
   while (i < max && first[ i ] === last[ i ]) {
     i++;
   }
-  return first.slice(0, i).join(sep);
+  return first.slice(0, i).join("/");
 }
 
 /**
@@ -56,7 +56,7 @@ export function findRootDir(files: Array<string>): string {
  */
 export function outPath(path: string, { outDir, rootDir } = compilerOptions) {
   if (outDir) {
-    return join(outDir, relative(rootDir, path));
+    return pathToURL(join(outDir, relative(rootDir, path)));
   }
   return path;
 }
