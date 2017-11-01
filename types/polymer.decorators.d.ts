@@ -183,6 +183,26 @@ declare module "twc/polymer" {
   export function observe(...props: Array<string>): MethodDecorator;
 
   /**
+   * Make the method be run whenever an event occurs.
+   * @see https://www.polymer-project.org/2.0/docs/devguide/events
+   *
+   * @example
+   * @CustomElement()
+   * class MyElement {
+   *  @listen('click') handler(event) {
+   *    console.log('You clicked me!');
+   *  }
+   *  @listen('custom-init-event', true) init(event) {
+   *    console.log('I am only triggered once');
+   *  }
+   * }
+   *
+   * @param eventName Name of an event to listen for
+   * @param once Should the listener be removed after it's fired?
+   */
+  export function listen(eventName: string, once?: boolean): MethodDecorator;
+
+  /**
    * Manually register a property
    * @see https://www.polymer-project.org/2.0/docs/devguide/properties
    *
