@@ -162,7 +162,7 @@ describe("Polymer v1 output", () => {
     });
   });
   describe("should not emit exports", () => {
-    const component = transpile(`
+    const component1 = transpile(`
       import { CustomElement } from "twc/polymer";
       @CustomElement()
       export class MyElement extends Polymer.Element {}
@@ -170,8 +170,12 @@ describe("Polymer v1 output", () => {
       const test = 10;
       export default test`);
 
+    const component2 = transpile(`
+      // comment
+      export class MyElement {}`);
+
     it("es5", () => {
-      expect(component.es5).to.equalIgnoreSpaces(`
+      expect(component1.es5).to.equalIgnoreSpaces(`
         <dom-module id="my-element">
           <script>
             var MyElement = Polymer({ is: "my-element" });
@@ -180,9 +184,18 @@ describe("Polymer v1 output", () => {
           </script>
         </dom-module>`
       );
+      expect(component2.es5).to.equalIgnoreSpaces(`
+          <script>
+            // comment
+            var MyElement = (function() {
+              function MyElement() {}
+              return MyElement;
+            }());
+          </script>`
+      );
     });
     it("es6", () => {
-      expect(component.es6).to.equalIgnoreSpaces(`
+      expect(component1.es6).to.equalIgnoreSpaces(`
         <dom-module id="my-element">
           <script>
             const MyElement = Polymer({ is: "my-element" });
@@ -190,6 +203,12 @@ describe("Polymer v1 output", () => {
             const test = 10;
           </script>
         </dom-module>`
+      );
+      expect(component2.es6).to.equalIgnoreSpaces(`
+          <script>
+            // comment
+            class MyElement {}
+          </script>`
       );
     });
   });
