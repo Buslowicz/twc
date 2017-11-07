@@ -60,7 +60,7 @@ export class Polymer1 {
           return this.componentScript(statement);
         } else {
           const updatedStatement = updateImportedRefs(statement, this.importedRefs);
-          return this.module.parent ? updatedStatement : updatedStatement.replace(/^(\s*)(export (default )?)/, "$1");
+          return this.module.parent ? updatedStatement : updatedStatement.replace(/^(\s*)(export (default )?)/m, "$1");
         }
       })
       .join("\n");
