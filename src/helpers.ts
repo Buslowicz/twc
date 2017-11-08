@@ -1,13 +1,24 @@
 import { readFileSync } from "fs";
 import { dirname, resolve } from "path";
 import {
-  BinaryExpression, BlockLike, CallExpression, ClassDeclaration, ClassElement, ExpressionStatement, forEachChild, FunctionExpression,
-  HeritageClause, Identifier, InterfaceDeclaration, isDoStatement, isForInStatement, isForOfStatement, isForStatement, isFunctionLike,
-  isGetAccessorDeclaration, isIdentifier, isIfStatement, isPropertyDeclaration, isSetAccessorDeclaration, isSwitchStatement, isTryStatement,
-  isWhileStatement, JSDoc, NamedDeclaration, Node, PrefixUnaryExpression, PropertyAccessExpression, SourceFile, Statement, SyntaxKind
+  BinaryExpression, BlockLike, CallExpression, ClassDeclaration, ClassElement, ClassExpression, EqualsToken, Expression,
+  ExpressionStatement, forEachChild, FunctionExpression, HeritageClause, Identifier, InterfaceDeclaration, isBinaryExpression,
+  isDoStatement, isExpressionStatement, isForInStatement, isForOfStatement, isForStatement, isFunctionLike, isGetAccessorDeclaration,
+  isIdentifier, isIfStatement, isPropertyDeclaration, isSetAccessorDeclaration, isSwitchStatement, isTryStatement, isWhileStatement, JSDoc,
+  NamedDeclaration, Node, PrefixUnaryExpression, PropertyAccessExpression, ReturnStatement, SourceFile, Statement, SyntaxKind
 } from "typescript";
 import { Constructor } from "../types";
 import { ImportedNode, Method } from "./builder";
+
+type ClassOrInterface = ClassDeclaration | ClassExpression | InterfaceDeclaration;
+
+interface AssignmentExpression<T = Expression> extends ExpressionStatement {
+  expression: BinaryExpression & {
+    operatorToken: EqualsToken;
+    left: PropertyAccessExpression;
+    right: T
+  };
+}
 
 /**
  * List of types that do not change the overall type.
@@ -207,7 +218,7 @@ export const getDecorators = (declaration: ClassElement | ClassDeclaration): Arr
  *
  * @returns List of return type nodes
  */
-export const getReturnStatements = (block: BlockLike | Statement | BlockLike): Array<Node> => {
+export const getReturnStatements = (block: BlockLike | Statement | BlockLike): Array<ReturnStatement> => {
   if (!block) {
     return [];
   }
@@ -241,12 +252,12 @@ export const getReturnStatements = (block: BlockLike | Statement | BlockLike): A
       } else if (isSwitchStatement(node)) {
         return node.caseBlock.clauses
           .map(getReturnStatements)
-          .reduce((all, curr) => [ ...all, ...curr ]);
+          .reduce((all, curr) => [ ...all, ...curr ], []);
       }
       return [ node ];
     })
-    .reduce((all, curr) => [ ...all, ...curr ])
-    .filter((statement) => statement.kind === SyntaxKind.ReturnStatement);
+    .reduce((all, curr) => [ ...all, ...curr ], [])
+    .filter((statement) => statement.kind === SyntaxKind.ReturnStatement) as Array<ReturnStatement>;
 };
 
 /**
@@ -278,7 +289,7 @@ export const flatExtends = (expression: Node, refs?: Map<string, ImportedNode>):
  *
  * @returns Array of used mixin names
  */
-export const getFlatHeritage = (declaration: ClassDeclaration | InterfaceDeclaration, refs?: Map<string, ImportedNode>): Array<string> => {
+export const getFlatHeritage = (declaration: ClassOrInterface, refs?: Map<string, ImportedNode>): Array<string> => {
   if (!declaration.heritageClauses) {
     return [];
   }
@@ -301,7 +312,7 @@ export const getFlatHeritage = (declaration: ClassDeclaration | InterfaceDeclara
  *
  * @returns Whether class or interface inherits from provided class/mixin name
  */
-export const inheritsFrom = (declaration: ClassDeclaration | InterfaceDeclaration, ...names: Array<string>): boolean => {
+export const inheritsFrom = (declaration: ClassOrInterface, ...names: Array<string>): boolean => {
   if (!declaration.heritageClauses) {
     return false;
   }
@@ -416,6 +427,13 @@ export const hasOriginalKeywordKind = (expr: Node): expr is Identifier => "origi
  * @returns Whether clause is an ExtendsDeclaration
  */
 export const isExtendsDeclaration = (heritage: HeritageClause): boolean => heritage.token === SyntaxKind.ExtendsKeyword;
+
+/**
+ * Checks if expression is an assignment expression
+ */
+export const isAssignmentExpression = <T = Expression>(expr: Node): expr is AssignmentExpression<T> => isExpressionStatement(expr)
+  && isBinaryExpression(expr.expression)
+  && expr.expression.operatorToken.kind === SyntaxKind.EqualsToken;
 
 /**
  * Checks if ClassElement is private.

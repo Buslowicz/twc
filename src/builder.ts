@@ -2,20 +2,21 @@ import { existsSync } from "fs";
 import { dirname, extname, join, normalize, parse, relative, resolve } from "path";
 import { CustomElementOptions } from "twc/polymer";
 import {
-  ArrayLiteralExpression, BinaryExpression, CallExpression, ClassDeclaration, CompilerOptions, createBlock, createFunctionDeclaration,
-  Expression, ExpressionStatement, forEachChild, FunctionLikeDeclaration, HeritageClause, Identifier, ImportDeclaration, ImportSpecifier,
-  InterfaceDeclaration, isBinaryExpression, isBlock, isCallExpression, isClassDeclaration, isConditionalExpression, isExportAssignment,
-  isExportDeclaration, isFunctionLike, isGetAccessorDeclaration, isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration,
-  isNamedImports, isPropertyAccessExpression, isPropertyDeclaration, isSetAccessorDeclaration, isTemplateExpression, MethodDeclaration,
-  ModuleBlock, ModuleDeclaration, NamespaceImport, Node, NoSubstitutionTemplateLiteral, PropertyAccessExpression, PropertyDeclaration,
-  PropertySignature, SourceFile, Statement, StringLiteral, SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
+  ArrayLiteralExpression, ArrowFunction, BinaryExpression, CallExpression, ClassDeclaration, CompilerOptions, createBlock,
+  createFunctionDeclaration, Expression, ExpressionStatement, forEachChild, FunctionExpression, FunctionLikeDeclaration, HeritageClause,
+  Identifier, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, isArrowFunction, isBinaryExpression, isBlock, isCallExpression,
+  isClassDeclaration, isClassExpression, isConditionalExpression, isExportAssignment, isExportDeclaration, isFunctionDeclaration,
+  isFunctionExpression, isFunctionLike, isGetAccessorDeclaration, isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration,
+  isNamedImports, isPropertyAccessExpression, isPropertyDeclaration, isSetAccessorDeclaration, isTemplateExpression, isVariableStatement,
+  MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, NoSubstitutionTemplateLiteral, PropertyAccessExpression,
+  PropertyDeclaration, PropertySignature, SourceFile, Statement, StringLiteral, SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
 } from "typescript";
 import { cache, outPath, paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
 import { DecoratorExtras } from "./decorators";
 import {
-  DecoratorsMixin, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isExtendsDeclaration, isOneOf, isStatic,
-  JSDocMixin, Link, notPrivate, notStatic, ParsedDecorator, pathToURL, RefUpdaterMixin, stripQuotes
+  DecoratorsMixin, getReturnStatements, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isAssignmentExpression,
+  isExtendsDeclaration, isOneOf, isStatic, JSDocMixin, Link, notPrivate, notStatic, ParsedDecorator, pathToURL, RefUpdaterMixin, stripQuotes
 } from "./helpers";
 import * as buildTargets from "./targets";
 import { parseDeclaration, parseDeclarationType, ValidValue } from "./type-analyzer";
@@ -32,11 +33,11 @@ export interface MethodHook {
  * Map of TypeScript kind to JavaScript type.
  */
 export const typeMap = {
-  [SyntaxKind.StringKeyword]: String,
-  [SyntaxKind.NumberKeyword]: Number,
-  [SyntaxKind.BooleanKeyword]: Boolean,
-  [SyntaxKind.ObjectKeyword]: Object,
-  [SyntaxKind.ArrayType]: Array
+  [ SyntaxKind.StringKeyword ]: String,
+  [ SyntaxKind.NumberKeyword ]: Number,
+  [ SyntaxKind.BooleanKeyword ]: Boolean,
+  [ SyntaxKind.ObjectKeyword ]: Object,
+  [ SyntaxKind.ArrayType ]: Array
 };
 
 /**
@@ -48,7 +49,8 @@ export class ImportedNode {
     return this.bindings.name.getText();
   }
 
-  constructor(public readonly bindings: ImportSpecifier | NamespaceImport, public readonly importClause: Import) {}
+  constructor(public readonly bindings: ImportSpecifier | NamespaceImport, public readonly importClause: Import) {
+  }
 
   /** Imported entity name with namespace */
   public get fullIdentifier() {
@@ -78,7 +80,7 @@ export class Import {
     return relative(dirname(outPath(getRoot(this.declaration).fileName)), projectRoot);
   }
 
-  constructor(public readonly declaration: ImportDeclaration) {
+  constructor(public readonly declaration: ImportDeclaration, variables?: Map<string, ImportedNode | any>) {
     const { 1: module } = declaration.moduleSpecifier.getText().replace(/["']$|^["']/g, "").match(/([^#]+)(?:#(.+))?/);
 
     this.module = module;
@@ -90,6 +92,9 @@ export class Import {
       } else {
         this.imports = [ new ImportedNode(namedBindings, this) ];
       }
+    }
+    if (variables) {
+      this.imports.forEach((imp) => variables.set(imp.identifier, imp));
     }
   }
 
@@ -433,11 +438,9 @@ export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     }
   }
 
-  constructor(
-    public readonly declaration: FunctionLikeDeclaration | Expression,
-    public readonly name = "function",
-    public args?: Array<Identifier>
-  ) {
+  constructor(public readonly declaration: FunctionLikeDeclaration | Expression,
+              public readonly name = "function",
+              public args?: Array<Identifier>) {
     super();
   }
 
@@ -465,7 +468,7 @@ export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
         if (Array.isArray(value)) {
           this[ key ] = this[ key ].concat(value);
         } else {
-          Object.assign(this, { [key]: value });
+          Object.assign(this, { [ key ]: value });
         }
       });
     return this;
@@ -559,7 +562,7 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   /** Components static methods map */
   public staticMethods: Map<string, Method> = new Map();
 
-  constructor(public readonly declaration: ClassDeclaration) {
+  constructor(public readonly declaration: ClassDeclaration, variables?: Map<string, ImportedNode | any>) {
     super();
 
     this.decorate(this, this.decorators);
@@ -611,6 +614,9 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     const implicitTemplateName = `${parse(fileName).name}.html`;
     if (!this.template && existsSync(resolve(dirname(fileName), implicitTemplateName))) {
       this.template = Template.fromLink(new Link(implicitTemplateName, declaration as Node));
+    }
+    if (variables) {
+      variables.set(this.name, this);
     }
   }
 
@@ -703,46 +709,73 @@ export class Module {
   /** Map of variable identifiers to variables */
   public readonly variables: Map<string, ImportedNode | any> = new Map();
 
-  constructor(
-    public readonly source: SourceFile | ModuleDeclaration,
-    public readonly compilerOptions: CompilerOptions,
-    public readonly output: "Polymer1" | "Polymer2",
-    public readonly parent: Module = null
-  ) {
+  constructor(public readonly source: SourceFile | ModuleDeclaration,
+              public readonly compilerOptions: CompilerOptions,
+              public readonly output: "Polymer1" | "Polymer2",
+              public readonly parent: Module = null) {
     (isModuleDeclaration(source) ? source.body as ModuleBlock : source).statements.forEach((statement) => {
-      if (isImportDeclaration(statement)) {
-        const declaration = new Import(statement);
-        declaration.imports.forEach((imp) => this.variables.set(imp.identifier, imp));
-        this.statements.push(declaration);
-        return;
-      } else if (isInterfaceDeclaration(statement)) {
-        const name = statement.name.getText();
-        if (inheritsFrom(statement, "CustomEvent", "Event")) {
-          this.variables.set(name, new RegisteredEvent(statement));
-        } else {
-          this.variables.set(name, statement);
+      let resultStatement: Statement | Component | Import | Module = statement;
+      if (isImportDeclaration(statement)) { // Handling import statements
+        resultStatement = new Import(statement, this.variables);
+      } else if (isInterfaceDeclaration(statement)) { // Handling interfaces (like custom events etc)
+        if (inheritsFrom(statement, "CustomEvent", "Event")) { // Interface extending events
+          this.variables.set(statement.name.getText(), new RegisteredEvent(statement));
+        } else { // All the other interfaces (add if-else to handle additional cases)
+          this.variables.set(statement.name.getText(), statement);
         }
-      } else if (isClassDeclaration(statement) && hasDecorator(statement, "CustomElement")) {
-        const component = new Component(statement as ClassDeclaration);
-
-        this.variables.set(component.name, component);
-        this.statements.push(component);
-        return;
-      } else if (isModuleDeclaration(statement)) {
-        const module = new Module(statement, compilerOptions, this.output, this);
-        this.variables.set(module.name, module);
-        this.statements.push(module);
-        return;
+      } else if (isClassDeclaration(statement)) { // Handling classes
+        if (hasDecorator(statement, "CustomElement")) { // Handling classes decorated with CustomElement decorator
+          resultStatement = new Component(statement as ClassDeclaration, this.variables);
+        } else { // All other classes (add if-else to handle additional cases)
+          this.variables.set(statement.name.getText(), statement);
+        }
+      } else if (isModuleDeclaration(statement)) {  // Handling modules and namespaces
+        resultStatement = new Module(statement, compilerOptions, this.output, this);
+      } else if (isVariableStatement(statement) || isAssignmentExpression(statement)) {
+        const init = isVariableStatement(statement) ? statement.declarationList.declarations[ 0 ].initializer : statement.expression.right;
+        if (isArrowFunction(init) || isFunctionExpression(init)) {
+          this.parseMixin(init);
+        } else if (isCallExpression(init)) {
+          init.arguments
+            .filter(isOneOf(isArrowFunction, isFunctionExpression))
+            .forEach((mixin: ArrowFunction | FunctionExpression) => this.parseMixin(mixin));
+        }
+      } else if (isFunctionDeclaration(statement)) {
+        this.parseMixin(statement);
       } else if (isExportDeclaration(statement) || isExportAssignment(statement)) {
+        // Do NOT push export statements (allow exceptions for P3 and ES Module based outputs)
         return;
       }
-      this.statements.push(statement);
+      this.statements.push(resultStatement);
     });
 
+    // Add found declared events events to each component found within module
     this.components.forEach((component) => component.events.push(...this.events));
+
+    if (parent) {
+      parent.variables.set(this.name, this);
+    }
   }
 
   public toString(): string {
     return new buildTargets[ this.output ](this).toString();
+  }
+
+  private parseMixin(initializer: FunctionLikeDeclaration) {
+    const params = initializer.parameters.map((param) => param.getText());
+    if (isBlock(initializer.body)) {
+      const returns = getReturnStatements(initializer.body)
+        .map(({ expression }) => expression)
+        .filter(isClassExpression)
+        .find((klass) => inheritsFrom(klass, ...params));
+      console.log(returns && returns.getText());
+    } else if (isClassExpression(initializer.body) && inheritsFrom(initializer.body, ...params)) {
+      console.log(initializer.body.getText());
+    } else if (isCallExpression(initializer.body)) {
+      const args = initializer.body.arguments
+        .filter(isClassExpression)
+        .find((klass) => inheritsFrom(klass, ...params));
+      console.log(args && args.getText());
+    }
   }
 }

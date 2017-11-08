@@ -8,6 +8,8 @@ import chaiString = require("chai-string");
 
 use(chaiString);
 
+/* tslint:disable:no-unused-expression */
+
 describe("Polymer v2 output", () => {
   function transpile(tpl: string) {
     const component = (target: "ES5" | "ES2015") => {
@@ -114,6 +116,33 @@ describe("Polymer v2 output", () => {
           </script>
         </dom-module>`
       );
+    });
+  });
+  describe("mixins", () => {
+    const component1 = transpile(`const mixinA = (superClass1) => class extends superClass1 {};`);
+    const component2 = transpile(`const mixinA = (superClass2) => class extends otherMixin(superClass2) {};`);
+    const component3 = transpile(`const mixinA = (superClass3) => class extends otherMixin(anotherMixin(superClass3)) {};`);
+    const component4 = transpile(`const mixinA = (superClass4) => transformer(class extends superClass4  {});`);
+    const component5 = transpile(`const mixinA = (superClass5) => { return class extends superClass5 {}; };`);
+    const component6 = transpile(`const mixinA = function (superClass6) { return class extends superClass6 {}; };`);
+    const component7 = transpile(`const mixinA = function mixinA(superClass7) { return class extends superClass7 {}; };`);
+    const component8 = transpile(`const mixinA = Polymer.dedupingMixin((superClass8) => class extends superClass8 {});`);
+    const component9 = transpile(`function mixinA(superClass9) { return class extends superClass9 {}; };`);
+    const component10 = transpile(`MyNamespace.MyMixin = Polymer.dedupingMixin((superClass10) => class extends superClass10 {});`);
+    const component11 = transpile(`MyNamespace.MyMixin = (superClass11) => class extends superClass11 {};`);
+    it("should parse mixins as polymer elements", () => {
+      // @todo proper tests
+      expect(component1.es5).to.be.ok;
+      expect(component2.es5).to.be.ok;
+      expect(component3.es5).to.be.ok;
+      expect(component4.es5).to.be.ok;
+      expect(component5.es5).to.be.ok;
+      expect(component6.es5).to.be.ok;
+      expect(component7.es5).to.be.ok;
+      expect(component8.es5).to.be.ok;
+      expect(component9.es5).to.be.ok;
+      expect(component10.es5).to.be.ok;
+      expect(component11.es5).to.be.ok;
     });
   });
   describe("should not emit exports", () => {
