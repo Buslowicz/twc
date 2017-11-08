@@ -1,16 +1,16 @@
 /* tslint:disable:no-unused-expression */
 import { expect } from "chai";
 import {
-  BinaryExpression, CallExpression, ClassDeclaration, createSourceFile, ExpressionStatement, Identifier, isPropertyDeclaration,
-  MethodDeclaration, NodeArray, PrefixUnaryExpression, PropertyDeclaration, ScriptTarget, SyntaxKind, UnionOrIntersectionTypeNode,
-  VariableStatement
+  BinaryExpression, CallExpression, ClassDeclaration, createSourceFile, ExpressionStatement, FunctionDeclaration, Identifier,
+  isPropertyDeclaration, MethodDeclaration, NodeArray, PrefixUnaryExpression, PropertyDeclaration, ScriptTarget, SyntaxKind,
+  UnionOrIntersectionTypeNode, VariableStatement
 } from "typescript";
 import { Component, Method, Property, Template } from "../src/builder";
 import * as decoratorsMap from "../src/decorators";
 import {
-  flatExtends, flattenArray, getDecorators, getText, hasArguments, hasDecorator, hasModifier, hasOperator, hasOperatorToken,
-  hasOriginalKeywordKind, inheritsFrom, InitializerWrapper, isAllOf, isExtendsDeclaration, isOneOf, isPrivate, isPublic, isStatic,
-  isTransparent, Link, notPrivate, notPublic, notStatic, notTransparent, Ref, toProperty, toString
+  flatExtends, flattenArray, getDecorators, getReturnStatements, getText, hasArguments, hasDecorator, hasModifier, hasOperator,
+  hasOperatorToken, hasOriginalKeywordKind, inheritsFrom, InitializerWrapper, isAllOf, isExtendsDeclaration, isOneOf, isPrivate, isPublic,
+  isStatic, isTransparent, Link, notPrivate, notPublic, notStatic, notTransparent, Ref, toProperty, toString
 } from "../src/helpers";
 import {
   getFinalType, getSimpleKind, parseDeclaration, parseDeclarationInitializer, parseDeclarationType, parseExpression,
@@ -82,6 +82,33 @@ describe("helpers", () => {
       const expr = getDecorators(parseClass(`class T { @a({ name: nameRef, value: valueRef }) p; }`).members[ 0 ])[ 0 ].arguments[ 0 ];
       expect(expr.name.text).to.equal("nameRef");
       expect(expr.value.text).to.equal("valueRef");
+    });
+  });
+  describe("getReturnStatements()", () => {
+    it("should return list of all return statements on the given block level", () => {
+      expect(getReturnStatements(parse<FunctionDeclaration>(`function X() {
+        if ({}) return true;
+        if ([]) { return 0; }
+        if (true) { return 1; } else { return 2; }
+        if ('?') { return null; } else if ('>') { return undefined; }
+        if ('?') { return null; } else if ('>') { return undefined; } else { return 'whatever'; }
+        for (let i = 0; i < 2; i++) return false;
+        for (let i = 0; i < 2; i++) { return 3; }
+        for (let i = 0; i < 2; i++) if (i === -3) return -5;
+        for (let i = 0; i < 2; i++) { if (i === 2) { return 3; } }
+        switch(5) { case 1: return 4; case 5: return 5; default: return 10; }
+        do { return 'x'; } while(false); while(false) { return 'y'; }
+        for (let a in {}) return 102;
+        for (let z of [1, 2, 3]) return i;
+        try { return nope; } catch (err) { return 'yep'; }
+        try { return nope; } catch (err) { return 'yep'; } finally { return 'mhm'; }
+        return;
+      }`).body).map((node) => node.getText())).to.deep.equal([
+        `return true;`, `return 0;`, `return 1;`, `return 2;`, `return null;`, `return undefined;`, `return null;`, `return undefined;`,
+        `return 'whatever';`, `return false;`, `return 3;`, `return -5;`, `return 3;`, `return 4;`, `return 5;`, `return 10;`,
+        `return 'x';`, `return 'y';`, `return 102;`, `return i;`, `return nope;`, `return 'yep';`, `return nope;`, `return 'yep';`,
+        `return 'mhm';`, `return;`
+      ]);
     });
   });
   describe("flatExtends", () => {

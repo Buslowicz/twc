@@ -1,11 +1,12 @@
 import { readFileSync } from "fs";
 import { dirname, resolve } from "path";
 import {
-  BinaryExpression, CallExpression, ClassDeclaration, ClassElement, ExpressionStatement, forEachChild, FunctionExpression, HeritageClause,
-  Identifier, InterfaceDeclaration, isFunctionLike, isGetAccessorDeclaration, isIdentifier, isPropertyDeclaration, isSetAccessorDeclaration,
-  JSDoc, NamedDeclaration, Node, PrefixUnaryExpression, PropertyAccessExpression, SourceFile, SyntaxKind
+  BinaryExpression, BlockLike, CallExpression, ClassDeclaration, ClassElement, ExpressionStatement, forEachChild, FunctionExpression,
+  HeritageClause, Identifier, InterfaceDeclaration, isDoStatement, isForInStatement, isForOfStatement, isForStatement, isFunctionLike,
+  isGetAccessorDeclaration, isIdentifier, isIfStatement, isPropertyDeclaration, isSetAccessorDeclaration, isSwitchStatement, isTryStatement,
+  isWhileStatement, JSDoc, NamedDeclaration, Node, PrefixUnaryExpression, PropertyAccessExpression, SourceFile, Statement, SyntaxKind
 } from "typescript";
-import { Constructor } from "../types/index";
+import { Constructor } from "../types";
 import { ImportedNode, Method } from "./builder";
 
 /**
@@ -27,7 +28,8 @@ export const methodKinds = [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructo
 /**
  * Mixin adding jsDoc getter
  */
-export const JSDocMixin = <TBase extends Constructor>(Base: TBase = class {} as TBase) => class extends Base {
+export const JSDocMixin = <TBase extends Constructor>(Base: TBase = class {
+} as TBase) => class extends Base {
   public declaration: Node;
 
   /** JSDoc for the method */
@@ -56,7 +58,8 @@ export const JSDocMixin = <TBase extends Constructor>(Base: TBase = class {} as 
 /**
  * Mixind adding decorators getter
  */
-export const DecoratorsMixin = <TBase extends Constructor>(Base: TBase = class {} as TBase) => class extends Base {
+export const DecoratorsMixin = <TBase extends Constructor>(Base: TBase = class {
+} as TBase) => class extends Base {
   public declaration: Node;
 
   public get decorators(): Array<ParsedDecorator> {
@@ -67,7 +70,8 @@ export const DecoratorsMixin = <TBase extends Constructor>(Base: TBase = class {
 /**
  * Mixin adding the functionality of updating identifiers of imported entities with a namespace.
  */
-export const RefUpdaterMixin = <TBase extends Constructor>(Base: TBase = class {} as TBase) => class extends Base {
+export const RefUpdaterMixin = <TBase extends Constructor>(Base: TBase = class {
+} as TBase) => class extends Base {
   protected refs?: Map<string, ImportedNode>;
   protected skipSuper?: boolean;
 
@@ -105,7 +109,8 @@ export const RefUpdaterMixin = <TBase extends Constructor>(Base: TBase = class {
  * Class holding a reference to a file. When converted to a string, the file is read and content is returned.
  */
 export class Link {
-  constructor(public uri: string, private source: Node) {}
+  constructor(public uri: string, private source: Node) {
+  }
 
   public toString() {
     return readFileSync(resolve(dirname(getRoot(this.source).fileName), this.uri)).toString();
@@ -116,7 +121,8 @@ export class Link {
  * A reference to an identifier. It will allow to get types from already visited entities.
  */
 export class Ref {
-  constructor(public ref: Identifier) {}
+  constructor(public ref: Identifier) {
+  }
 
   public toString() {
     return this.ref.getText();
@@ -192,6 +198,55 @@ export const getDecorators = (declaration: ClassElement | ClassDeclaration): Arr
   }
   return declaration.decorators
     .map(({ expression }) => new ParsedDecorator(expression as any, declaration.name as Identifier));
+};
+
+/**
+ * Get list of all return statements for the block (including inner blocks, but not functions)
+ *
+ * @param block Block to get returns from
+ *
+ * @returns List of return type nodes
+ */
+export const getReturnStatements = (block: BlockLike | Statement | BlockLike): Array<Node> => {
+  if (!block) {
+    return [];
+  }
+  if (isIfStatement(block)) {
+    return [
+      ...getReturnStatements(block.thenStatement),
+      ...getReturnStatements(block.elseStatement)
+    ];
+  }
+  return ((block as BlockLike).statements || [ block ] as Array<Statement>)
+    .map((node) => {
+      if (isIfStatement(node)) {
+        return [
+          ...getReturnStatements(node.thenStatement),
+          ...getReturnStatements(node.elseStatement)
+        ];
+      } else if (isTryStatement(node)) {
+        return [
+          ...getReturnStatements(node.tryBlock),
+          ...getReturnStatements(node.catchClause.block),
+          ...getReturnStatements(node.finallyBlock)
+        ];
+      } else if (
+        isForStatement(node)
+        || isDoStatement(node)
+        || isWhileStatement(node)
+        || isForInStatement(node)
+        || isForOfStatement(node)
+      ) {
+        return getReturnStatements(node.statement);
+      } else if (isSwitchStatement(node)) {
+        return node.caseBlock.clauses
+          .map(getReturnStatements)
+          .reduce((all, curr) => [ ...all, ...curr ]);
+      }
+      return [ node ];
+    })
+    .reduce((all, curr) => [ ...all, ...curr ])
+    .filter((statement) => statement.kind === SyntaxKind.ReturnStatement);
 };
 
 /**
@@ -544,7 +599,9 @@ export const stripQuotes = (str: string, char?: "`" | "\"" | "'"): string => {
  */
 export const flattenChildren = (node: Node): Array<Node> => {
   const list = [ node ];
-  forEachChild(node, (deep) => { list.push(...flattenChildren(deep)); });
+  forEachChild(node, (deep) => {
+    list.push(...flattenChildren(deep));
+  });
   return list;
 };
 
