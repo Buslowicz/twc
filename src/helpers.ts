@@ -719,7 +719,7 @@ export const buildObject = (props) => {
     return buildExpression(props);
   }
   return createObjectLiteral(Object
-``    .keys(props)
+    .keys(props)
     .map((key) => [ key, props[ key ] ])
     .map(([ key, value ]) => createPropertyAssignment(key, buildExpression(value))), true);
 };

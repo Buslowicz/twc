@@ -517,6 +517,88 @@ describe("Polymer v2 output", () => {
       `);
     });
   });
+  describe("should upgrade mixins within mixed content", () => {
+    const component = transpile(`
+      import { CustomElement } from "twc/polymer";
+      @CustomElement()
+      export class MyElement extends Polymer.Element {
+        template() {
+          return \`<h1>Hello World</h1>\`;
+        }
+      }
+      const mixinA = (Base) => class extends Base { prop: string; };`);
+
+    it("es5", () => {
+      expect(component.es5).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <template>
+            <h1>Hello World</h1>
+          </template>
+          <script>
+            var MyElement = (function(_super) {
+              __extends(MyElement, _super);
+
+              function MyElement() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(MyElement, "is", {
+                get: function() {
+                  return "my-element";
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return MyElement;
+            }(Polymer.Element));
+            customElements.define(MyElement.is, MyElement);
+
+            var mixinA = function(Base) {
+              return (function(_super) {
+                __extends(class_1, _super);
+
+                function class_1() {
+                  return _super !== null && _super.apply(this, arguments) || this;
+                }
+                Object.defineProperty(class_1, "properties", {
+                  get: function() {
+                    return {
+                      prop: String
+                    };
+                  },
+                  enumerable: true,
+                  configurable: true
+                });
+                return class_1;
+              }(Base));
+            };
+          </script>
+        </dom-module>
+      `);
+    });
+    it("es6", () => {
+      expect(component.es6).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <template>
+            <h1>Hello World</h1>
+          </template>
+          <script>
+            class MyElement extends Polymer.Element {
+              static get is() { return "my-element"; }
+            }
+            customElements.define(MyElement.is, MyElement);
+
+            const mixinA = (Base) => class extends Base {
+              static get properties() {
+                return {
+                  prop: String
+                };
+              }
+            };
+          </script>
+        </dom-module>`
+      );
+    });
+  });
   describe("should not emit exports", () => {
     const component = transpile(`
       import { CustomElement } from "twc/polymer";
