@@ -677,38 +677,34 @@ export function fetchProperties(declaration: ClassLikeDeclaration) {
     .map((property: PropertyDeclaration) => new Property(property, property.name.getText()));
 }
 
-export function upgradeMixins(statement: FunctionLikeDeclaration, cloneStatement = true) {
-  const cc = cloneStatement ? getMutableClone(statement) : statement;
+export function upgradeMixins(statement: FunctionLikeDeclaration) {
+  const cc = getMutableClone(statement);
   const params = cc.parameters.map((param) => param.getText());
-  // @todo change find to filter to handle all classes instead of the first found
   if (isBlock(cc.body)) {
-    const declaration = getReturnStatements(cc.body)
+    const updated = getReturnStatements(cc.body)
       .map(({ expression }) => expression)
       .filter(isClassExpression)
-      .find((cls) => inheritsFrom(cls, ...params)) as ClassLikeDeclaration;
+      .filter((cls) => inheritsFrom(cls, ...params))
+      .map((declaration: ClassLikeDeclaration) => declaration.members.unshift(buildProperties(fetchProperties(declaration))));
 
-    if (!declaration) {
+    if (updated.length === 0) {
       return statement;
     }
-    declaration.members.unshift(buildProperties(fetchProperties(declaration)));
   } else if (isClassExpression(cc.body) && inheritsFrom(cc.body, ...params)) {
     const declaration = cc.body;
     const properties = fetchProperties(declaration);
     const config = buildProperties(properties);
 
-    if (!declaration) {
-      return statement;
-    }
     declaration.members.unshift(config);
   } else if (isCallExpression(cc.body)) {
-    const declaration = cc.body.arguments
+    const updated = cc.body.arguments
       .filter(isClassExpression)
-      .find((cls) => inheritsFrom(cls, ...params)) as ClassLikeDeclaration;
+      .filter((cls) => inheritsFrom(cls, ...params))
+      .map((declaration: ClassLikeDeclaration) => declaration.members.unshift(buildProperties(fetchProperties(declaration))));
 
-    if (!declaration) {
+    if (updated.length === 0) {
       return statement;
     }
-    declaration.members.unshift(buildProperties(fetchProperties(declaration)));
   }
   return cc;
 }
@@ -775,42 +771,34 @@ export class Module {
         resultStatement = new Module(statement, compilerOptions, this.output, this);
       } else if (isVariableStatement(statement) || isAssignmentExpression(statement)) {
         const mutable = getMutableClone(statement);
-        if (isVariableStatement(mutable)) {
-          const updated = mutable.declarationList.declarations.filter((node) => {
-            if (isArrowFunction(node.initializer) || isFunctionExpression(node.initializer)) {
-              const mixin = upgradeMixins(node.initializer);
-              if (mixin !== node.initializer) {
-                node.initializer = mixin as FunctionExpression;
-                return true;
-              }
-            } else if (isCallExpression(node.initializer)) {
-              const subUpdated = node.initializer.arguments
-                .filter((initializer) => isArrowFunction(initializer) || isFunctionExpression(initializer))
-                .filter((initializer: FunctionExpression, index, args) => {
-                  const mixin = upgradeMixins(initializer) as FunctionExpression;
-                  if (mixin !== initializer) {
-                    args[ index ] = mixin as FunctionExpression;
-                    return true;
-                  }
-                  return false;
-                });
-              return subUpdated.length > 0;
-            }
-            return false;
-          });
-
-          if (updated.length > 0) {
-            resultStatement = mutable;
+        let access;
+        access = isVariableStatement(mutable) ? {
+          collection: mutable.declarationList.declarations, use: null,
+          get expression() {
+            return this.use.initializer;
+          },
+          set expression(value) {
+            this.use.initializer = value;
           }
-        } else {
-          if (isArrowFunction(mutable.expression.right) || isFunctionExpression(mutable.expression.right)) {
-            const mixin = upgradeMixins(mutable.expression.right);
-            if (mixin !== mutable.expression.right) {
-              mutable.expression.right = mixin as FunctionExpression;
-              resultStatement = mutable;
+        } : {
+          collection: [ mutable.expression.right ],
+          get expression() {
+            return (mutable as any).expression.right;
+          },
+          set expression(value) {
+            (mutable as any).expression.right = value;
+          }
+        };
+        const updated = access.collection.filter((node) => {
+          access.use = node;
+          if (isArrowFunction(access.expression) || isFunctionExpression(access.expression)) {
+            const mixin = upgradeMixins(access.expression);
+            if (mixin !== access.expression) {
+              access.expression = mixin as FunctionExpression;
+              return true;
             }
-          } else if (isCallExpression(mutable.expression.right)) {
-            const updated = mutable.expression.right.arguments
+          } else if (isCallExpression(access.expression)) {
+            const subUpdated = access.expression.arguments
               .filter((initializer) => isArrowFunction(initializer) || isFunctionExpression(initializer))
               .filter((initializer: FunctionExpression, index, args) => {
                 const mixin = upgradeMixins(initializer) as FunctionExpression;
@@ -820,11 +808,13 @@ export class Module {
                 }
                 return false;
               });
-
-            if (updated.length > 0) {
-              resultStatement = mutable;
-            }
+            return subUpdated.length > 0;
           }
+          return false;
+        });
+
+        if (updated.length > 0) {
+          resultStatement = mutable;
         }
       } else if (isFunctionDeclaration(statement)) {
         resultStatement = upgradeMixins(statement) as FunctionDeclaration;
