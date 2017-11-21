@@ -1,14 +1,16 @@
 import { readFileSync } from "fs";
 import { dirname, resolve } from "path";
 import {
-  BinaryExpression, BlockLike, CallExpression, ClassDeclaration, ClassElement, ClassExpression, EqualsToken, Expression,
-  ExpressionStatement, forEachChild, FunctionExpression, HeritageClause, Identifier, InterfaceDeclaration, isBinaryExpression,
-  isDoStatement, isExpressionStatement, isForInStatement, isForOfStatement, isForStatement, isFunctionLike, isGetAccessorDeclaration,
-  isIdentifier, isIfStatement, isPropertyDeclaration, isSetAccessorDeclaration, isSwitchStatement, isTryStatement, isWhileStatement, JSDoc,
-  NamedDeclaration, Node, PrefixUnaryExpression, PropertyAccessExpression, ReturnStatement, SourceFile, Statement, SyntaxKind
+  BinaryExpression, BlockLike, CallExpression, ClassDeclaration, ClassElement, ClassExpression, createArrayLiteral, createBlock,
+  createGetAccessor, createIdentifier, createLiteral, createObjectLiteral, createPrinter, createPropertyAssignment, createReturn,
+  createToken, EmitHint, EqualsToken, Expression, ExpressionStatement, forEachChild, FunctionExpression, GetAccessorDeclaration,
+  HeritageClause, Identifier, InterfaceDeclaration, isBinaryExpression, isDoStatement, isExpressionStatement, isForInStatement,
+  isForOfStatement, isForStatement, isFunctionLike, isGetAccessorDeclaration, isIdentifier, isIfStatement, isPropertyDeclaration,
+  isSetAccessorDeclaration, isSwitchStatement, isTryStatement, isWhileStatement, JSDoc, NamedDeclaration, Node, PrefixUnaryExpression,
+  PropertyAccessExpression, ReturnStatement, SourceFile, Statement, SyntaxKind
 } from "typescript";
 import { Constructor } from "../types";
-import { ImportedNode, Method } from "./builder";
+import { ImportedNode, Method, Property } from "./builder";
 
 type ClassOrInterface = ClassDeclaration | ClassExpression | InterfaceDeclaration;
 
@@ -428,6 +430,8 @@ export const hasOriginalKeywordKind = (expr: Node): expr is Identifier => "origi
  */
 export const isExtendsDeclaration = (heritage: HeritageClause): boolean => heritage.token === SyntaxKind.ExtendsKeyword;
 
+export const isStatement = (node: any): node is Statement => "pos" in node;
+
 /**
  * Checks if expression is an assignment expression
  */
@@ -678,19 +682,15 @@ export const getRoot = (node: Node): SourceFile => {
  * @returns Text of source node with updated refs
  */
 export const updateImportedRefs = (src: Node, vars: Map<string, ImportedNode>): string => {
-  return flattenChildren(src)
-    .filter((node: Node) => node.constructor.name === "IdentifierObject" && (node.parent as NamedDeclaration).name !== node)
-    .filter((node) => vars.has(node.getText()))
-    .sort((a, b) => b.pos - a.pos)
-    .reduce((arr, identifier) => {
-      const text = identifier.getText();
-      return [
-        ...arr.slice(0, identifier.pos - src.pos),
-        ...identifier.getFullText().replace(text, vars.get(text).fullIdentifier),
-        ...arr.slice(identifier.end - src.pos)
-      ];
-    }, src.getFullText().split(""))
-    .join("");
+  const printer = createPrinter({ removeComments: false }, {
+    substituteNode(hint: EmitHint, node: Identifier & { parent: NamedDeclaration }) {
+      if (node.constructor.name !== "IdentifierObject" || !node.parent || node.parent.name === node || !vars.has(node.getText())) {
+        return node;
+      }
+      return createIdentifier(vars.get(node.getText()).fullIdentifier);
+    }
+  });
+  return printer.printNode(EmitHint.Unspecified, src, getRoot(src));
 };
 
 /**
@@ -701,3 +701,55 @@ export const updateImportedRefs = (src: Node, vars: Map<string, ImportedNode>): 
  * @returns URL
  */
 export const pathToURL = (path: string): string => path.replace(/\\/g, "/");
+
+export const buildExpression = (expr) => {
+  if (Array.isArray(expr)) {
+    return createArrayLiteral(expr.map((e) => buildExpression(e)), true);
+  } else if (typeof expr !== "object") {
+    return createLiteral(expr);
+  } else if (expr && expr.constructor.name === "IdentifierObject") {
+    return expr;
+  } else {
+    return buildObject(expr);
+  }
+};
+
+export const buildObject = (props) => {
+  if (Array.isArray(props)) {
+    return buildExpression(props);
+  }
+  return createObjectLiteral(Object
+    .entries(props)
+    .map(([ key, value ]) => createPropertyAssignment(key, buildExpression(value))), true);
+};
+
+export const buildProperties = (props: Array<Property>): GetAccessorDeclaration => {
+  return createGetAccessor([], [ createToken(SyntaxKind.StaticKeyword) ], "properties", [], void 0, createBlock([
+    createReturn(
+      buildObject(props.reduce((config, { name, type, value, computed, notify, observer, readOnly }) => {
+        const prop = { type } as Property;
+        if (value !== undefined) {
+          prop.value = value;
+        }
+        if (computed) {
+          prop.computed = computed;
+        }
+        if (notify) {
+          prop.notify = notify;
+        }
+        if (observer) {
+          prop.observer = observer;
+        }
+        if (readOnly) {
+          prop.readOnly = readOnly;
+        }
+        if (Object.keys(prop).length === 1) {
+          config[ name ] = type;
+        } else {
+          config[ name ] = prop;
+        }
+        return config;
+      }, {}))
+    )
+  ], true));
+};

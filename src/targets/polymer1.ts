@@ -28,7 +28,7 @@ export class Polymer1 {
     return component ? component.provideRefs(this.importedRefs) : component;
   }
 
-  /** Get all imports from module up to the root module (source file). */
+  /** Get all imports from module up to the root module (declaration file). */
   protected get imports(): Array<Import> {
     const imports = [];
     for (let node = this.module; node; node = node.parent) {
@@ -53,7 +53,7 @@ export class Polymer1 {
   protected get body(): string {
     return this.module.statements
       .filter((statement) => !(statement instanceof Import))
-      .map((statement: Statement) => {
+      .map((statement: Statement | Component | Module) => {
         if (statement instanceof Module) {
           return statement.toString();
         } else if (statement instanceof Component) {
@@ -101,7 +101,7 @@ export class Polymer1 {
   }
 
   /**
-   * Validate the components source
+   * Validate the components declaration
    *
    * @throws SyntaxError Will throw an error if class extends something different than Polymer.Element
    */
@@ -129,7 +129,7 @@ export class Polymer1 {
    * @returns Stringified component declaration
    */
   protected componentScript(component: Component): string {
-    const quote = getQuoteChar(this.module.source);
+    const quote = getQuoteChar(this.module.declaration);
     return `
       const ${component.name} = Polymer({\n${
       component.events.join("\n")
@@ -167,7 +167,7 @@ export class Polymer1 {
    * @returns Stringified observers declaration
    */
   protected observers(component: Component): string {
-    const quote = getQuoteChar(this.module.source);
+    const quote = getQuoteChar(this.module.declaration);
     return component.observers.length === 0 ? "" : `observers: [
       ${component.observers.map((observer) => `${quote}${observer}${quote}`).join(",\n")}
     ]`;

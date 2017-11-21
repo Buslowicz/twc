@@ -2,24 +2,26 @@ import { existsSync } from "fs";
 import { dirname, extname, join, normalize, parse, relative, resolve } from "path";
 import { CustomElementOptions } from "twc/polymer";
 import {
-  ArrayLiteralExpression, ArrowFunction, BinaryExpression, CallExpression, ClassDeclaration, CompilerOptions, createBlock,
-  createFunctionDeclaration, Expression, ExpressionStatement, forEachChild, FunctionExpression, FunctionLikeDeclaration, HeritageClause,
-  Identifier, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, isArrowFunction, isBinaryExpression, isBlock, isCallExpression,
-  isClassDeclaration, isClassExpression, isConditionalExpression, isExportAssignment, isExportDeclaration, isFunctionDeclaration,
-  isFunctionExpression, isFunctionLike, isGetAccessorDeclaration, isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration,
-  isNamedImports, isPropertyAccessExpression, isPropertyDeclaration, isSetAccessorDeclaration, isTemplateExpression, isVariableStatement,
-  MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, NoSubstitutionTemplateLiteral, PropertyAccessExpression,
-  PropertyDeclaration, PropertySignature, SourceFile, Statement, StringLiteral, SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
+  ArrayLiteralExpression, BinaryExpression, CallExpression, ClassDeclaration, ClassLikeDeclaration, CompilerOptions, createBlock,
+  createFunctionDeclaration, Expression, ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression,
+  FunctionLikeDeclaration, getMutableClone, HeritageClause, Identifier, ImportDeclaration, ImportSpecifier, InterfaceDeclaration,
+  isArrowFunction, isBinaryExpression, isBlock, isCallExpression, isClassDeclaration, isClassExpression, isConditionalExpression,
+  isExportAssignment, isExportDeclaration, isFunctionDeclaration, isFunctionExpression, isFunctionLike, isGetAccessorDeclaration,
+  isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration, isNamedImports, isPropertyAccessExpression, isPropertyDeclaration,
+  isSetAccessorDeclaration, isTemplateExpression, isVariableStatement, MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport,
+  Node, NoSubstitutionTemplateLiteral, PropertyAccessExpression, PropertyDeclaration, PropertySignature, SourceFile, Statement,
+  StringLiteral, SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
 } from "typescript";
 import { cache, outPath, paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
 import { DecoratorExtras } from "./decorators";
 import {
-  DecoratorsMixin, getReturnStatements, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isAssignmentExpression,
-  isExtendsDeclaration, isOneOf, isStatic, JSDocMixin, Link, notPrivate, notStatic, ParsedDecorator, pathToURL, RefUpdaterMixin, stripQuotes
+  buildProperties, DecoratorsMixin, getReturnStatements, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper,
+  isAssignmentExpression, isExtendsDeclaration, isOneOf, isStatic, JSDocMixin, Link, notPrivate, notStatic, ParsedDecorator, pathToURL,
+  RefUpdaterMixin, stripQuotes
 } from "./helpers";
 import * as buildTargets from "./targets";
-import { parseDeclaration, parseDeclarationType, ValidValue } from "./type-analyzer";
+import { getDeclarationType, parseDeclaration, ValidValue } from "./type-analyzer";
 
 /**
  * Method hook interface
@@ -28,17 +30,6 @@ export interface MethodHook {
   place: "beforeend" | "afterbegin";
   statement: string;
 }
-
-/**
- * Map of TypeScript kind to JavaScript type.
- */
-export const typeMap = {
-  [ SyntaxKind.StringKeyword ]: String,
-  [ SyntaxKind.NumberKeyword ]: Number,
-  [ SyntaxKind.BooleanKeyword ]: Boolean,
-  [ SyntaxKind.ObjectKeyword ]: Object,
-  [ SyntaxKind.ArrayType ]: Array
-};
 
 /**
  * Representation of an imported entity. Provides an imported identifier and fullIdentifier (identifier with namespace if provided).
@@ -156,7 +147,7 @@ export class Template {
   /**
    * Create a template from method returning a string
    *
-   * @param fun Method to use as a declaration source
+   * @param fun Method to use as a declaration declaration
    *
    * @returns New template
    */
@@ -167,7 +158,7 @@ export class Template {
   /**
    * Create a template from a link
    *
-   * @param link Link to use to fetch the source
+   * @param link Link to use to fetch the declaration
    *
    * @returns New template
    */
@@ -178,7 +169,7 @@ export class Template {
   /**
    * Create a template from a string
    *
-   * @param src String source to use as a template
+   * @param src String declaration to use as a template
    *
    * @returns New template
    */
@@ -271,7 +262,7 @@ export class RegisteredEvent {
       description: member[ "jsDoc" ] ? member[ "jsDoc" ].map((doc) => doc.comment).join("\n") : null,
       name: member.name.getText(),
       rawType: member[ "type" ],
-      type: parseDeclarationType(member as any)
+      type: getDeclarationType(member as any)
     }));
   }
 
@@ -301,7 +292,7 @@ export class RegisteredEvent {
  */
 export class Property extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   /** Type of a property */
-  public type: Constructor<ValidValue>;
+  public type: Identifier;
   /** Default value */
   public value?: ValidValue | InitializerWrapper;
   /** Whether property reflects to an attribute */
@@ -324,9 +315,9 @@ export class Property extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
 
   constructor(public readonly declaration: PropertyDeclaration, public readonly name: string) {
     super();
-    const { type, value, isDate } = parseDeclaration(declaration);
+    const { value, proto: type } = parseDeclaration(declaration);
 
-    Object.assign(this, { type: isDate ? Date : typeMap[ type || SyntaxKind.ObjectKeyword ], value });
+    Object.assign(this, { type, value });
   }
 
   public toString() {
@@ -338,10 +329,12 @@ export class Property extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     }
     const props = [ "readOnly", "reflectToAttribute", "notify", "computed", "observer" ];
 
-    const isSimpleConfig = this.type && this.value === undefined && props.every((prop) => !this[ prop ]);
+    const type = this.type || { text: "Object" };
 
-    return isSimpleConfig ? this.type.name : `{ ${ [
-      `type: ${this.type.name}`,
+    const isSimpleConfig = type && this.value === undefined && props.every((prop) => !this[ prop ]);
+
+    return isSimpleConfig ? type.text : `{ ${ [
+      `type: ${type.text}`,
       ...(this.value === undefined ? [] : [ `value: ${this.value}` ]),
       ...props.map((prop) => this[ prop ] ? `${prop}: ${this[ prop ]}` : undefined)
     ]
@@ -671,6 +664,55 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   }
 }
 
+export function fetchProperties(declaration: ClassLikeDeclaration) {
+  if (!declaration) {
+    return [];
+  }
+
+  return declaration
+    .members
+    .filter(isPropertyDeclaration)
+    .filter(notPrivate)
+    .filter(notStatic)
+    .map((property: PropertyDeclaration) => new Property(property, property.name.getText()));
+}
+
+export function upgradeMixins(statement: FunctionLikeDeclaration, cloneStatement = true) {
+  const cc = cloneStatement ? getMutableClone(statement) : statement;
+  const params = cc.parameters.map((param) => param.getText());
+  // @todo change find to filter to handle all classes instead of the first found
+  if (isBlock(cc.body)) {
+    const declaration = getReturnStatements(cc.body)
+      .map(({ expression }) => expression)
+      .filter(isClassExpression)
+      .find((cls) => inheritsFrom(cls, ...params)) as ClassLikeDeclaration;
+
+    if (!declaration) {
+      return statement;
+    }
+    declaration.members.unshift(buildProperties(fetchProperties(declaration)));
+  } else if (isClassExpression(cc.body) && inheritsFrom(cc.body, ...params)) {
+    const declaration = cc.body;
+    const properties = fetchProperties(declaration);
+    const config = buildProperties(properties);
+
+    if (!declaration) {
+      return statement;
+    }
+    declaration.members.unshift(config);
+  } else if (isCallExpression(cc.body)) {
+    const declaration = cc.body.arguments
+      .filter(isClassExpression)
+      .find((cls) => inheritsFrom(cls, ...params)) as ClassLikeDeclaration;
+
+    if (!declaration) {
+      return statement;
+    }
+    declaration.members.unshift(buildProperties(fetchProperties(declaration)));
+  }
+  return cc;
+}
+
 /**
  * Representation of a module. Converting to string generates a final output.
  */
@@ -679,7 +721,7 @@ export class Module {
    * Module name (for module/namespace declaration)
    */
   public get name() {
-    return isModuleDeclaration(this.source) ? this.source.name.getText() : "";
+    return isModuleDeclaration(this.declaration) ? this.declaration.name.getText() : "";
   }
 
   /** Imports list */
@@ -709,11 +751,11 @@ export class Module {
   /** Map of variable identifiers to variables */
   public readonly variables: Map<string, ImportedNode | any> = new Map();
 
-  constructor(public readonly source: SourceFile | ModuleDeclaration,
+  constructor(public readonly declaration: SourceFile | ModuleDeclaration,
               public readonly compilerOptions: CompilerOptions,
               public readonly output: "Polymer1" | "Polymer2",
               public readonly parent: Module = null) {
-    (isModuleDeclaration(source) ? source.body as ModuleBlock : source).statements.forEach((statement) => {
+    (isModuleDeclaration(declaration) ? declaration.body as ModuleBlock : declaration).statements.forEach((statement) => {
       let resultStatement: Statement | Component | Import | Module = statement;
       if (isImportDeclaration(statement)) { // Handling import statements
         resultStatement = new Import(statement, this.variables);
@@ -732,16 +774,60 @@ export class Module {
       } else if (isModuleDeclaration(statement)) {  // Handling modules and namespaces
         resultStatement = new Module(statement, compilerOptions, this.output, this);
       } else if (isVariableStatement(statement) || isAssignmentExpression(statement)) {
-        const init = isVariableStatement(statement) ? statement.declarationList.declarations[ 0 ].initializer : statement.expression.right;
-        if (isArrowFunction(init) || isFunctionExpression(init)) {
-          this.parseMixin(init);
-        } else if (isCallExpression(init)) {
-          init.arguments
-            .filter(isOneOf(isArrowFunction, isFunctionExpression))
-            .forEach((mixin: ArrowFunction | FunctionExpression) => this.parseMixin(mixin));
+        const mutable = getMutableClone(statement);
+        if (isVariableStatement(mutable)) {
+          const updated = mutable.declarationList.declarations.filter((node) => {
+            if (isArrowFunction(node.initializer) || isFunctionExpression(node.initializer)) {
+              const mixin = upgradeMixins(node.initializer);
+              if (mixin !== node.initializer) {
+                node.initializer = mixin as FunctionExpression;
+                return true;
+              }
+            } else if (isCallExpression(node.initializer)) {
+              const subUpdated = node.initializer.arguments
+                .filter((initializer) => isArrowFunction(initializer) || isFunctionExpression(initializer))
+                .filter((initializer: FunctionExpression, index, args) => {
+                  const mixin = upgradeMixins(initializer) as FunctionExpression;
+                  if (mixin !== initializer) {
+                    args[ index ] = mixin as FunctionExpression;
+                    return true;
+                  }
+                  return false;
+                });
+              return subUpdated.length > 0;
+            }
+            return false;
+          });
+
+          if (updated.length > 0) {
+            resultStatement = mutable;
+          }
+        } else {
+          if (isArrowFunction(mutable.expression.right) || isFunctionExpression(mutable.expression.right)) {
+            const mixin = upgradeMixins(mutable.expression.right);
+            if (mixin !== mutable.expression.right) {
+              mutable.expression.right = mixin as FunctionExpression;
+              resultStatement = mutable;
+            }
+          } else if (isCallExpression(mutable.expression.right)) {
+            const updated = mutable.expression.right.arguments
+              .filter((initializer) => isArrowFunction(initializer) || isFunctionExpression(initializer))
+              .filter((initializer: FunctionExpression, index, args) => {
+                const mixin = upgradeMixins(initializer) as FunctionExpression;
+                if (mixin !== initializer) {
+                  args[ index ] = mixin as FunctionExpression;
+                  return true;
+                }
+                return false;
+              });
+
+            if (updated.length > 0) {
+              resultStatement = mutable;
+            }
+          }
         }
       } else if (isFunctionDeclaration(statement)) {
-        this.parseMixin(statement);
+        resultStatement = upgradeMixins(statement) as FunctionDeclaration;
       } else if (isExportDeclaration(statement) || isExportAssignment(statement)) {
         // Do NOT push export statements (allow exceptions for P3 and ES Module based outputs)
         return;
@@ -759,23 +845,5 @@ export class Module {
 
   public toString(): string {
     return new buildTargets[ this.output ](this).toString();
-  }
-
-  private parseMixin(initializer: FunctionLikeDeclaration) {
-    const params = initializer.parameters.map((param) => param.getText());
-    if (isBlock(initializer.body)) {
-      const returns = getReturnStatements(initializer.body)
-        .map(({ expression }) => expression)
-        .filter(isClassExpression)
-        .find((klass) => inheritsFrom(klass, ...params));
-      console.log(returns && returns.getText());
-    } else if (isClassExpression(initializer.body) && inheritsFrom(initializer.body, ...params)) {
-      console.log(initializer.body.getText());
-    } else if (isCallExpression(initializer.body)) {
-      const args = initializer.body.arguments
-        .filter(isClassExpression)
-        .find((klass) => inheritsFrom(klass, ...params));
-      console.log(args && args.getText());
-    }
   }
 }

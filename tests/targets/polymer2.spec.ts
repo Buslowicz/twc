@@ -118,31 +118,403 @@ describe("Polymer v2 output", () => {
       );
     });
   });
-  describe("mixins", () => {
-    const component1 = transpile(`const mixinA = (superClass1) => class extends superClass1 {};`);
-    const component2 = transpile(`const mixinA = (superClass2) => class extends otherMixin(superClass2) {};`);
-    const component3 = transpile(`const mixinA = (superClass3) => class extends otherMixin(anotherMixin(superClass3)) {};`);
-    const component4 = transpile(`const mixinA = (superClass4) => transformer(class extends superClass4  {});`);
-    const component5 = transpile(`const mixinA = (superClass5) => { return class extends superClass5 {}; };`);
-    const component6 = transpile(`const mixinA = function (superClass6) { return class extends superClass6 {}; };`);
-    const component7 = transpile(`const mixinA = function mixinA(superClass7) { return class extends superClass7 {}; };`);
-    const component8 = transpile(`const mixinA = Polymer.dedupingMixin((superClass8) => class extends superClass8 {});`);
-    const component9 = transpile(`function mixinA(superClass9) { return class extends superClass9 {}; };`);
-    const component10 = transpile(`MyNamespace.MyMixin = Polymer.dedupingMixin((superClass10) => class extends superClass10 {});`);
-    const component11 = transpile(`MyNamespace.MyMixin = (superClass11) => class extends superClass11 {};`);
-    it("should parse mixins as polymer elements", () => {
-      // @todo proper tests
-      expect(component1.es5).to.be.ok;
-      expect(component2.es5).to.be.ok;
-      expect(component3.es5).to.be.ok;
-      expect(component4.es5).to.be.ok;
-      expect(component5.es5).to.be.ok;
-      expect(component6.es5).to.be.ok;
-      expect(component7.es5).to.be.ok;
-      expect(component8.es5).to.be.ok;
-      expect(component9.es5).to.be.ok;
-      expect(component10.es5).to.be.ok;
-      expect(component11.es5).to.be.ok;
+  describe("should detect mixins declared in various ways", () => {
+    const component1 = transpile(`const mixinA = (Super1) => class extends Super1 { prop: string; };`);
+    const component2 = transpile(`const mixinA = (Super2) => class extends otherMixin(Super2) { prop: string; };`);
+    const component3 = transpile(`const mixinA = (Super3) => class extends otherMixin(anotherMixin(Super3)) { prop: string; };`);
+    const component4 = transpile(`const mixinA = (Super4) => transformer(class extends Super4  { prop: string; });`);
+    const component5 = transpile(`const mixinA = (Super5) => { return class extends Super5 { prop: string; }; };`);
+    const component6 = transpile(`const mixinA = function (Super6) { return class extends Super6 { prop: string; }; };`);
+    const component7 = transpile(`const mixinA = function mixinA(Super7) { return class extends Super7 { prop: string; }; };`);
+    const component8 = transpile(`const mixinA = Polymer.dedupingMixin((Super8) => class extends Super8 { prop: string; });`);
+    const component9 = transpile(`function mixinA(Super9) { return class extends Super9 { prop: string; }; };`);
+    const component10 = transpile(`MyNamespace.MyMixin = Polymer.dedupingMixin((Super10) => class extends Super10 { prop: string; });`);
+    const component11 = transpile(`MyNamespace.MyMixin = (Super11) => class extends Super11 { prop: string; };`);
+    it("es5", () => {
+      expect(component1.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = function(Super1) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop: String
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return class_1;
+            }(Super1));
+          };
+        </script>
+      `);
+      expect(component2.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = function(Super2) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop: String
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return class_1;
+            }(otherMixin(Super2)));
+          };
+        </script>
+      `);
+      expect(component3.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = function(Super3) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop: String
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return class_1;
+            }(otherMixin(anotherMixin(Super3))));
+          };
+        </script>
+      `);
+      expect(component4.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = function(Super4) {
+            return transformer((function(_super) {
+              __extends(class_1, _super);
+        
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop: String
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return class_1;
+            }(Super4)));
+          };
+        </script>
+      `);
+      expect(component5.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = function(Super5) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop: String
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return class_1;
+            }(Super5));
+          };
+        </script>
+      `);
+      expect(component6.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = function(Super6) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop: String
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return class_1;
+            }(Super6));
+          };
+        </script>
+      `);
+      expect(component7.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = function mixinA(Super7) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop: String
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return class_1;
+            }(Super7));
+          };
+        </script>
+      `);
+      expect(component8.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = Polymer.dedupingMixin(function(Super8) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop: String
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return class_1;
+            }(Super8));
+          });
+        </script>
+      `);
+      expect(component9.es5).to.equalIgnoreSpaces(`
+        <script>
+          function mixinA(Super9) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop: String
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return class_1;
+            }(Super9));
+          };
+        </script>
+      `);
+      expect(component10.es5).to.equalIgnoreSpaces(`
+        <script>
+          MyNamespace.MyMixin = Polymer.dedupingMixin(function(Super10) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop: String
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return class_1;
+            }(Super10));
+          });
+        </script>
+      `);
+      expect(component11.es5).to.equalIgnoreSpaces(`
+        <script>
+          MyNamespace.MyMixin = function(Super11) {
+            return (function(_super) {
+              __extends(class_1, _super);
+        
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop: String
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              return class_1;
+            }(Super11));
+          };
+        </script>
+      `);
+    });
+    it("es6", () => {
+      expect(component1.es6).to.equalIgnoreSpaces(`
+        <script>
+          const mixinA = (Super1) => class extends Super1 {
+            static get properties() {
+              return {
+                prop: String
+              };
+            }
+          };
+        </script>
+      `);
+      expect(component2.es6).to.equalIgnoreSpaces(`
+        <script>
+          const mixinA = (Super2) => class extends otherMixin(Super2) {
+            static get properties() {
+              return {
+                prop: String
+              };
+            }
+          };
+        </script>
+      `);
+      expect(component3.es6).to.equalIgnoreSpaces(`
+        <script>
+          const mixinA = (Super3) => class extends otherMixin(anotherMixin(Super3)) {
+            static get properties() {
+              return {
+                prop: String
+              };
+            }
+          };
+        </script>
+      `);
+      expect(component4.es6).to.equalIgnoreSpaces(`
+        <script>
+          const mixinA = (Super4) => transformer(class extends Super4 {
+            static get properties() {
+              return {
+                prop: String
+              };
+            }
+          });
+        </script>
+      `);
+      expect(component5.es6).to.equalIgnoreSpaces(`
+        <script>
+          const mixinA = (Super5) => {
+            return class extends Super5 {
+              static get properties() {
+                return {
+                  prop: String
+                };
+              }
+            };
+          };
+        </script>
+      `);
+      expect(component6.es6).to.equalIgnoreSpaces(`
+        <script>
+          const mixinA = function (Super6) {
+            return class extends Super6 {
+             static get properties() {
+              return {
+                prop: String
+              };
+             }
+            };
+          };
+        </script>
+      `);
+      expect(component7.es6).to.equalIgnoreSpaces(`
+        <script>
+          const mixinA = function mixinA(Super7) {
+            return class extends Super7 {
+             static get properties() {
+              return {
+                prop: String
+              };
+             }
+            };
+          };
+        </script>
+      `);
+      expect(component8.es6).to.equalIgnoreSpaces(`
+        <script>
+          const mixinA = Polymer.dedupingMixin((Super8) => class extends Super8 {
+            static get properties() {
+              return {
+                prop: String
+              };
+            }
+          });
+        </script>
+      `);
+      expect(component9.es6).to.equalIgnoreSpaces(`
+        <script>
+          function mixinA(Super9) {
+            return class extends Super9 {
+              static get properties() {
+                return {
+                  prop: String
+                };
+              }
+            };
+          };
+        </script>
+      `);
+      expect(component10.es6).to.equalIgnoreSpaces(`
+        <script>
+          MyNamespace.MyMixin = Polymer.dedupingMixin((Super10) => class extends Super10 {
+            static get properties() {
+              return {
+                prop: String
+              };
+            }
+          });
+        </script>
+      `);
+      expect(component11.es6).to.equalIgnoreSpaces(`
+        <script>
+          MyNamespace.MyMixin = (Super11) => class extends Super11 {
+            static get properties() {
+              return {
+                prop: String
+              };
+            }
+          };
+        </script>
+      `);
     });
   });
   describe("should not emit exports", () => {
