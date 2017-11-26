@@ -600,7 +600,7 @@ describe("Polymer v2 output", () => {
     });
   });
   describe("should recognize observers within mixin declaration", () => {
-    const component = transpile(`const mixinA = (Super1) => class extends Super1 {
+    const component1 = transpile(`const mixinA = (Super1) => class extends Super1 {
       prop1: string;
       prop2: number;
       readonly prop3: boolean;
@@ -611,33 +611,181 @@ describe("Polymer v2 output", () => {
       @observe('prop3') observer3(prop3) {}
       @observe() observer4(prop2) {}
     };`);
-    // it("es5", () => {
-    //   expect(component.es5).to.equalIgnoreSpaces(`
-    //     <script>
-    //       var mixinA = function(Super1) {
-    //         return (function(_super) {
-    //           __extends(class_1, _super);
-    //
-    //           function class_1() {
-    //             return _super !== null && _super.apply(this, arguments) || this;
-    //           }
-    //           Object.defineProperty(class_1, "properties", {
-    //             get: function() {
-    //               return {
-    //                 prop: String
-    //               };
-    //             },
-    //             enumerable: true,
-    //             configurable: true
-    //           });
-    //           return class_1;
-    //         }(Super1));
-    //       };
-    //     </script>
-    //   `);
-    // });
+    const component2 = transpile(`const mixinA = (Super1) => {
+      return class extends Super1 {
+        prop1: string;
+        prop2: number;
+        readonly prop3: boolean;
+
+        someMethod() {}
+        @observe('prop1', 'prop2') observer1(prop1, prop2) {}
+        @observe('prop1') observer2(prop1) {}
+        @observe('prop3') observer3(prop3) {}
+        @observe() observer4(prop2) {}
+      };
+    };`);
+    const component3 = transpile(`const mixinA = (Super1) => transformer(class extends Super1 {
+      prop1: string;
+      prop2: number;
+      readonly prop3: boolean;
+
+      someMethod() {}
+      @observe('prop1', 'prop2') observer1(prop1, prop2) {}
+      @observe('prop1') observer2(prop1) {}
+      @observe('prop3') observer3(prop3) {}
+      @observe() observer4(prop2) {}
+    };)`);
+    it("es5", () => {
+      expect(component1.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = function(Super1) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop1: {
+                      type: String,
+                      observer: "observer2"
+                    },
+                    prop2: {
+                      type: Number,
+                      observer: "observer4"
+                    },
+                    prop3: {
+                      type: Boolean,
+                      observer: "observer3",
+                      readOnly: true
+                    }
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              Object.defineProperty(class_1, "observers", {
+                get: function() {
+                  return [
+                    "observer1(prop1, prop2)"
+                  ];
+                },
+                enumerable: true,
+                configurable: true
+              });
+              class_1.prototype.someMethod = function() {};
+              class_1.prototype.observer1 = function(prop1, prop2) {};
+              class_1.prototype.observer2 = function(prop1) {};
+              class_1.prototype.observer3 = function(prop3) {};
+              class_1.prototype.observer4 = function(prop2) {};
+              return class_1;
+            }(Super1));
+          };
+        </script>
+      `);
+      expect(component2.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = function(Super1) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop1: {
+                      type: String,
+                      observer: "observer2"
+                    },
+                    prop2: {
+                      type: Number,
+                      observer: "observer4"
+                    },
+                    prop3: {
+                      type: Boolean,
+                      observer: "observer3",
+                      readOnly: true
+                    }
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              Object.defineProperty(class_1, "observers", {
+                get: function() {
+                  return [
+                    "observer1(prop1, prop2)"
+                  ];
+                },
+                enumerable: true,
+                configurable: true
+              });
+              class_1.prototype.someMethod = function() {};
+              class_1.prototype.observer1 = function(prop1, prop2) {};
+              class_1.prototype.observer2 = function(prop1) {};
+              class_1.prototype.observer3 = function(prop3) {};
+              class_1.prototype.observer4 = function(prop2) {};
+              return class_1;
+            }(Super1));
+          };
+        </script>
+      `);
+      expect(component3.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = function(Super1) {
+            return transformer((function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop1: {
+                      type: String,
+                      observer: "observer2"
+                    },
+                    prop2: {
+                      type: Number,
+                      observer: "observer4"
+                    },
+                    prop3: {
+                      type: Boolean,
+                      observer: "observer3",
+                      readOnly: true
+                    }
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              Object.defineProperty(class_1, "observers", {
+                get: function() {
+                  return [
+                    "observer1(prop1, prop2)"
+                  ];
+                },
+                enumerable: true,
+                configurable: true
+              });
+              class_1.prototype.someMethod = function() {};
+              class_1.prototype.observer1 = function(prop1, prop2) {};
+              class_1.prototype.observer2 = function(prop1) {};
+              class_1.prototype.observer3 = function(prop3) {};
+              class_1.prototype.observer4 = function(prop2) {};
+              return class_1;
+            }(Super1)));
+          };
+        </script>
+      `);
+    });
     it("es6", () => {
-      expect(component.es6).to.equalIgnoreSpaces(`
+      expect(component1.es6).to.equalIgnoreSpaces(`
         <script>
           const mixinA = (Super1) => class extends Super1 {
             static get properties() {
@@ -668,6 +816,74 @@ describe("Polymer v2 output", () => {
             observer3(prop3) {}
             observer4(prop2) {}
           };
+        </script>
+      `);
+      expect(component2.es6).to.equalIgnoreSpaces(`
+        <script>
+          const mixinA = (Super1) => {
+            return class extends Super1 {
+              static get properties() {
+                return {
+                  prop1: {
+                      type: String,
+                      observer: "observer2"
+                  },
+                  prop2: {
+                      type: Number,
+                      observer: "observer4"
+                  },
+                  prop3: {
+                      type: Boolean,
+                      observer: "observer3",
+                      readOnly: true
+                  }
+                };
+              }
+              static get observers() {
+                return [
+                  "observer1(prop1, prop2)"
+                ];
+              }
+              someMethod() {}
+              observer1(prop1, prop2) {}
+              observer2(prop1) {}
+              observer3(prop3) {}
+              observer4(prop2) {}
+            };
+          };
+        </script>
+      `);
+      expect(component3.es6).to.equalIgnoreSpaces(`
+        <script>
+          const mixinA = (Super1) => transformer(class extends Super1 {
+            static get properties() {
+              return {
+                prop1: {
+                    type: String,
+                    observer: "observer2"
+                },
+                prop2: {
+                    type: Number,
+                    observer: "observer4"
+                },
+                prop3: {
+                    type: Boolean,
+                    observer: "observer3",
+                    readOnly: true
+                }
+              };
+            }
+            static get observers() {
+              return [
+                "observer1(prop1, prop2)"
+              ];
+            }
+            someMethod() {}
+            observer1(prop1, prop2) {}
+            observer2(prop1) {}
+            observer3(prop3) {}
+            observer4(prop2) {}
+          });
         </script>
       `);
     });

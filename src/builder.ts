@@ -2,7 +2,8 @@ import { existsSync } from "fs";
 import { dirname, extname, join, normalize, parse, relative, resolve } from "path";
 import { CustomElementOptions } from "twc/polymer";
 import {
-  ArrayLiteralExpression, BinaryExpression, CallExpression, ClassDeclaration, ClassLikeDeclaration, CompilerOptions, createBlock,
+  ArrayLiteralExpression, BinaryExpression, CallExpression, ClassDeclaration, ClassExpression, ClassLikeDeclaration, CompilerOptions,
+  createBlock,
   createFunctionDeclaration, Expression, ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression,
   FunctionLikeDeclaration, getMutableClone, HeritageClause, Identifier, ImportDeclaration, ImportSpecifier, InterfaceDeclaration,
   isArrowFunction, isBinaryExpression, isBlock, isCallExpression, isClassDeclaration, isClassExpression, isConditionalExpression,
@@ -694,6 +695,31 @@ export function fetchObservers(declaration: ClassLikeDeclaration) {
     });
 }
 
+function parseMixinDeclaration(declaration: ClassExpression) {
+  const observers = fetchObservers(declaration);
+  const properties = fetchProperties(declaration);
+
+  const propertiesMap = new Map(properties.map((property) => [ property.name, property ] as [ string, Property ]));
+
+  observers.filter(({ isComplex }) => !isComplex).forEach(({ name, args }) => {
+    const property = propertiesMap.get(args.map(({ text }) => text).pop());
+    if (!property) {
+      return;
+    }
+    property.observer = name.getText();
+  });
+
+  const observersConfig = buildObservers(observers);
+  if (observers.filter(({ isComplex }) => isComplex).length > 0) {
+    declaration.members.unshift(observersConfig);
+  }
+
+  const propertiesConfig = buildProperties(Array.from(propertiesMap.values()));
+  if (properties.length > 0) {
+    declaration.members.unshift(propertiesConfig);
+  }
+}
+
 export function upgradeMixins(statement: FunctionLikeDeclaration) {
   const cc = getMutableClone(statement);
   const params = cc.parameters.map((param) => param.getText());
@@ -702,61 +728,18 @@ export function upgradeMixins(statement: FunctionLikeDeclaration) {
       .map(({ expression }) => expression)
       .filter(isClassExpression)
       .filter((cls) => inheritsFrom(cls, ...params))
-      .map((declaration: ClassLikeDeclaration) => {
-        declaration.members.unshift(buildProperties(fetchProperties(declaration)));
-        declaration
-          .members
-          .filter(isFunctionLike)
-          .filter(notStatic)
-          .filter((method) => hasDecorator(method, "observe"))
-          .forEach((method) => {
-            console.log(method);
-          });
-      });
+      .map(parseMixinDeclaration);
 
     if (updated.length === 0) {
       return statement;
     }
   } else if (isClassExpression(cc.body) && inheritsFrom(cc.body, ...params)) {
-    const declaration = cc.body;
-    const observers = fetchObservers(declaration);
-    const properties = fetchProperties(declaration);
-
-    const propertiesMap = new Map(properties.map((property) => [ property.name, property ] as [ string, Property ]));
-
-    observers.filter(({ isComplex }) => !isComplex).forEach(({ name, args }) => {
-      const property = propertiesMap.get(args.map(({ text }) => text).pop());
-      if (!property) {
-        return;
-      }
-      property.observer = name.getText();
-    });
-
-    const observersConfig = buildObservers(observers);
-    if (observers.filter(({ isComplex }) => isComplex).length > 0) {
-      declaration.members.unshift(observersConfig);
-    }
-
-    const propertiesConfig = buildProperties(Array.from(propertiesMap.values()));
-    if (properties.length > 0) {
-      declaration.members.unshift(propertiesConfig);
-    }
-
+    parseMixinDeclaration(cc.body);
   } else if (isCallExpression(cc.body)) {
     const updated = cc.body.arguments
       .filter(isClassExpression)
       .filter((cls) => inheritsFrom(cls, ...params))
-      .map((declaration: ClassLikeDeclaration) => {
-        declaration.members.unshift(buildProperties(fetchProperties(declaration)));
-        declaration
-          .members
-          .filter(isFunctionLike)
-          .filter(notStatic)
-          .filter((method) => hasDecorator(method, "observe"))
-          .forEach((method) => {
-            console.log(method);
-          });
-      });
+      .map(parseMixinDeclaration);
 
     if (updated.length === 0) {
       return statement;
