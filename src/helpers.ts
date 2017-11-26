@@ -754,3 +754,15 @@ export const buildProperties = (props: Array<Property>): GetAccessorDeclaration 
     )
   ], true));
 };
+
+export const buildObservers = (methods: Array<{ name: Node, args: Array<Node>, isComplex: boolean }>): GetAccessorDeclaration => {
+  return createGetAccessor([], [ createToken(SyntaxKind.StaticKeyword) ], "observers", [], void 0, createBlock([
+    createReturn(
+      buildObject(
+        methods
+          .filter(({ isComplex }) => isComplex)
+          .map(({ name, args }) => `${name.getText()}(${args.map((arg: Identifier) => arg.text).join(", ")})`)
+      )
+    )
+  ], true));
+};

@@ -16,6 +16,7 @@ import { cache, outPath, paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
 import { DecoratorExtras } from "./decorators";
 import {
+  buildObservers,
   buildProperties, DecoratorsMixin, getReturnStatements, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper,
   isAssignmentExpression, isExtendsDeclaration, isOneOf, isStatic, JSDocMixin, Link, notPrivate, notStatic, ParsedDecorator, pathToURL,
   RefUpdaterMixin, stripQuotes
@@ -677,6 +678,22 @@ export function fetchProperties(declaration: ClassLikeDeclaration) {
     .map((property: PropertyDeclaration) => new Property(property, property.name.getText()));
 }
 
+export function fetchObservers(declaration: ClassLikeDeclaration) {
+  return declaration
+    .members
+    .filter(isFunctionLike)
+    .filter(notStatic)
+    .filter((method) => hasDecorator(method, "observe"))
+    .map((method: MethodDeclaration) => {
+      const observer = method.decorators
+        .map(({ expression: exp }) => exp as CallExpression)
+        .find(({ expression: exp }) => exp.getText() === "observe");
+
+      const properties = observer.arguments.length > 0 ? observer.arguments : method.parameters.map(({ name }) => name);
+      return { name: method.name, args: properties as Array<Identifier>, isComplex: properties.length > 1 };
+    });
+}
+
 export function upgradeMixins(statement: FunctionLikeDeclaration) {
   const cc = getMutableClone(statement);
   const params = cc.parameters.map((param) => param.getText());
@@ -685,22 +702,61 @@ export function upgradeMixins(statement: FunctionLikeDeclaration) {
       .map(({ expression }) => expression)
       .filter(isClassExpression)
       .filter((cls) => inheritsFrom(cls, ...params))
-      .map((declaration: ClassLikeDeclaration) => declaration.members.unshift(buildProperties(fetchProperties(declaration))));
+      .map((declaration: ClassLikeDeclaration) => {
+        declaration.members.unshift(buildProperties(fetchProperties(declaration)));
+        declaration
+          .members
+          .filter(isFunctionLike)
+          .filter(notStatic)
+          .filter((method) => hasDecorator(method, "observe"))
+          .forEach((method) => {
+            console.log(method);
+          });
+      });
 
     if (updated.length === 0) {
       return statement;
     }
   } else if (isClassExpression(cc.body) && inheritsFrom(cc.body, ...params)) {
     const declaration = cc.body;
+    const observers = fetchObservers(declaration);
     const properties = fetchProperties(declaration);
-    const config = buildProperties(properties);
 
-    declaration.members.unshift(config);
+    const propertiesMap = new Map(properties.map((property) => [ property.name, property ] as [ string, Property ]));
+
+    observers.filter(({ isComplex }) => !isComplex).forEach(({ name, args }) => {
+      const property = propertiesMap.get(args.map(({ text }) => text).pop());
+      if (!property) {
+        return;
+      }
+      property.observer = name.getText();
+    });
+
+    const observersConfig = buildObservers(observers);
+    if (observers.filter(({ isComplex }) => isComplex).length > 0) {
+      declaration.members.unshift(observersConfig);
+    }
+
+    const propertiesConfig = buildProperties(Array.from(propertiesMap.values()));
+    if (properties.length > 0) {
+      declaration.members.unshift(propertiesConfig);
+    }
+
   } else if (isCallExpression(cc.body)) {
     const updated = cc.body.arguments
       .filter(isClassExpression)
       .filter((cls) => inheritsFrom(cls, ...params))
-      .map((declaration: ClassLikeDeclaration) => declaration.members.unshift(buildProperties(fetchProperties(declaration))));
+      .map((declaration: ClassLikeDeclaration) => {
+        declaration.members.unshift(buildProperties(fetchProperties(declaration)));
+        declaration
+          .members
+          .filter(isFunctionLike)
+          .filter(notStatic)
+          .filter((method) => hasDecorator(method, "observe"))
+          .forEach((method) => {
+            console.log(method);
+          });
+      });
 
     if (updated.length === 0) {
       return statement;
