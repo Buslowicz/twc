@@ -3,24 +3,22 @@ import { dirname, extname, join, normalize, parse, relative, resolve } from "pat
 import { CustomElementOptions } from "twc/polymer";
 import {
   ArrayLiteralExpression, BinaryExpression, CallExpression, ClassDeclaration, ClassExpression, ClassLikeDeclaration, CompilerOptions,
-  createBlock,
-  createFunctionDeclaration, Expression, ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression,
-  FunctionLikeDeclaration, getMutableClone, HeritageClause, Identifier, ImportDeclaration, ImportSpecifier, InterfaceDeclaration,
-  isArrowFunction, isBinaryExpression, isBlock, isCallExpression, isClassDeclaration, isClassExpression, isConditionalExpression,
-  isExportAssignment, isExportDeclaration, isFunctionDeclaration, isFunctionExpression, isFunctionLike, isGetAccessorDeclaration,
-  isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration, isNamedImports, isPropertyAccessExpression, isPropertyDeclaration,
-  isSetAccessorDeclaration, isTemplateExpression, isVariableStatement, MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport,
-  Node, NoSubstitutionTemplateLiteral, PropertyAccessExpression, PropertyDeclaration, PropertySignature, SourceFile, Statement,
-  StringLiteral, SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
+  createBlock, createFunctionDeclaration, createIdentifier, createMethod, createReturn, Expression, ExpressionStatement, forEachChild,
+  FunctionDeclaration, FunctionExpression, FunctionLikeDeclaration, getMutableClone, HeritageClause, Identifier, ImportDeclaration,
+  ImportSpecifier, InterfaceDeclaration, isArrowFunction, isBinaryExpression, isBlock, isCallExpression, isClassDeclaration,
+  isClassExpression, isConditionalExpression, isExportAssignment, isExportDeclaration, isFunctionDeclaration, isFunctionExpression,
+  isFunctionLike, isGetAccessorDeclaration, isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration, isNamedImports,
+  isPropertyAccessExpression, isPropertyDeclaration, isSetAccessorDeclaration, isStringLiteral, isTemplateExpression, isVariableStatement,
+  MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, NoSubstitutionTemplateLiteral, PropertyAccessExpression,
+  PropertyDeclaration, PropertySignature, SourceFile, Statement, StringLiteral, SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
 } from "typescript";
 import { cache, outPath, paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
 import { DecoratorExtras } from "./decorators";
 import {
-  buildObservers,
-  buildProperties, DecoratorsMixin, getReturnStatements, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper,
-  isAssignmentExpression, isExtendsDeclaration, isOneOf, isStatic, JSDocMixin, Link, notPrivate, notStatic, ParsedDecorator, pathToURL,
-  RefUpdaterMixin, stripQuotes
+  buildObservers, buildProperties, DecoratorsMixin, getReturnStatements, getRoot, hasDecorator, hasModifier, inheritsFrom,
+  InitializerWrapper, isAssignmentExpression, isExtendsDeclaration, isOneOf, isStatic, JSDocMixin, Link, notPrivate, notStatic,
+  ParsedDecorator, pathToURL, RefUpdaterMixin, stripQuotes
 } from "./helpers";
 import * as buildTargets from "./targets";
 import { getDeclarationType, parseDeclaration, ValidValue } from "./type-analyzer";
@@ -679,6 +677,43 @@ export function fetchProperties(declaration: ClassLikeDeclaration) {
     .map((property: PropertyDeclaration) => new Property(property, property.name.getText()));
 }
 
+export function fetchComputed(declaration: ClassLikeDeclaration) {
+  return declaration
+    .members
+    .filter(isPropertyDeclaration)
+    .filter(notStatic)
+    .filter((prop) => hasDecorator(prop, "compute"))
+    .map((prop: PropertyDeclaration) => {
+      const computed = prop.decorators
+        .map(({ expression: exp }) => exp as CallExpression)
+        .find(({ expression: exp }) => exp.getText() === "compute");
+
+      const property = prop.name;
+      const [ method, list ] = Array.from(computed.arguments) as [ FunctionExpression | StringLiteral, ArrayLiteralExpression ];
+
+      if (isStringLiteral(method)) {
+        return { property, dependencies: Array.from(list.elements) as Array<Identifier>, resolver: null, resolverName: method };
+      }
+      const dependencies = (list ? Array.from(list.elements) : method.parameters.map(({ name }) => name)) as Array<Identifier>;
+
+      const resolverName = createIdentifier(`_${property.getText()}Resolver`);
+
+      const resolver = createMethod(
+        [],
+        method.modifiers,
+        undefined,
+        resolverName,
+        undefined,
+        method.typeParameters,
+        method.parameters,
+        undefined,
+        isBlock(method.body) ? method.body : createBlock([ createReturn(method.body) ], true)
+      );
+
+      return { property, dependencies, resolver, resolverName };
+    });
+}
+
 export function fetchObservers(declaration: ClassLikeDeclaration) {
   return declaration
     .members
@@ -696,10 +731,18 @@ export function fetchObservers(declaration: ClassLikeDeclaration) {
 }
 
 function parseMixinDeclaration(declaration: ClassExpression) {
-  const observers = fetchObservers(declaration);
   const properties = fetchProperties(declaration);
+  const computed = fetchComputed(declaration);
+  const observers = fetchObservers(declaration);
 
   const propertiesMap = new Map(properties.map((property) => [ property.name, property ] as [ string, Property ]));
+
+  computed.forEach(({property, resolverName, resolver, dependencies}) => {
+    if (resolver) {
+      declaration.members.push(resolver);
+    }
+    propertiesMap.get(property.getText()).computed = `${resolverName.text}(${dependencies.map((dep) => dep.text).join(", ")})`;
+  });
 
   observers.filter(({ isComplex }) => !isComplex).forEach(({ name, args }) => {
     const property = propertiesMap.get(args.map(({ text }) => text).pop());
@@ -709,14 +752,12 @@ function parseMixinDeclaration(declaration: ClassExpression) {
     property.observer = name.getText();
   });
 
-  const observersConfig = buildObservers(observers);
   if (observers.filter(({ isComplex }) => isComplex).length > 0) {
-    declaration.members.unshift(observersConfig);
+    declaration.members.unshift(buildObservers(observers));
   }
 
-  const propertiesConfig = buildProperties(Array.from(propertiesMap.values()));
   if (properties.length > 0) {
-    declaration.members.unshift(propertiesConfig);
+    declaration.members.unshift(buildProperties(Array.from(propertiesMap.values())));
   }
 }
 

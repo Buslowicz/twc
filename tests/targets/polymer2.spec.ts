@@ -599,6 +599,135 @@ describe("Polymer v2 output", () => {
       );
     });
   });
+  describe("should recognize computed properties within mixin declaration", () => {
+    const component = transpile(`const mixinA = (Super1) => class extends Super1 {
+      name: string;
+      age: number;
+      cards: Array<string>;
+
+      @compute((name: string) => \`Hi, I am \${name}\`) greetings: string;
+      @compute((value: number) => value >= 18, [ "age" ]) isAdult: boolean;
+      @compute((age: number, name: string) => \`\${name} is \${age} years old\`) aboutMe: string;
+      @compute((size) => size, [ "cards.length" ]) collectionSize: number;
+      @compute('_summary', [ "name", "cards.length" ]) summary: string;
+
+      private _summary(name, collectionSize) {
+          return \`\${name} has \${collectionSize} cards\`;
+      }
+    };`);
+    it("es5", () => {
+      expect(component.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = function(Super1) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    name: String,
+                    age: Number,
+                    cards: Array,
+                    greetings: {
+                      type: String,
+                      computed: "_greetingsResolver(name)"
+                    },
+                    isAdult: {
+                      type: Boolean,
+                      computed: "_isAdultResolver(age)"
+                    },
+                    aboutMe: {
+                      type: String,
+                      computed: "_aboutMeResolver(age, name)"
+                    },
+                    collectionSize: {
+                      type: Number,
+                      computed: "_collectionSizeResolver(cards.length)"
+                    },
+                    summary: {
+                      type: String,
+                      computed: "_summary(name, cards.length)"
+                    }
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              class_1.prototype._summary = function(name, collectionSize) {
+                return name + " has " + collectionSize + " cards";
+              };
+              class_1.prototype._greetingsResolver = function(name) {
+                return "Hi, I am " + name;
+              };
+              class_1.prototype._isAdultResolver = function(value) {
+                return value >= 18;
+              };
+              class_1.prototype._aboutMeResolver = function(age, name) {
+                return name + " is " + age + " years old";
+              };
+              class_1.prototype._collectionSizeResolver = function(size) {
+                return size;
+              };
+              return class_1;
+            }(Super1));
+          };
+        </script>
+      `);
+    })
+    it("es6", () => {
+      expect(component.es6).to.equalIgnoreSpaces(`
+        <script>
+          const mixinA = (Super1) => class extends Super1 {
+            static get properties() {
+              return {
+                name: String,
+                age: Number,
+                cards: Array,
+                greetings: {
+                    type: String,
+                    computed: "_greetingsResolver(name)"
+                },
+                isAdult: {
+                    type: Boolean,
+                    computed: "_isAdultResolver(age)"
+                },
+                aboutMe: {
+                    type: String,
+                    computed: "_aboutMeResolver(age, name)"
+                },
+                collectionSize: {
+                    type: Number,
+                    computed: "_collectionSizeResolver(cards.length)"
+                },
+                summary: {
+                    type: String,
+                    computed: "_summary(name, cards.length)"
+                }
+              };
+            }
+            _summary(name, collectionSize) {
+              return \`\${name} has \${collectionSize} cards\`;
+            }
+            _greetingsResolver(name) {
+              return \`Hi, I am \${name}\`;
+            }
+            _isAdultResolver(value) {
+              return value >= 18;
+            }
+            _aboutMeResolver(age, name) {
+              return \`\${name} is \${age} years old\`;
+            }
+            _collectionSizeResolver(size) {
+              return size;
+            }
+          };
+        </script>
+      `);
+    });
+  });
   describe("should recognize observers within mixin declaration", () => {
     const component1 = transpile(`const mixinA = (Super1) => class extends Super1 {
       prop1: string;
