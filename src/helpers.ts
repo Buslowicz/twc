@@ -727,7 +727,7 @@ export const buildObject = (props) => {
 export const buildProperties = (props: Array<Property>): GetAccessorDeclaration => {
   return createGetAccessor([], [ createToken(SyntaxKind.StaticKeyword) ], "properties", [], void 0, createBlock([
     createReturn(
-      buildObject(props.reduce((config, { name, type, value, computed, notify, observer, readOnly }) => {
+      buildObject(props.reduce((config, { name, type, value, computed, notify, observer, readOnly, reflectToAttribute }) => {
         const prop = { type } as Property;
         if (value !== undefined) {
           prop.value = value;
@@ -736,13 +736,16 @@ export const buildProperties = (props: Array<Property>): GetAccessorDeclaration 
           prop.computed = computed;
         }
         if (notify) {
-          prop.notify = notify;
+          prop.notify = true;
         }
         if (observer) {
           prop.observer = observer;
         }
         if (readOnly) {
-          prop.readOnly = readOnly;
+          prop.readOnly = true;
+        }
+        if (reflectToAttribute) {
+          prop.reflectToAttribute = true;
         }
         if (Object.keys(prop).length === 1) {
           config[ name ] = type;

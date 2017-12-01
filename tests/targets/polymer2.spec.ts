@@ -1017,6 +1017,92 @@ describe("Polymer v2 output", () => {
       `);
     });
   });
+  describe("should recognize attributes and notify-able properties within mixins", () => {
+    const component = transpile(`const mixinA = (Super1) => class extends Super1 {
+      @attr() prop1: string;
+      @notify() prop2: number;
+      readonly prop3: boolean;
+      @attr() @notify() @compute((prop1, prop2) => prop1.repeat(prop2)) prop4: string;
+    };`);
+    it("es5", () => {
+      expect(component.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = function(Super1) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(class_1, "properties", {
+                get: function() {
+                  return {
+                    prop1: {
+                      type: String,
+                      reflectToAttribute: true
+                    },
+                    prop2: {
+                      type: Number,
+                      notify: true
+                    },
+                    prop3: {
+                      type: Boolean,
+                      readOnly: true
+                    },
+                    prop4: {
+                      type: String,
+                      computed: "_prop4Resolver(prop1, prop2)",
+                      notify: true,
+                      reflectToAttribute: true
+                    }
+                  };
+                },
+                enumerable: true,
+                configurable: true
+              });
+              class_1.prototype._prop4Resolver = function (prop1, prop2) {
+                  return prop1.repeat(prop2);
+              };
+              return class_1;
+            }(Super1));
+          };
+        </script>
+      `);
+    });
+    it("es6", () => {
+      expect(component.es6).to.equalIgnoreSpaces(`
+        <script>
+          const mixinA = (Super1) => class extends Super1 {
+            static get properties() {
+              return {
+                prop1: {
+                  type: String,
+                  reflectToAttribute: true
+                },
+                prop2: {
+                  type: Number,
+                  notify: true
+                },
+                prop3: {
+                  type: Boolean,
+                  readOnly: true
+                },
+                prop4: {
+                  type: String,
+                  computed: "_prop4Resolver(prop1, prop2)",
+                  notify: true,
+                  reflectToAttribute: true
+                }
+              };
+            }
+            _prop4Resolver(prop1, prop2) {
+              return prop1.repeat(prop2);
+            }
+          };
+        </script>
+      `);
+    });
+  });
   describe("should not emit exports", () => {
     const component = transpile(`
       import { CustomElement } from "twc/polymer";

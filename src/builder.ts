@@ -735,6 +735,15 @@ function parseMixinDeclaration(declaration: ClassExpression) {
   const computed = fetchComputed(declaration);
   const observers = fetchObservers(declaration);
 
+  properties.forEach((prop) => {
+    if (hasDecorator(prop.declaration, "attr")) {
+      prop.reflectToAttribute = true;
+    }
+    if (hasDecorator(prop.declaration, "notify")) {
+      prop.notify = true;
+    }
+  });
+
   const propertiesMap = new Map(properties.map((property) => [ property.name, property ] as [ string, Property ]));
 
   computed.forEach(({property, resolverName, resolver, dependencies}) => {
