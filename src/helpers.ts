@@ -1,13 +1,16 @@
 import { readFileSync } from "fs";
 import { dirname, resolve } from "path";
 import {
-  BinaryExpression, BlockLike, CallExpression, ClassDeclaration, ClassElement, ClassExpression, createArrayLiteral, createBlock,
-  createGetAccessor, createIdentifier, createLiteral, createObjectLiteral, createPrinter, createPropertyAssignment, createReturn,
-  createToken, EmitHint, EqualsToken, Expression, ExpressionStatement, forEachChild, FunctionExpression, GetAccessorDeclaration,
-  HeritageClause, Identifier, InterfaceDeclaration, isBinaryExpression, isDoStatement, isExpressionStatement, isForInStatement,
-  isForOfStatement, isForStatement, isFunctionLike, isGetAccessorDeclaration, isIdentifier, isIfStatement, isPropertyDeclaration,
-  isSetAccessorDeclaration, isSwitchStatement, isTryStatement, isWhileStatement, JSDoc, NamedDeclaration, Node, PrefixUnaryExpression,
-  PropertyAccessExpression, ReturnStatement, SourceFile, Statement, SyntaxKind
+  BinaryExpression, BindingName, Block, BlockLike, CallExpression, ClassDeclaration, ClassElement, ClassExpression, createArrayLiteral,
+  createBlock,
+  createGetAccessor, createIdentifier, createLiteral, createMethod, createObjectLiteral, createParameter, createPrinter,
+  createPropertyAssignment,
+  createReturn, createToken, EmitHint, EqualsToken, Expression, ExpressionStatement, forEachChild, FunctionExpression,
+  GetAccessorDeclaration, HeritageClause, Identifier, InterfaceDeclaration, isBinaryExpression, isDoStatement, isExpressionStatement,
+  isForInStatement, isForOfStatement, isForStatement, isFunctionLike, isGetAccessorDeclaration, isIdentifier, isIfStatement,
+  isPropertyDeclaration, isSetAccessorDeclaration, isSwitchStatement, isTryStatement, isWhileStatement, JSDoc, Modifier, NamedDeclaration,
+  Node, ParameterDeclaration, PrefixUnaryExpression, PropertyAccessExpression, PropertyName, ReturnStatement, SourceFile, Statement,
+  SyntaxKind, TypeParameterDeclaration
 } from "typescript";
 import { Constructor } from "../types";
 import { ImportedNode, Method, Property } from "./builder";
@@ -701,6 +704,28 @@ export const updateImportedRefs = (src: Node, vars: Map<string, ImportedNode>): 
  * @returns URL
  */
 export const pathToURL = (path: string): string => path.replace(/\\/g, "/");
+
+export function createSimpleMethod(name: string | PropertyName,
+                                   statements: Array<Statement> | Block,
+                                   parameters: Array<ParameterDeclaration> = [],
+                                   modifiers: Array<Modifier> = [],
+                                   typeParameters: Array<TypeParameterDeclaration> = []) {
+  return createMethod(
+    [],
+    modifiers,
+    void 0,
+    name,
+    void 0,
+    typeParameters,
+    parameters,
+    void 0,
+    Array.isArray(statements) ? createBlock(statements, true) : statements
+  );
+}
+
+export function createSimpleParameter(name: string | BindingName, initializer?: Expression, optional = false) {
+  return createParameter([], [], void 0, name, optional ? createToken(SyntaxKind.QuestionToken) : void 0, void 0, initializer);
+}
 
 export const buildExpression = (expr) => {
   if (Array.isArray(expr)) {

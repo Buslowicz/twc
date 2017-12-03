@@ -2,23 +2,25 @@ import { existsSync } from "fs";
 import { dirname, extname, join, normalize, parse, relative, resolve } from "path";
 import { CustomElementOptions } from "twc/polymer";
 import {
-  ArrayLiteralExpression, BinaryExpression, CallExpression, ClassDeclaration, ClassExpression, ClassLikeDeclaration, CompilerOptions,
-  createBlock, createFunctionDeclaration, createIdentifier, createMethod, createReturn, Expression, ExpressionStatement, forEachChild,
-  FunctionDeclaration, FunctionExpression, FunctionLikeDeclaration, getMutableClone, HeritageClause, Identifier, ImportDeclaration,
-  ImportSpecifier, InterfaceDeclaration, isArrowFunction, isBinaryExpression, isBlock, isCallExpression, isClassDeclaration,
-  isClassExpression, isConditionalExpression, isExportAssignment, isExportDeclaration, isFunctionDeclaration, isFunctionExpression,
-  isFunctionLike, isGetAccessorDeclaration, isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration, isNamedImports,
-  isPropertyAccessExpression, isPropertyDeclaration, isSetAccessorDeclaration, isStringLiteral, isTemplateExpression, isVariableStatement,
-  MethodDeclaration, ModuleBlock, ModuleDeclaration, NamespaceImport, Node, NoSubstitutionTemplateLiteral, PropertyAccessExpression,
-  PropertyDeclaration, PropertySignature, SourceFile, Statement, StringLiteral, SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
+  ArrayLiteralExpression, BinaryExpression, BooleanLiteral, CallExpression, ClassDeclaration, ClassExpression, ClassLikeDeclaration,
+  CompilerOptions, createAssignment, createBlock, createCall, createElementAccess, createFunctionDeclaration, createIdentifier, createIf,
+  createLiteral, createLogicalAnd, createLogicalNot, createPropertyAccess, createReturn, createStatement, createStrictEquality, createThis,
+  createTrue, Expression, ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression, FunctionLikeDeclaration,
+  getMutableClone, HeritageClause, Identifier, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, isArrowFunction,
+  isBinaryExpression, isBlock, isCallExpression, isClassDeclaration, isClassExpression, isConditionalExpression, isExportAssignment,
+  isExportDeclaration, isExpressionStatement, isFunctionDeclaration, isFunctionExpression, isFunctionLike, isGetAccessorDeclaration,
+  isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration, isNamedImports, isPropertyAccessExpression, isPropertyDeclaration,
+  isSetAccessorDeclaration, isStringLiteral, isTemplateExpression, isVariableStatement, MethodDeclaration, ModuleBlock, ModuleDeclaration,
+  NamespaceImport, Node, NoSubstitutionTemplateLiteral, PropertyAccessExpression, PropertyDeclaration, PropertySignature, SourceFile,
+  Statement, StringLiteral, SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
 } from "typescript";
 import { cache, outPath, paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
 import { DecoratorExtras } from "./decorators";
 import {
-  buildObservers, buildProperties, DecoratorsMixin, getReturnStatements, getRoot, hasDecorator, hasModifier, inheritsFrom,
-  InitializerWrapper, isAssignmentExpression, isExtendsDeclaration, isOneOf, isStatic, JSDocMixin, Link, notPrivate, notStatic,
-  ParsedDecorator, pathToURL, RefUpdaterMixin, stripQuotes
+  buildObservers, buildProperties, createSimpleMethod, createSimpleParameter, DecoratorsMixin, getReturnStatements, getRoot, hasDecorator,
+  hasModifier, inheritsFrom, InitializerWrapper, isAssignmentExpression, isExtendsDeclaration, isOneOf, isStatic, JSDocMixin, Link,
+  notPrivate, notStatic, ParsedDecorator, pathToURL, RefUpdaterMixin, stripQuotes
 } from "./helpers";
 import * as buildTargets from "./targets";
 import { getDeclarationType, parseDeclaration, ValidValue } from "./type-analyzer";
@@ -698,16 +700,12 @@ export function fetchComputed(declaration: ClassLikeDeclaration) {
 
       const resolverName = createIdentifier(`_${property.getText()}Resolver`);
 
-      const resolver = createMethod(
-        [],
-        method.modifiers,
-        undefined,
+      const resolver = createSimpleMethod(
         resolverName,
-        undefined,
-        method.typeParameters,
+        isBlock(method.body) ? method.body : [ createReturn(method.body) ],
         method.parameters,
-        undefined,
-        isBlock(method.body) ? method.body : createBlock([ createReturn(method.body) ], true)
+        method.modifiers,
+        method.typeParameters
       );
 
       return { property, dependencies, resolver, resolverName };
@@ -730,10 +728,89 @@ export function fetchObservers(declaration: ClassLikeDeclaration) {
     });
 }
 
+export function fetchListeners(declaration: ClassLikeDeclaration) {
+  function isTrueKeyword(node: Node): node is BooleanLiteral {
+    return node && node.kind === SyntaxKind.TrueKeyword;
+  }
+
+  return declaration.members
+    .filter(isFunctionLike)
+    .filter(notStatic)
+    .filter((method) => hasDecorator(method, "listen"))
+    .map((method: MethodDeclaration) => {
+      const listener = method.decorators
+        .map(({ expression: exp }) => exp as CallExpression)
+        .find(({ expression: exp }) => exp.getText() === "listen");
+
+      return { name: method.name as Identifier, eventName: listener.arguments[ 0 ], isOnce: isTrueKeyword(listener.arguments[ 1 ]) };
+    });
+}
+
+export function getOrCreateMethodByName({ members }: ClassLikeDeclaration, qName: string, params: Array<string> = []): MethodDeclaration {
+  const found = members
+    .filter(isFunctionLike)
+    .filter(notStatic)
+    .find(({ name }) => (name as Identifier).text === qName) as MethodDeclaration;
+  if (!found) {
+    const created = createSimpleMethod(qName, [], params.map((param) => createSimpleParameter(param)));
+    members.push(created);
+    return created;
+  }
+  return found;
+}
+
+export function togglesEventListener(statements: Array<Statement>, eventName: string, add = true) {
+  return statements.some((statement) => {
+    return isExpressionStatement(statement)
+      && isCallExpression(statement.expression)
+      && isPropertyAccessExpression(statement.expression.expression)
+      && statement.expression.expression.expression.kind === SyntaxKind.ThisKeyword
+      && statement.expression.expression.name.text === (add ? "addEventListener" : "removeEventListener")
+      && statement.expression.arguments[ 1 ].kind === SyntaxKind.ThisKeyword
+      && statement.expression.arguments[ 0 ].getText() === eventName;
+  });
+}
+
 function parseMixinDeclaration(declaration: ClassExpression) {
   const properties = fetchProperties(declaration);
   const computed = fetchComputed(declaration);
   const observers = fetchObservers(declaration);
+  const listeners = fetchListeners(declaration);
+
+  if (listeners.length > 0) {
+    const thisKey = createThis();
+    const handleEvent = getOrCreateMethodByName(declaration, "handleEvent", [ "event" ]);
+    const eventArgument = handleEvent.parameters[ 0 ].name as Identifier || createIdentifier("event");
+    handleEvent.body.statements.push(...listeners
+      .map(({ name, eventName, isOnce }) => {
+        const eventTypeMatches = createStrictEquality(createPropertyAccess(eventArgument, "type"), eventName);
+        const handlerTriggeredFlag = createElementAccess(thisKey, createLiteral(` ${name.getText()}Triggered`));
+        const callHandler = createStatement(createCall(createPropertyAccess(thisKey, name), [], [ eventArgument ]));
+        const markAsTriggered = createStatement(createAssignment(handlerTriggeredFlag, createTrue()));
+
+        return createIf(
+          isOnce ? createLogicalAnd(eventTypeMatches, createLogicalNot(handlerTriggeredFlag)) : eventTypeMatches,
+          createBlock(isOnce ? [ callHandler, markAsTriggered ] : [ callHandler ])
+        );
+      }));
+    const connectedCallback = getOrCreateMethodByName(declaration, "connectedCallback");
+    connectedCallback.body.statements.push(...Array.from(new Set(
+      listeners
+        .filter(({ eventName }) => !togglesEventListener(connectedCallback.body.statements, eventName.getText()))
+        .map(({ eventName }) => createStatement(
+          createCall(createPropertyAccess(thisKey, "addEventListener"), [], [ eventName, thisKey ])
+        ))
+    )));
+    const disconnectedCallback = getOrCreateMethodByName(declaration, "disconnectedCallback");
+    disconnectedCallback.body.statements.push(...Array.from(new Set(
+      listeners
+        .filter(({ isOnce }) => !isOnce)
+        .filter(({ eventName }) => !togglesEventListener(disconnectedCallback.body.statements, eventName.getText(), false))
+        .map(({ eventName }) => createStatement(
+          createCall(createPropertyAccess(thisKey, "removeEventListener"), [], [ eventName, thisKey ])
+        ))
+    )));
+  }
 
   properties.forEach((prop) => {
     if (hasDecorator(prop.declaration, "attr")) {
@@ -746,7 +823,7 @@ function parseMixinDeclaration(declaration: ClassExpression) {
 
   const propertiesMap = new Map(properties.map((property) => [ property.name, property ] as [ string, Property ]));
 
-  computed.forEach(({property, resolverName, resolver, dependencies}) => {
+  computed.forEach(({ property, resolverName, resolver, dependencies }) => {
     if (resolver) {
       declaration.members.push(resolver);
     }

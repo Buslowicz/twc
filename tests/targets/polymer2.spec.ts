@@ -676,7 +676,7 @@ describe("Polymer v2 output", () => {
           };
         </script>
       `);
-    })
+    });
     it("es6", () => {
       expect(component.es6).to.equalIgnoreSpaces(`
         <script>
@@ -722,6 +722,154 @@ describe("Polymer v2 output", () => {
             }
             _collectionSizeResolver(size) {
               return size;
+            }
+          };
+        </script>
+      `);
+    });
+  });
+  describe("should recognize computed properties within mixin declaration", () => {
+    const component1 = transpile(`const mixinA = (Super1) => class extends Super1 {
+      @listen('click') handler(event) {
+        console.log('You clicked me!');
+      }
+      @listen('custom-init-event', true) init(event) {
+        console.log('I am only triggered once');
+      }
+    };`);
+    const component2 = transpile(`const mixinA = (Super1) => class extends Super1 {
+      @listen('click') handler(event) {
+        console.log('You clicked me!');
+      }
+      handleEvent(ev) {
+        console.log("event handled", event);
+      }
+      connectedCallback() {
+        console.log('connected');
+        this.addEventListener('click', this);
+      }
+      disconnectedCallback() {
+        console.log('disconnected');
+        this.removeEventListener('click', this);
+      }
+    };`);
+    it("es5", () => {
+      expect(component1.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = function(Super1) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              class_1.prototype.handler = function(event) {
+                console.log('You clicked me!');
+              };
+              class_1.prototype.init = function(event) {
+                console.log('I am only triggered once');
+              };
+              class_1.prototype.handleEvent = function(event) {
+                if (event.type === 'click') {
+                  this.handler(event);
+                }
+                if (event.type === 'custom-init-event' && !this[" initTriggered"]) {
+                  this.init(event);
+                  this[" initTriggered"] = true;
+                }
+              };
+              class_1.prototype.connectedCallback = function() {
+                this.addEventListener('click', this);
+                this.addEventListener('custom-init-event', this);
+              };
+              class_1.prototype.disconnectedCallback = function() {
+                this.removeEventListener('click', this);
+              };
+              return class_1;
+            }(Super1));
+          };
+        </script>
+      `);
+      expect(component2.es5).to.equalIgnoreSpaces(`
+        <script>
+          var mixinA = function(Super1) {
+            return (function(_super) {
+              __extends(class_1, _super);
+
+              function class_1() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              class_1.prototype.handler = function(event) {
+                console.log('You clicked me!');
+              };
+              class_1.prototype.handleEvent = function(ev) {
+                console.log("event handled", event);
+                if (ev.type === 'click') {
+                  this.handler(ev);
+                }
+              };
+              class_1.prototype.connectedCallback = function() {
+                console.log('connected');
+                this.addEventListener('click', this);
+              };
+              class_1.prototype.disconnectedCallback = function() {
+                console.log('disconnected');
+                this.removeEventListener('click', this);
+              };
+              return class_1;
+            }(Super1));
+          };
+        </script>
+      `);
+    });
+    it("es6", () => {
+      expect(component1.es6).to.equalIgnoreSpaces(`
+        <script>
+          const mixinA = (Super1) => class extends Super1 {
+            handler(event) {
+              console.log('You clicked me!');
+            }
+            init(event) {
+              console.log('I am only triggered once');
+            }
+            handleEvent(event) {
+              if (event.type === 'click') {
+                this.handler(event);
+              }
+              if (event.type === 'custom-init-event' && !this[" initTriggered"]) {
+                this.init(event);
+                this[" initTriggered"] = true;
+              }
+            }
+            connectedCallback() {
+              this.addEventListener('click', this);
+              this.addEventListener('custom-init-event', this);
+            }
+            disconnectedCallback() {
+              this.removeEventListener('click', this);
+            }
+          };
+        </script>
+      `);
+      expect(component2.es6).to.equalIgnoreSpaces(`
+        <script>
+          const mixinA = (Super1) => class extends Super1 {
+            handler(event) {
+              console.log('You clicked me!');
+            }
+            handleEvent(ev) {
+              console.log("event handled", event);
+                if (ev.type === 'click') {
+                this.handler(ev);
+              }
+            }
+            connectedCallback() {
+              console.log('connected');
+              this.addEventListener('click', this);
+            }
+            disconnectedCallback() {
+              console.log('disconnected');
+              this.removeEventListener('click', this);
             }
           };
         </script>
