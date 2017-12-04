@@ -44,7 +44,7 @@ declare module "twc/polymer" {
      * Strip whitespace from the component template.
      * @see https://www.polymer-project.org/2.0/docs/devguide/dom-template#strip-whitespace
      */
-    stripWhitespace: boolean;
+    stripWhitespace?: boolean;
     /**
      * Set MutableData or OptionalMutableData on the component (Polymer V2 only).
      * @version ^2.0.0
