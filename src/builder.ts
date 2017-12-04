@@ -2,23 +2,28 @@ import { existsSync } from "fs";
 import { dirname, extname, join, normalize, parse, relative, resolve } from "path";
 import { CustomElementOptions } from "twc/polymer";
 import {
-  ArrayLiteralExpression, BinaryExpression, CallExpression, ClassDeclaration, CompilerOptions, createBlock, createFunctionDeclaration,
-  Expression, ExpressionStatement, forEachChild, FunctionLikeDeclaration, HeritageClause, Identifier, ImportDeclaration, ImportSpecifier,
-  InterfaceDeclaration, isBinaryExpression, isBlock, isCallExpression, isClassDeclaration, isConditionalExpression, isExportAssignment,
-  isExportDeclaration, isFunctionLike, isGetAccessorDeclaration, isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration,
-  isNamedImports, isPropertyAccessExpression, isPropertyDeclaration, isSetAccessorDeclaration, isTemplateExpression, MethodDeclaration,
-  ModuleBlock, ModuleDeclaration, NamespaceImport, Node, NoSubstitutionTemplateLiteral, PropertyAccessExpression, PropertyDeclaration,
-  PropertySignature, SourceFile, Statement, StringLiteral, SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
+  ArrayLiteralExpression, BinaryExpression, BooleanLiteral, CallExpression, ClassDeclaration, ClassExpression, ClassLikeDeclaration,
+  CompilerOptions, createAssignment, createBlock, createCall, createElementAccess, createFunctionDeclaration, createIdentifier, createIf,
+  createLiteral, createLogicalAnd, createLogicalNot, createPropertyAccess, createReturn, createStatement, createStrictEquality, createThis,
+  createTrue, Expression, ExpressionStatement, forEachChild, FunctionDeclaration, FunctionExpression, FunctionLikeDeclaration,
+  getMutableClone, HeritageClause, Identifier, ImportDeclaration, ImportSpecifier, InterfaceDeclaration, isArrowFunction,
+  isBinaryExpression, isBlock, isCallExpression, isClassDeclaration, isClassExpression, isConditionalExpression, isExportAssignment,
+  isExportDeclaration, isExpressionStatement, isFunctionDeclaration, isFunctionExpression, isFunctionLike, isGetAccessorDeclaration,
+  isImportDeclaration, isInterfaceDeclaration, isModuleDeclaration, isNamedImports, isPropertyAccessExpression, isPropertyDeclaration,
+  isSetAccessorDeclaration, isStringLiteral, isTemplateExpression, isVariableStatement, MethodDeclaration, ModuleBlock, ModuleDeclaration,
+  NamespaceImport, Node, NoSubstitutionTemplateLiteral, PropertyAccessExpression, PropertyDeclaration, PropertySignature, SourceFile,
+  Statement, StringLiteral, SyntaxKind, TemplateExpression, TypeLiteralNode, TypeNode
 } from "typescript";
 import { cache, outPath, paths, projectRoot } from "./config";
 import * as decoratorsMap from "./decorators";
 import { DecoratorExtras } from "./decorators";
 import {
-  DecoratorsMixin, getRoot, hasDecorator, hasModifier, inheritsFrom, InitializerWrapper, isExtendsDeclaration, isOneOf, isStatic,
-  JSDocMixin, Link, notPrivate, notStatic, ParsedDecorator, pathToURL, RefUpdaterMixin, stripQuotes
+  buildObservers, buildProperties, createSimpleMethod, createSimpleParameter, DecoratorsMixin, getReturnStatements, getRoot, hasDecorator,
+  hasModifier, inheritsFrom, InitializerWrapper, isAssignmentExpression, isExtendsDeclaration, isOneOf, isStatic, JSDocMixin, Link,
+  notPrivate, notStatic, ParsedDecorator, pathToURL, RefUpdaterMixin, stripQuotes
 } from "./helpers";
 import * as buildTargets from "./targets";
-import { parseDeclaration, parseDeclarationType, ValidValue } from "./type-analyzer";
+import { getDeclarationType, parseDeclaration, ValidValue } from "./type-analyzer";
 
 /**
  * Method hook interface
@@ -29,17 +34,6 @@ export interface MethodHook {
 }
 
 /**
- * Map of TypeScript kind to JavaScript type.
- */
-export const typeMap = {
-  [SyntaxKind.StringKeyword]: String,
-  [SyntaxKind.NumberKeyword]: Number,
-  [SyntaxKind.BooleanKeyword]: Boolean,
-  [SyntaxKind.ObjectKeyword]: Object,
-  [SyntaxKind.ArrayType]: Array
-};
-
-/**
  * Representation of an imported entity. Provides an imported identifier and fullIdentifier (identifier with namespace if provided).
  */
 export class ImportedNode {
@@ -48,7 +42,8 @@ export class ImportedNode {
     return this.bindings.name.getText();
   }
 
-  constructor(public readonly bindings: ImportSpecifier | NamespaceImport, public readonly importClause: Import) {}
+  constructor(public readonly bindings: ImportSpecifier | NamespaceImport, public readonly importClause: Import) {
+  }
 
   /** Imported entity name with namespace */
   public get fullIdentifier() {
@@ -78,7 +73,7 @@ export class Import {
     return relative(dirname(outPath(getRoot(this.declaration).fileName)), projectRoot);
   }
 
-  constructor(public readonly declaration: ImportDeclaration) {
+  constructor(public readonly declaration: ImportDeclaration, variables?: Map<string, ImportedNode | any>) {
     const { 1: module } = declaration.moduleSpecifier.getText().replace(/["']$|^["']/g, "").match(/([^#]+)(?:#(.+))?/);
 
     this.module = module;
@@ -90,6 +85,9 @@ export class Import {
       } else {
         this.imports = [ new ImportedNode(namedBindings, this) ];
       }
+    }
+    if (variables) {
+      this.imports.forEach((imp) => variables.set(imp.identifier, imp));
     }
   }
 
@@ -151,7 +149,7 @@ export class Template {
   /**
    * Create a template from method returning a string
    *
-   * @param fun Method to use as a declaration source
+   * @param fun Method to use as a declaration declaration
    *
    * @returns New template
    */
@@ -162,7 +160,7 @@ export class Template {
   /**
    * Create a template from a link
    *
-   * @param link Link to use to fetch the source
+   * @param link Link to use to fetch the declaration
    *
    * @returns New template
    */
@@ -173,7 +171,7 @@ export class Template {
   /**
    * Create a template from a string
    *
-   * @param src String source to use as a template
+   * @param src String declaration to use as a template
    *
    * @returns New template
    */
@@ -266,7 +264,7 @@ export class RegisteredEvent {
       description: member[ "jsDoc" ] ? member[ "jsDoc" ].map((doc) => doc.comment).join("\n") : null,
       name: member.name.getText(),
       rawType: member[ "type" ],
-      type: parseDeclarationType(member as any)
+      type: getDeclarationType(member as any)
     }));
   }
 
@@ -296,7 +294,7 @@ export class RegisteredEvent {
  */
 export class Property extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   /** Type of a property */
-  public type: Constructor<ValidValue>;
+  public type: Identifier;
   /** Default value */
   public value?: ValidValue | InitializerWrapper;
   /** Whether property reflects to an attribute */
@@ -319,9 +317,9 @@ export class Property extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
 
   constructor(public readonly declaration: PropertyDeclaration, public readonly name: string) {
     super();
-    const { type, value, isDate } = parseDeclaration(declaration);
+    const { value, proto: type } = parseDeclaration(declaration);
 
-    Object.assign(this, { type: isDate ? Date : typeMap[ type || SyntaxKind.ObjectKeyword ], value });
+    Object.assign(this, { type, value });
   }
 
   public toString() {
@@ -333,10 +331,12 @@ export class Property extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     }
     const props = [ "readOnly", "reflectToAttribute", "notify", "computed", "observer" ];
 
-    const isSimpleConfig = this.type && this.value === undefined && props.every((prop) => !this[ prop ]);
+    const type = this.type || { text: "Object" };
 
-    return isSimpleConfig ? this.type.name : `{ ${ [
-      `type: ${this.type.name}`,
+    const isSimpleConfig = type && this.value === undefined && props.every((prop) => !this[ prop ]);
+
+    return isSimpleConfig ? type.text : `{ ${ [
+      `type: ${type.text}`,
       ...(this.value === undefined ? [] : [ `value: ${this.value}` ]),
       ...props.map((prop) => this[ prop ] ? `${prop}: ${this[ prop ]}` : undefined)
     ]
@@ -433,11 +433,9 @@ export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     }
   }
 
-  constructor(
-    public readonly declaration: FunctionLikeDeclaration | Expression,
-    public readonly name = "function",
-    public args?: Array<Identifier>
-  ) {
+  constructor(public readonly declaration: FunctionLikeDeclaration | Expression,
+              public readonly name = "function",
+              public args?: Array<Identifier>) {
     super();
   }
 
@@ -465,7 +463,7 @@ export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
         if (Array.isArray(value)) {
           this[ key ] = this[ key ].concat(value);
         } else {
-          Object.assign(this, { [key]: value });
+          Object.assign(this, { [ key ]: value });
         }
       });
     return this;
@@ -559,7 +557,7 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   /** Components static methods map */
   public staticMethods: Map<string, Method> = new Map();
 
-  constructor(public readonly declaration: ClassDeclaration) {
+  constructor(public readonly declaration: ClassDeclaration, variables?: Map<string, ImportedNode | any>) {
     super();
 
     this.decorate(this, this.decorators);
@@ -611,6 +609,9 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     const implicitTemplateName = `${parse(fileName).name}.html`;
     if (!this.template && existsSync(resolve(dirname(fileName), implicitTemplateName))) {
       this.template = Template.fromLink(new Link(implicitTemplateName, declaration as Node));
+    }
+    if (variables) {
+      variables.set(this.name, this);
     }
   }
 
@@ -665,6 +666,215 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   }
 }
 
+export function fetchProperties(declaration: ClassLikeDeclaration) {
+  if (!declaration) {
+    return [];
+  }
+
+  return declaration
+    .members
+    .filter(isPropertyDeclaration)
+    .filter(notPrivate)
+    .filter(notStatic)
+    .map((property: PropertyDeclaration) => new Property(property, property.name.getText()));
+}
+
+export function fetchComputed(declaration: ClassLikeDeclaration) {
+  return declaration
+    .members
+    .filter(isPropertyDeclaration)
+    .filter(notStatic)
+    .filter((prop) => hasDecorator(prop, "compute"))
+    .map((prop: PropertyDeclaration) => {
+      const computed = prop.decorators
+        .map(({ expression: exp }) => exp as CallExpression)
+        .find(({ expression: exp }) => exp.getText() === "compute");
+
+      const property = prop.name;
+      const [ method, list ] = Array.from(computed.arguments) as [ FunctionExpression | StringLiteral, ArrayLiteralExpression ];
+
+      if (isStringLiteral(method)) {
+        return { property, dependencies: Array.from(list.elements) as Array<Identifier>, resolver: null, resolverName: method };
+      }
+      const dependencies = (list ? Array.from(list.elements) : method.parameters.map(({ name }) => name)) as Array<Identifier>;
+
+      const resolverName = createIdentifier(`_${property.getText()}Resolver`);
+
+      const resolver = createSimpleMethod(
+        resolverName,
+        isBlock(method.body) ? method.body : [ createReturn(method.body) ],
+        method.parameters,
+        method.modifiers,
+        method.typeParameters
+      );
+
+      return { property, dependencies, resolver, resolverName };
+    });
+}
+
+export function fetchObservers(declaration: ClassLikeDeclaration) {
+  return declaration
+    .members
+    .filter(isFunctionLike)
+    .filter(notStatic)
+    .filter((method) => hasDecorator(method, "observe"))
+    .map((method: MethodDeclaration) => {
+      const observer = method.decorators
+        .map(({ expression: exp }) => exp as CallExpression)
+        .find(({ expression: exp }) => exp.getText() === "observe");
+
+      const properties = observer.arguments.length > 0 ? observer.arguments : method.parameters.map(({ name }) => name);
+      return { name: method.name, args: properties as Array<Identifier>, isComplex: properties.length > 1 };
+    });
+}
+
+export function fetchListeners(declaration: ClassLikeDeclaration) {
+  function isTrueKeyword(node: Node): node is BooleanLiteral {
+    return node && node.kind === SyntaxKind.TrueKeyword;
+  }
+
+  return declaration.members
+    .filter(isFunctionLike)
+    .filter(notStatic)
+    .filter((method) => hasDecorator(method, "listen"))
+    .map((method: MethodDeclaration) => {
+      const listener = method.decorators
+        .map(({ expression: exp }) => exp as CallExpression)
+        .find(({ expression: exp }) => exp.getText() === "listen");
+
+      return { name: method.name as Identifier, eventName: listener.arguments[ 0 ], isOnce: isTrueKeyword(listener.arguments[ 1 ]) };
+    });
+}
+
+export function getOrCreateMethodByName({ members }: ClassLikeDeclaration, qName: string, params: Array<string> = []): MethodDeclaration {
+  const found = members
+    .filter(isFunctionLike)
+    .filter(notStatic)
+    .find(({ name }) => (name as Identifier).text === qName) as MethodDeclaration;
+  if (!found) {
+    const created = createSimpleMethod(qName, [], params.map((param) => createSimpleParameter(param)));
+    members.push(created);
+    return created;
+  }
+  return found;
+}
+
+export function togglesEventListener(statements: Array<Statement>, eventName: string, add = true) {
+  return statements.some((statement) => {
+    return isExpressionStatement(statement)
+      && isCallExpression(statement.expression)
+      && isPropertyAccessExpression(statement.expression.expression)
+      && statement.expression.expression.expression.kind === SyntaxKind.ThisKeyword
+      && statement.expression.expression.name.text === (add ? "addEventListener" : "removeEventListener")
+      && statement.expression.arguments[ 1 ].kind === SyntaxKind.ThisKeyword
+      && statement.expression.arguments[ 0 ].getText() === eventName;
+  });
+}
+
+function parseMixinDeclaration(declaration: ClassExpression) {
+  const properties = fetchProperties(declaration);
+  const computed = fetchComputed(declaration);
+  const observers = fetchObservers(declaration);
+  const listeners = fetchListeners(declaration);
+
+  if (listeners.length > 0) {
+    const thisKey = createThis();
+    const handleEvent = getOrCreateMethodByName(declaration, "handleEvent", [ "event" ]);
+    const eventArgument = handleEvent.parameters[ 0 ].name as Identifier || createIdentifier("event");
+    handleEvent.body.statements.push(...listeners
+      .map(({ name, eventName, isOnce }) => {
+        const eventTypeMatches = createStrictEquality(createPropertyAccess(eventArgument, "type"), eventName);
+        const handlerTriggeredFlag = createElementAccess(thisKey, createLiteral(` ${name.getText()}Triggered`));
+        const callHandler = createStatement(createCall(createPropertyAccess(thisKey, name), [], [ eventArgument ]));
+        const markAsTriggered = createStatement(createAssignment(handlerTriggeredFlag, createTrue()));
+
+        return createIf(
+          isOnce ? createLogicalAnd(eventTypeMatches, createLogicalNot(handlerTriggeredFlag)) : eventTypeMatches,
+          createBlock(isOnce ? [ callHandler, markAsTriggered ] : [ callHandler ])
+        );
+      }));
+    const connectedCallback = getOrCreateMethodByName(declaration, "connectedCallback");
+    connectedCallback.body.statements.push(...Array.from(new Set(
+      listeners
+        .filter(({ eventName }) => !togglesEventListener(connectedCallback.body.statements, eventName.getText()))
+        .map(({ eventName }) => createStatement(
+          createCall(createPropertyAccess(thisKey, "addEventListener"), [], [ eventName, thisKey ])
+        ))
+    )));
+    const disconnectedCallback = getOrCreateMethodByName(declaration, "disconnectedCallback");
+    disconnectedCallback.body.statements.push(...Array.from(new Set(
+      listeners
+        .filter(({ isOnce }) => !isOnce)
+        .filter(({ eventName }) => !togglesEventListener(disconnectedCallback.body.statements, eventName.getText(), false))
+        .map(({ eventName }) => createStatement(
+          createCall(createPropertyAccess(thisKey, "removeEventListener"), [], [ eventName, thisKey ])
+        ))
+    )));
+  }
+
+  properties.forEach((prop) => {
+    if (hasDecorator(prop.declaration, "attr")) {
+      prop.reflectToAttribute = true;
+    }
+    if (hasDecorator(prop.declaration, "notify")) {
+      prop.notify = true;
+    }
+  });
+
+  const propertiesMap = new Map(properties.map((property) => [ property.name, property ] as [ string, Property ]));
+
+  computed.forEach(({ property, resolverName, resolver, dependencies }) => {
+    if (resolver) {
+      declaration.members.push(resolver);
+    }
+    propertiesMap.get(property.getText()).computed = `${resolverName.text}(${dependencies.map((dep) => dep.text).join(", ")})`;
+  });
+
+  observers.filter(({ isComplex }) => !isComplex).forEach(({ name, args }) => {
+    const property = propertiesMap.get(args.map(({ text }) => text).pop());
+    if (!property) {
+      return;
+    }
+    property.observer = name.getText();
+  });
+
+  if (observers.filter(({ isComplex }) => isComplex).length > 0) {
+    declaration.members.unshift(buildObservers(observers));
+  }
+
+  if (properties.length > 0) {
+    declaration.members.unshift(buildProperties(Array.from(propertiesMap.values())));
+  }
+}
+
+export function upgradeMixins(statement: FunctionLikeDeclaration) {
+  const cc = getMutableClone(statement);
+  const params = cc.parameters.map((param) => param.getText());
+  if (isBlock(cc.body)) {
+    const updated = getReturnStatements(cc.body)
+      .map(({ expression }) => expression)
+      .filter(isClassExpression)
+      .filter((cls) => inheritsFrom(cls, ...params))
+      .map(parseMixinDeclaration);
+
+    if (updated.length === 0) {
+      return statement;
+    }
+  } else if (isClassExpression(cc.body) && inheritsFrom(cc.body, ...params)) {
+    parseMixinDeclaration(cc.body);
+  } else if (isCallExpression(cc.body)) {
+    const updated = cc.body.arguments
+      .filter(isClassExpression)
+      .filter((cls) => inheritsFrom(cls, ...params))
+      .map(parseMixinDeclaration);
+
+    if (updated.length === 0) {
+      return statement;
+    }
+  }
+  return cc;
+}
+
 /**
  * Representation of a module. Converting to string generates a final output.
  */
@@ -673,7 +883,7 @@ export class Module {
    * Module name (for module/namespace declaration)
    */
   public get name() {
-    return isModuleDeclaration(this.source) ? this.source.name.getText() : "";
+    return isModuleDeclaration(this.declaration) ? this.declaration.name.getText() : "";
   }
 
   /** Imports list */
@@ -703,43 +913,90 @@ export class Module {
   /** Map of variable identifiers to variables */
   public readonly variables: Map<string, ImportedNode | any> = new Map();
 
-  constructor(
-    public readonly source: SourceFile | ModuleDeclaration,
-    public readonly compilerOptions: CompilerOptions,
-    public readonly output: "Polymer1" | "Polymer2",
-    public readonly parent: Module = null
-  ) {
-    (isModuleDeclaration(source) ? source.body as ModuleBlock : source).statements.forEach((statement) => {
-      if (isImportDeclaration(statement)) {
-        const declaration = new Import(statement);
-        declaration.imports.forEach((imp) => this.variables.set(imp.identifier, imp));
-        this.statements.push(declaration);
-        return;
-      } else if (isInterfaceDeclaration(statement)) {
-        const name = statement.name.getText();
-        if (inheritsFrom(statement, "CustomEvent", "Event")) {
-          this.variables.set(name, new RegisteredEvent(statement));
-        } else {
-          this.variables.set(name, statement);
+  constructor(public readonly declaration: SourceFile | ModuleDeclaration,
+              public readonly compilerOptions: CompilerOptions,
+              public readonly output: "Polymer1" | "Polymer2",
+              public readonly parent: Module = null) {
+    (isModuleDeclaration(declaration) ? declaration.body as ModuleBlock : declaration).statements.forEach((statement) => {
+      let resultStatement: Statement | Component | Import | Module = statement;
+      if (isImportDeclaration(statement)) { // Handling import statements
+        resultStatement = new Import(statement, this.variables);
+      } else if (isInterfaceDeclaration(statement)) { // Handling interfaces (like custom events etc)
+        if (inheritsFrom(statement, "CustomEvent", "Event")) { // Interface extending events
+          this.variables.set(statement.name.getText(), new RegisteredEvent(statement));
+        } else { // All the other interfaces (add if-else to handle additional cases)
+          this.variables.set(statement.name.getText(), statement);
         }
-      } else if (isClassDeclaration(statement) && hasDecorator(statement, "CustomElement")) {
-        const component = new Component(statement as ClassDeclaration);
+      } else if (isClassDeclaration(statement)) { // Handling classes
+        if (hasDecorator(statement, "CustomElement")) { // Handling classes decorated with CustomElement decorator
+          resultStatement = new Component(statement as ClassDeclaration, this.variables);
+        } else { // All other classes (add if-else to handle additional cases)
+          this.variables.set(statement.name.getText(), statement);
+        }
+      } else if (isModuleDeclaration(statement)) {  // Handling modules and namespaces
+        resultStatement = new Module(statement, compilerOptions, this.output, this);
+      } else if (isVariableStatement(statement) || isAssignmentExpression(statement)) {
+        const mutable = getMutableClone(statement);
+        let access;
+        access = isVariableStatement(mutable) ? {
+          collection: mutable.declarationList.declarations, use: null,
+          get expression() {
+            return this.use.initializer;
+          },
+          set expression(value) {
+            this.use.initializer = value;
+          }
+        } : {
+          collection: [ mutable.expression.right ],
+          get expression() {
+            return (mutable as any).expression.right;
+          },
+          set expression(value) {
+            (mutable as any).expression.right = value;
+          }
+        };
+        const updated = access.collection.filter((node) => {
+          access.use = node;
+          if (isArrowFunction(access.expression) || isFunctionExpression(access.expression)) {
+            const mixin = upgradeMixins(access.expression);
+            if (mixin !== access.expression) {
+              access.expression = mixin as FunctionExpression;
+              return true;
+            }
+          } else if (isCallExpression(access.expression)) {
+            const subUpdated = access.expression.arguments
+              .filter((initializer) => isArrowFunction(initializer) || isFunctionExpression(initializer))
+              .filter((initializer: FunctionExpression, index, args) => {
+                const mixin = upgradeMixins(initializer) as FunctionExpression;
+                if (mixin !== initializer) {
+                  args[ index ] = mixin as FunctionExpression;
+                  return true;
+                }
+                return false;
+              });
+            return subUpdated.length > 0;
+          }
+          return false;
+        });
 
-        this.variables.set(component.name, component);
-        this.statements.push(component);
-        return;
-      } else if (isModuleDeclaration(statement)) {
-        const module = new Module(statement, compilerOptions, this.output, this);
-        this.variables.set(module.name, module);
-        this.statements.push(module);
-        return;
+        if (updated.length > 0) {
+          resultStatement = mutable;
+        }
+      } else if (isFunctionDeclaration(statement)) {
+        resultStatement = upgradeMixins(statement) as FunctionDeclaration;
       } else if (isExportDeclaration(statement) || isExportAssignment(statement)) {
+        // Do NOT push export statements (allow exceptions for P3 and ES Module based outputs)
         return;
       }
-      this.statements.push(statement);
+      this.statements.push(resultStatement);
     });
 
+    // Add found declared events events to each component found within module
     this.components.forEach((component) => component.events.push(...this.events));
+
+    if (parent) {
+      parent.variables.set(this.name, this);
+    }
   }
 
   public toString(): string {

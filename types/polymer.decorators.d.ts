@@ -79,7 +79,7 @@ declare module "twc/polymer" {
    * @template('relative/path/to/template.html')
    * class MyElement {}
    *
-   * @param tpl Template source.
+   * @param tpl Template declaration.
    */
   export function template(tpl: string): ClassDecorator;
 

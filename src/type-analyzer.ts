@@ -1,6 +1,6 @@
 import {
-  BinaryExpression, CallExpression, Expression, LiteralTypeNode, Node, PartiallyEmittedExpression, PropertyDeclaration, SyntaxKind,
-  TypeNode, TypeReferenceNode, UnionOrIntersectionTypeNode
+  BinaryExpression, createIdentifier, Expression, Identifier, LiteralTypeNode, Node, PartiallyEmittedExpression, PropertyDeclaration,
+  SyntaxKind, TypeNode, TypeReferenceNode, UnionOrIntersectionTypeNode
 } from "typescript";
 import { hasOperator, hasOperatorToken, hasOriginalKeywordKind, InitializerWrapper, notTransparent } from "./helpers";
 
@@ -10,12 +10,42 @@ import { hasOperator, hasOperatorToken, hasOriginalKeywordKind, InitializerWrapp
 export type ValidValue = string | number | boolean | object | Date | Array<any> | (() => ValidValue);
 
 /**
- * Type and value from analysing type. If the type is a Date, type Object is returned and isDate is set to true.
+ * Type of declaration
  */
-export interface TypeAndValue {
+export interface Type {
   type: SyntaxKind;
+  proto?: Identifier;
+
+}
+
+/**
+ * Type of declaration and initial value
+ */
+export interface TypeValue extends Type {
   value?: ValidValue;
-  isDate?: boolean;
+}
+
+export class Constructors {
+  public static readonly Boolean = createIdentifier("Boolean");
+  public static readonly Number = createIdentifier("Number");
+  public static readonly String = createIdentifier("String");
+  public static readonly Array = createIdentifier("Array");
+  public static readonly Object = createIdentifier("Object");
+  public static readonly Custom = (name) => createIdentifier(name);
+  public static readonly of = (type: SyntaxKind) => {
+    switch (type) {
+      case SyntaxKind.BooleanKeyword:
+        return Constructors.Boolean;
+      case SyntaxKind.NumberKeyword:
+        return Constructors.Number;
+      case SyntaxKind.StringKeyword:
+        return Constructors.String;
+      case SyntaxKind.ArrayType:
+        return Constructors.Array;
+      default:
+        return Constructors.Object;
+    }
+  }
 }
 
 /**
@@ -25,17 +55,17 @@ export interface TypeAndValue {
  *
  * @returns Reduced expression kind
  */
-export function parseUnionOrIntersectionType(expr: UnionOrIntersectionTypeNode): SyntaxKind {
+export function getUnionOrIntersectionKind(expr: UnionOrIntersectionTypeNode): Type {
   if (!expr.types) {
-    return SyntaxKind.Unknown;
+    return { type: SyntaxKind.Unknown };
   }
 
   return (expr.types as Array<TypeNode>)
     .filter(notTransparent)
     .map(getSimpleKind)
     .reduce((sum, kind) => {
-      if (sum === SyntaxKind.ObjectKeyword || sum !== kind) {
-        return SyntaxKind.ObjectKeyword;
+      if (sum.proto.text !== kind.proto.text) {
+        return { type: SyntaxKind.ObjectKeyword, proto: Constructors.Object };
       } else {
         return kind;
       }
@@ -63,40 +93,41 @@ export function getFinalType(type: Node): Node {
  *
  * @returns Kind of the type
  */
-export function getSimpleKind(type: Node): SyntaxKind {
+export function getSimpleKind(type: Node): Type {
   if (!type) {
-    return SyntaxKind.Unknown;
+    return { type: SyntaxKind.Unknown };
   }
   switch (getFinalType(type).kind) {
     case undefined:
-      return SyntaxKind.Unknown;
+      return { type: SyntaxKind.Unknown };
     case SyntaxKind.NumberKeyword:
     case SyntaxKind.NumericLiteral:
-      return SyntaxKind.NumberKeyword;
+      return { type: SyntaxKind.NumberKeyword, proto: Constructors.Number };
     case SyntaxKind.BooleanKeyword:
     case SyntaxKind.TrueKeyword:
     case SyntaxKind.FalseKeyword:
-      return SyntaxKind.BooleanKeyword;
+      return { type: SyntaxKind.BooleanKeyword, proto: Constructors.Boolean };
     case SyntaxKind.ArrayType:
     case SyntaxKind.TupleType:
-      return SyntaxKind.ArrayType;
+      return { type: SyntaxKind.ArrayType, proto: Constructors.Array };
     case SyntaxKind.StringKeyword:
     case SyntaxKind.StringLiteral:
     case SyntaxKind.NoSubstitutionTemplateLiteral:
-      return SyntaxKind.StringKeyword;
+      return { type: SyntaxKind.StringKeyword, proto: Constructors.String };
     case SyntaxKind.TypeReference:
-      if ((type as TypeReferenceNode).typeName.getText() === "Array") {
-        return SyntaxKind.ArrayType;
+      const name = (type as TypeReferenceNode).typeName.getText();
+      if (name === "Array") {
+        return { type: SyntaxKind.ArrayType, proto: Constructors.Array };
       }
-      return SyntaxKind.ObjectKeyword;
+      return { type: SyntaxKind.ObjectKeyword, proto: Constructors.Custom(name) };
     case SyntaxKind.AnyKeyword:
     case SyntaxKind.VoidKeyword:
     case SyntaxKind.NeverKeyword:
     case SyntaxKind.NullKeyword:
     case SyntaxKind.UndefinedKeyword:
-      return SyntaxKind.Unknown;
+      return { type: SyntaxKind.Unknown };
     default:
-      return SyntaxKind.ObjectKeyword;
+      return { type: SyntaxKind.ObjectKeyword, proto: Constructors.Object };
   }
 }
 
@@ -107,7 +138,7 @@ export function getSimpleKind(type: Node): SyntaxKind {
  *
  * @returns Kind of the expression
  */
-export function parseExpression(expr: Expression): SyntaxKind {
+export function getExpressionKind(expr: Expression): Type {
   const numberOperators = [
     SyntaxKind.AsteriskToken,
     SyntaxKind.SlashToken,
@@ -135,24 +166,24 @@ export function parseExpression(expr: Expression): SyntaxKind {
 
   if (hasOperatorToken(expr)) {
     if (numberOperators.includes(expr.operatorToken.kind)) {
-      return SyntaxKind.NumberKeyword;
+      return { type: SyntaxKind.NumberKeyword, proto: Constructors.Number };
     } else if (booleanOperators.includes(expr.operatorToken.kind)) {
-      return SyntaxKind.BooleanKeyword;
+      return { type: SyntaxKind.BooleanKeyword, proto: Constructors.Boolean };
     } else if (expr.operatorToken.kind === SyntaxKind.PlusToken) {
-      const leftType = parseExpression(expr.left);
-      const rightType = parseExpression(expr.right);
-      if (leftType === SyntaxKind.StringKeyword || rightType === SyntaxKind.StringKeyword) {
-        return SyntaxKind.StringKeyword;
+      const leftType = getExpressionKind(expr.left);
+      const rightType = getExpressionKind(expr.right);
+      if (leftType.type === SyntaxKind.StringKeyword || rightType.type === SyntaxKind.StringKeyword) {
+        return { type: SyntaxKind.StringKeyword, proto: Constructors.String };
       } else {
-        return SyntaxKind.NumberKeyword;
+        return { type: SyntaxKind.NumberKeyword, proto: Constructors.Number };
       }
     }
   } else if (hasOperator(expr)) {
     switch (expr.operator) {
       case SyntaxKind.TildeToken:
-        return SyntaxKind.NumberKeyword;
+        return { type: SyntaxKind.NumberKeyword, proto: Constructors.Number };
       case SyntaxKind.ExclamationToken:
-        return SyntaxKind.BooleanKeyword;
+        return { type: SyntaxKind.BooleanKeyword, proto: Constructors.Boolean };
     }
   }
   return getSimpleKind(expr);
@@ -165,16 +196,16 @@ export function parseExpression(expr: Expression): SyntaxKind {
  *
  * @returns Kind of the declaration type
  */
-export function parseDeclarationType(declaration: PropertyDeclaration): SyntaxKind {
+export function getDeclarationType(declaration: PropertyDeclaration): Type {
   const { type } = declaration;
   if (!type) {
-    return SyntaxKind.Unknown;
+    return { type: SyntaxKind.Unknown };
   }
 
   switch (type.kind) {
     case SyntaxKind.UnionType:
     case SyntaxKind.IntersectionType:
-      return parseUnionOrIntersectionType(type as UnionOrIntersectionTypeNode);
+      return getUnionOrIntersectionKind(type as UnionOrIntersectionTypeNode);
     default:
       return getSimpleKind(type);
   }
@@ -187,15 +218,14 @@ export function parseDeclarationType(declaration: PropertyDeclaration): SyntaxKi
  *
  * @returns Kind of the declaration initializer and the value assigned
  */
-export function parseDeclarationInitializer(declaration: PropertyDeclaration): TypeAndValue {
+export function parseDeclarationInitializer(declaration: PropertyDeclaration): TypeValue {
   const { initializer } = declaration;
 
-  function defaultCase() {
+  function defaultCase(proto?: Identifier): TypeValue {
     const type = getSimpleKind(initializer);
-    return {
-      type,
-      value: [ SyntaxKind.ObjectKeyword, SyntaxKind.ArrayType ].includes(type) ? new InitializerWrapper(initializer) : initializer.getText()
-    };
+    const shouldWrap = [ SyntaxKind.ObjectKeyword, SyntaxKind.ArrayType ].includes(type.type);
+    const value = shouldWrap ? new InitializerWrapper(initializer) : initializer.getText();
+    return Object.assign(type, { value });
   }
 
   if (!initializer) {
@@ -204,36 +234,29 @@ export function parseDeclarationInitializer(declaration: PropertyDeclaration): T
 
   switch (hasOriginalKeywordKind(initializer) ? initializer.originalKeywordKind : initializer.kind) {
     case SyntaxKind.TrueKeyword:
-      return { type: SyntaxKind.BooleanKeyword, value: true };
+      return { type: SyntaxKind.BooleanKeyword, value: true, proto: Constructors.Boolean };
     case SyntaxKind.FalseKeyword:
-      return { type: SyntaxKind.BooleanKeyword, value: false };
+      return { type: SyntaxKind.BooleanKeyword, value: false, proto: Constructors.Boolean };
     case SyntaxKind.NumericLiteral:
-      return { type: SyntaxKind.NumberKeyword, value: Number(initializer.getText()) };
+      return { type: SyntaxKind.NumberKeyword, value: Number(initializer.getText()), proto: Constructors.Number };
     case SyntaxKind.TemplateExpression:
-      return { type: SyntaxKind.StringKeyword, value: new InitializerWrapper(initializer) };
+      return { type: SyntaxKind.StringKeyword, value: new InitializerWrapper(initializer), proto: Constructors.String };
     case SyntaxKind.ArrayLiteralExpression:
-      return { type: SyntaxKind.ArrayType, value: new InitializerWrapper(initializer) };
+      return { type: SyntaxKind.ArrayType, value: new InitializerWrapper(initializer), proto: Constructors.Array };
     case SyntaxKind.NewExpression:
-      switch ((initializer as PartiallyEmittedExpression).expression.getText()) {
-        case "Array":
-          return { type: SyntaxKind.ArrayType, value: new InitializerWrapper(initializer) };
-        case "Date":
-          return { type: SyntaxKind.ObjectKeyword, value: new InitializerWrapper(initializer), isDate: true };
-        default:
-          return defaultCase();
+      const name = (initializer as PartiallyEmittedExpression).expression.getText();
+      if (name === "Array") {
+        return { type: SyntaxKind.ArrayType, value: new InitializerWrapper(initializer), proto: Constructors.Array };
+      } else {
+        return defaultCase(Constructors.Custom(name));
       }
     case SyntaxKind.BinaryExpression:
-      return { type: parseExpression(initializer as BinaryExpression), value: new InitializerWrapper(initializer) };
+      return Object.assign(getExpressionKind(initializer as BinaryExpression), { value: new InitializerWrapper(initializer) });
     case SyntaxKind.NullKeyword:
       return { type: SyntaxKind.Unknown, value: null };
     case SyntaxKind.UndefinedKeyword:
       return { type: SyntaxKind.Unknown, value: undefined };
     case SyntaxKind.CallExpression:
-      if ((initializer as CallExpression).expression.getText().startsWith("Date.")) {
-        return { type: SyntaxKind.ObjectKeyword, value: new InitializerWrapper(initializer), isDate: true };
-      } else {
-        return defaultCase();
-      }
     default:
       return defaultCase();
   }
@@ -246,8 +269,8 @@ export function parseDeclarationInitializer(declaration: PropertyDeclaration): T
  *
  * @returns Type of declaration and initial value
  */
-export function parseDeclaration(declaration: PropertyDeclaration): TypeAndValue {
-  const implicitType = parseDeclarationType(declaration);
-  const { type, value, isDate = false } = parseDeclarationInitializer(declaration);
-  return { type: implicitType || type, value, isDate };
+export function parseDeclaration(declaration: PropertyDeclaration): TypeValue {
+  const { type: implicitType, proto: implicitProto } = getDeclarationType(declaration);
+  const { type, value, proto } = parseDeclarationInitializer(declaration);
+  return { type: implicitType || type, value, proto: implicitProto || proto };
 }

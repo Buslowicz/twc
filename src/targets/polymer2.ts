@@ -34,7 +34,7 @@ export class Polymer2 extends Polymer1 {
    * @returns Stringified component declaration
    */
   protected componentScript(component: Component): string {
-    const quote = getQuoteChar(this.module.source);
+    const quote = getQuoteChar(this.module.declaration);
     return `${component.events.join("\n")}
       class ${component.name} extends ${component.heritage} {
       ${[
@@ -59,7 +59,7 @@ export class Polymer2 extends Polymer1 {
    * @returns Stringified observers declaration
    */
   protected observers(component: Component): string {
-    const quote = getQuoteChar(this.module.source);
+    const quote = getQuoteChar(this.module.declaration);
     return component.observers.length === 0 ? "" : `static get observers() {\n return [
       ${component.observers.map((observer) => `${quote}${observer}${quote}`).join(",\n")}
     ]; }`;

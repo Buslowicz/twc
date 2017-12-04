@@ -1,12 +1,29 @@
 import { readFileSync } from "fs";
 import { dirname, resolve } from "path";
 import {
-  BinaryExpression, CallExpression, ClassDeclaration, ClassElement, ExpressionStatement, forEachChild, FunctionExpression, HeritageClause,
-  Identifier, InterfaceDeclaration, isFunctionLike, isGetAccessorDeclaration, isIdentifier, isPropertyDeclaration, isSetAccessorDeclaration,
-  JSDoc, NamedDeclaration, Node, PrefixUnaryExpression, PropertyAccessExpression, SourceFile, SyntaxKind
+  BinaryExpression, BindingName, Block, BlockLike, CallExpression, ClassDeclaration, ClassElement, ClassExpression, createArrayLiteral,
+  createBlock,
+  createGetAccessor, createIdentifier, createLiteral, createMethod, createObjectLiteral, createParameter, createPrinter,
+  createPropertyAssignment,
+  createReturn, createToken, EmitHint, EqualsToken, Expression, ExpressionStatement, forEachChild, FunctionExpression,
+  GetAccessorDeclaration, HeritageClause, Identifier, InterfaceDeclaration, isBinaryExpression, isDoStatement, isExpressionStatement,
+  isForInStatement, isForOfStatement, isForStatement, isFunctionLike, isGetAccessorDeclaration, isIdentifier, isIfStatement,
+  isPropertyDeclaration, isSetAccessorDeclaration, isSwitchStatement, isTryStatement, isWhileStatement, JSDoc, Modifier, NamedDeclaration,
+  Node, ParameterDeclaration, PrefixUnaryExpression, PropertyAccessExpression, PropertyName, ReturnStatement, SourceFile, Statement,
+  SyntaxKind, TypeParameterDeclaration
 } from "typescript";
-import { Constructor } from "../types/index";
-import { ImportedNode, Method } from "./builder";
+import { Constructor } from "../types";
+import { ImportedNode, Method, Property } from "./builder";
+
+type ClassOrInterface = ClassDeclaration | ClassExpression | InterfaceDeclaration;
+
+interface AssignmentExpression<T = Expression> extends ExpressionStatement {
+  expression: BinaryExpression & {
+    operatorToken: EqualsToken;
+    left: PropertyAccessExpression;
+    right: T
+  };
+}
 
 /**
  * List of types that do not change the overall type.
@@ -27,7 +44,8 @@ export const methodKinds = [ SyntaxKind.MethodDeclaration, SyntaxKind.Constructo
 /**
  * Mixin adding jsDoc getter
  */
-export const JSDocMixin = <TBase extends Constructor>(Base: TBase = class {} as TBase) => class extends Base {
+export const JSDocMixin = <TBase extends Constructor>(Base: TBase = class {
+} as TBase) => class extends Base {
   public declaration: Node;
 
   /** JSDoc for the method */
@@ -56,7 +74,8 @@ export const JSDocMixin = <TBase extends Constructor>(Base: TBase = class {} as 
 /**
  * Mixind adding decorators getter
  */
-export const DecoratorsMixin = <TBase extends Constructor>(Base: TBase = class {} as TBase) => class extends Base {
+export const DecoratorsMixin = <TBase extends Constructor>(Base: TBase = class {
+} as TBase) => class extends Base {
   public declaration: Node;
 
   public get decorators(): Array<ParsedDecorator> {
@@ -67,7 +86,8 @@ export const DecoratorsMixin = <TBase extends Constructor>(Base: TBase = class {
 /**
  * Mixin adding the functionality of updating identifiers of imported entities with a namespace.
  */
-export const RefUpdaterMixin = <TBase extends Constructor>(Base: TBase = class {} as TBase) => class extends Base {
+export const RefUpdaterMixin = <TBase extends Constructor>(Base: TBase = class {
+} as TBase) => class extends Base {
   protected refs?: Map<string, ImportedNode>;
   protected skipSuper?: boolean;
 
@@ -105,7 +125,8 @@ export const RefUpdaterMixin = <TBase extends Constructor>(Base: TBase = class {
  * Class holding a reference to a file. When converted to a string, the file is read and content is returned.
  */
 export class Link {
-  constructor(public uri: string, private source: Node) {}
+  constructor(public uri: string, private source: Node) {
+  }
 
   public toString() {
     return readFileSync(resolve(dirname(getRoot(this.source).fileName), this.uri)).toString();
@@ -116,7 +137,8 @@ export class Link {
  * A reference to an identifier. It will allow to get types from already visited entities.
  */
 export class Ref {
-  constructor(public ref: Identifier) {}
+  constructor(public ref: Identifier) {
+  }
 
   public toString() {
     return this.ref.getText();
@@ -195,6 +217,55 @@ export const getDecorators = (declaration: ClassElement | ClassDeclaration): Arr
 };
 
 /**
+ * Get list of all return statements for the block (including inner blocks, but not functions)
+ *
+ * @param block Block to get returns from
+ *
+ * @returns List of return type nodes
+ */
+export const getReturnStatements = (block: BlockLike | Statement | BlockLike): Array<ReturnStatement> => {
+  if (!block) {
+    return [];
+  }
+  if (isIfStatement(block)) {
+    return [
+      ...getReturnStatements(block.thenStatement),
+      ...getReturnStatements(block.elseStatement)
+    ];
+  }
+  return ((block as BlockLike).statements || [ block ] as Array<Statement>)
+    .map((node) => {
+      if (isIfStatement(node)) {
+        return [
+          ...getReturnStatements(node.thenStatement),
+          ...getReturnStatements(node.elseStatement)
+        ];
+      } else if (isTryStatement(node)) {
+        return [
+          ...getReturnStatements(node.tryBlock),
+          ...getReturnStatements(node.catchClause.block),
+          ...getReturnStatements(node.finallyBlock)
+        ];
+      } else if (
+        isForStatement(node)
+        || isDoStatement(node)
+        || isWhileStatement(node)
+        || isForInStatement(node)
+        || isForOfStatement(node)
+      ) {
+        return getReturnStatements(node.statement);
+      } else if (isSwitchStatement(node)) {
+        return node.caseBlock.clauses
+          .map(getReturnStatements)
+          .reduce((all, curr) => [ ...all, ...curr ], []);
+      }
+      return [ node ];
+    })
+    .reduce((all, curr) => [ ...all, ...curr ], [])
+    .filter((statement) => statement.kind === SyntaxKind.ReturnStatement) as Array<ReturnStatement>;
+};
+
+/**
  * Flatten mixin calls chain to an array of used mixins.
  *
  * @param expression Class extends expression
@@ -223,7 +294,7 @@ export const flatExtends = (expression: Node, refs?: Map<string, ImportedNode>):
  *
  * @returns Array of used mixin names
  */
-export const getFlatHeritage = (declaration: ClassDeclaration | InterfaceDeclaration, refs?: Map<string, ImportedNode>): Array<string> => {
+export const getFlatHeritage = (declaration: ClassOrInterface, refs?: Map<string, ImportedNode>): Array<string> => {
   if (!declaration.heritageClauses) {
     return [];
   }
@@ -246,7 +317,7 @@ export const getFlatHeritage = (declaration: ClassDeclaration | InterfaceDeclara
  *
  * @returns Whether class or interface inherits from provided class/mixin name
  */
-export const inheritsFrom = (declaration: ClassDeclaration | InterfaceDeclaration, ...names: Array<string>): boolean => {
+export const inheritsFrom = (declaration: ClassOrInterface, ...names: Array<string>): boolean => {
   if (!declaration.heritageClauses) {
     return false;
   }
@@ -361,6 +432,15 @@ export const hasOriginalKeywordKind = (expr: Node): expr is Identifier => "origi
  * @returns Whether clause is an ExtendsDeclaration
  */
 export const isExtendsDeclaration = (heritage: HeritageClause): boolean => heritage.token === SyntaxKind.ExtendsKeyword;
+
+export const isStatement = (node: any): node is Statement => "pos" in node;
+
+/**
+ * Checks if expression is an assignment expression
+ */
+export const isAssignmentExpression = <T = Expression>(expr: Node): expr is AssignmentExpression<T> => isExpressionStatement(expr)
+  && isBinaryExpression(expr.expression)
+  && expr.expression.operatorToken.kind === SyntaxKind.EqualsToken;
 
 /**
  * Checks if ClassElement is private.
@@ -544,7 +624,9 @@ export const stripQuotes = (str: string, char?: "`" | "\"" | "'"): string => {
  */
 export const flattenChildren = (node: Node): Array<Node> => {
   const list = [ node ];
-  forEachChild(node, (deep) => { list.push(...flattenChildren(deep)); });
+  forEachChild(node, (deep) => {
+    list.push(...flattenChildren(deep));
+  });
   return list;
 };
 
@@ -603,19 +685,15 @@ export const getRoot = (node: Node): SourceFile => {
  * @returns Text of source node with updated refs
  */
 export const updateImportedRefs = (src: Node, vars: Map<string, ImportedNode>): string => {
-  return flattenChildren(src)
-    .filter((node: Node) => node.constructor.name === "IdentifierObject" && (node.parent as NamedDeclaration).name !== node)
-    .filter((node) => vars.has(node.getText()))
-    .sort((a, b) => b.pos - a.pos)
-    .reduce((arr, identifier) => {
-      const text = identifier.getText();
-      return [
-        ...arr.slice(0, identifier.pos - src.pos),
-        ...identifier.getFullText().replace(text, vars.get(text).fullIdentifier),
-        ...arr.slice(identifier.end - src.pos)
-      ];
-    }, src.getFullText().split(""))
-    .join("");
+  const printer = createPrinter({ removeComments: false }, {
+    substituteNode(hint: EmitHint, node: Identifier & { parent: NamedDeclaration }) {
+      if (node.constructor.name !== "IdentifierObject" || !node.parent || node.parent.name === node || !vars.has(node.getText())) {
+        return node;
+      }
+      return createIdentifier(vars.get(node.getText()).fullIdentifier);
+    }
+  });
+  return printer.printNode(EmitHint.Unspecified, src, getRoot(src));
 };
 
 /**
@@ -626,3 +704,93 @@ export const updateImportedRefs = (src: Node, vars: Map<string, ImportedNode>): 
  * @returns URL
  */
 export const pathToURL = (path: string): string => path.replace(/\\/g, "/");
+
+export function createSimpleMethod(name: string | PropertyName,
+                                   statements: Array<Statement> | Block,
+                                   parameters: Array<ParameterDeclaration> = [],
+                                   modifiers: Array<Modifier> = [],
+                                   typeParameters: Array<TypeParameterDeclaration> = []) {
+  return createMethod(
+    [],
+    modifiers,
+    void 0,
+    name,
+    void 0,
+    typeParameters,
+    parameters,
+    void 0,
+    Array.isArray(statements) ? createBlock(statements, true) : statements
+  );
+}
+
+export function createSimpleParameter(name: string | BindingName, initializer?: Expression, optional = false) {
+  return createParameter([], [], void 0, name, optional ? createToken(SyntaxKind.QuestionToken) : void 0, void 0, initializer);
+}
+
+export const buildExpression = (expr) => {
+  if (Array.isArray(expr)) {
+    return createArrayLiteral(expr.map((e) => buildExpression(e)), true);
+  } else if (typeof expr !== "object") {
+    return createLiteral(expr);
+  } else if (expr && expr.constructor.name === "IdentifierObject") {
+    return expr;
+  } else {
+    return buildObject(expr);
+  }
+};
+
+export const buildObject = (props) => {
+  if (Array.isArray(props)) {
+    return buildExpression(props);
+  }
+  return createObjectLiteral(Object
+    .keys(props)
+    .map((key) => [ key, props[ key ] ])
+    .map(([ key, value ]) => createPropertyAssignment(key, buildExpression(value))), true);
+};
+
+export const buildProperties = (props: Array<Property>): GetAccessorDeclaration => {
+  return createGetAccessor([], [ createToken(SyntaxKind.StaticKeyword) ], "properties", [], void 0, createBlock([
+    createReturn(
+      buildObject(props.reduce((config, { name, type, value, computed, notify, observer, readOnly, reflectToAttribute }) => {
+        const prop = { type } as Property;
+        if (value !== undefined) {
+          prop.value = value;
+        }
+        if (computed) {
+          prop.computed = computed;
+        }
+        if (notify) {
+          prop.notify = true;
+        }
+        if (observer) {
+          prop.observer = observer;
+        }
+        if (readOnly) {
+          prop.readOnly = true;
+        }
+        if (reflectToAttribute) {
+          prop.reflectToAttribute = true;
+        }
+        if (Object.keys(prop).length === 1) {
+          config[ name ] = type;
+        } else {
+          config[ name ] = prop;
+        }
+        return config;
+      }, {}))
+    )
+  ], true));
+};
+
+export const buildObservers = (methods: Array<{ name: Node, args: Array<Node>, isComplex: boolean }>): GetAccessorDeclaration => {
+  return createGetAccessor([], [ createToken(SyntaxKind.StaticKeyword) ], "observers", [], void 0, createBlock([
+    createReturn(
+      buildObject(
+        methods
+          .filter(({ isComplex }) => isComplex)
+          .map(({ name, args }) => `${name.getText()}(${args.map((arg: Identifier) => arg.text).join(", ")})`)
+      )
+    )
+  ], true));
+};
