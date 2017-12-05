@@ -1,6 +1,3 @@
-/// <reference path="polymer.d.ts"/>
-/// <reference path="polymer.decorators.d.ts"/>
-
 import { CompilerOptions, JSDoc } from "typescript";
 
 export interface Constructor<T = {}> {
