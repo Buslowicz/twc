@@ -1,5 +1,3 @@
-/// <reference path="polymer.d.ts"/>
-
 declare module "twc/polymer" {
   /**
    * Polymer property configuration interface.
@@ -59,11 +57,6 @@ declare module "twc/polymer" {
 
   /**
    * Register the class as a component.
-   *
-   * @deprecated Please include `twc/decorators/polymer.d.ts` for decorators types instead of `twc/types/polymer.decorators.d.ts`.
-   * It will require you to add polymer types, if by the time you read this there are no official types please use `polymer2-types` package.
-   * To read more about that issue please see https://github.com/Draccoz/twc/issues/121 .
-   * @see https://github.com/Draccoz/twc/issues/121
    *
    * @example
    * @CustomElement()
