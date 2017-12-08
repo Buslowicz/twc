@@ -23,6 +23,11 @@ export interface Repository {
   url: string;
 }
 
+export interface TwcConfig {
+  compileTo: CompileTarget;
+  repositories: { [repoName: string]: string };
+}
+
 export interface TSConfig {
   compilerOptions: CompilerOptions;
   include: Array<string>;
