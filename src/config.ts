@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from "fs";
 import { basename, dirname, join, relative, resolve } from "path";
 import {
-  BlockLike, CompilerOptions, createProgram, findConfigFile, isClassDeclaration, isFunctionLike, isInterfaceDeclaration,
+  BlockLike, CompilerOptions, convertCompilerOptionsFromJson, createProgram, findConfigFile, isClassDeclaration, isFunctionLike,
+  isInterfaceDeclaration,
   isVariableStatement, NamedDeclaration, parseCommandLine, readConfigFile, SourceFile, SyntaxKind, sys, VariableStatement
 } from "typescript";
 import { BowerConfig, BowerRc, CompileTarget, HasJSDoc, NPMConfig, TSConfig } from "../types/index";
@@ -93,7 +94,7 @@ const bower: BowerConfig = readConfigFile(join(projectRoot, "bower.json"), readF
 const npm: NPMConfig = readConfigFile(join(projectRoot, "package.json"), readFileAsString).config || {};
 const tsConfig: TSConfig = readConfigFile(tsConfigPath, readFileAsString).config || {};
 
-const { compilerOptions = {}, exclude = [], files: inputFiles = [], include = [] } = tsConfig;
+const { compilerOptions: tsConfigOptions = {}, exclude = [], files: inputFiles = [], include = [] } = tsConfig;
 
 const compileTo: CompileTarget = `Polymer${((bower.dependencies || {})[ "polymer" ] || "").match(/\d/) || 2}` as any;
 
@@ -108,7 +109,11 @@ const twcOverrides: CompilerOptions = {
   sourceMap: false
 };
 
-Object.assign(compilerOptions, options, twcOverrides);
+const { options: compilerOptions } = convertCompilerOptionsFromJson(
+  Object.assign({}, tsConfigOptions, options, twcOverrides),
+  dirname(tsConfigPath),
+  basename(tsConfigPath)
+);
 
 /**
  * Get name, type and namespace of a statement
