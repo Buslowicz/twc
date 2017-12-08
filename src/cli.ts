@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { existsSync, mkdirSync, readFileSync, watchFile, writeFileSync } from "fs";
-import { dirname, join } from "path";
+import { dirname, join, relative } from "path";
 import { createSourceFile, MapLike, SourceFile } from "typescript";
 import { Module } from "./builder";
 import { cache, cli, compilerOptions, compileTo, errors, files, outPath, twc } from "./config";
@@ -35,7 +35,9 @@ function ensurePath(path: string) {
 function emitFile(fileName: string) {
   const source: SourceFile = createSourceFile(fileName, readFileSync(fileName).toString(), compilerOptions.target, true);
   cache.update(source);
-  writeFileSync(ensurePath(outPath(fileName.replace(/.ts$/, ".html"))), new Module(source, compilerOptions, compileTo).toString());
+  const path = relative(process.cwd(), outPath(fileName.replace(/.ts$/, ".html")));
+
+  writeFileSync(ensurePath(path), new Module(source, compilerOptions, compileTo).toString());
 }
 
 /**

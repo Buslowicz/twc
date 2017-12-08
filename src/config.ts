@@ -5,7 +5,7 @@ import {
   isInterfaceDeclaration,
   isVariableStatement, NamedDeclaration, parseCommandLine, readConfigFile, SourceFile, SyntaxKind, sys, VariableStatement
 } from "typescript";
-import { BowerConfig, BowerRc, CompileTarget, HasJSDoc, NPMConfig, TSConfig } from "../types/index";
+import { BowerConfig, BowerRc, CompileTarget, HasJSDoc, NPMConfig, TSConfig, TwcConfig } from "../types/index";
 import { isOfKind, isOneOf, pathToURL } from "./helpers";
 
 export interface StatementMetaData {
@@ -89,6 +89,7 @@ if (!tsConfigPath) {
 
 const projectRoot = dirname(tsConfigPath);
 
+const twcConfig: TwcConfig = readConfigFile(join(projectRoot, "twc.config.json"), readFileAsString).config || {};
 const bowerRc: BowerRc = readConfigFile(join(projectRoot, ".bowerrc"), readFileAsString).config || {};
 const bower: BowerConfig = readConfigFile(join(projectRoot, "bower.json"), readFileAsString).config || {};
 const npm: NPMConfig = readConfigFile(join(projectRoot, "package.json"), readFileAsString).config || {};
@@ -96,13 +97,13 @@ const tsConfig: TSConfig = readConfigFile(tsConfigPath, readFileAsString).config
 
 const { compilerOptions: tsConfigOptions = {}, exclude = [], files: inputFiles = [], include = [] } = tsConfig;
 
-const compileTo: CompileTarget = `Polymer${((bower.dependencies || {})[ "polymer" ] || "").match(/\d/) || 2}` as any;
+const compileTo = twcConfig.compileTo || `Polymer${((bower.dependencies || {})[ "polymer" ] || "").match(/\d/) || 2}` as CompileTarget;
 
-const paths = {
+const paths = Object.assign({
   npm: process.env.npmDir || "node_modules",
   bower: process.env.bowerDir || bowerRc.directory || "..",
   yarn: process.env.yarnDir || "node_modules"
-};
+}, twcConfig.repositories || {});
 
 // Some features are not yet supported in twc. To not let them break anything or mess up, we need to disable them upfront.
 const twcOverrides: CompilerOptions = {
