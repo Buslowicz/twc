@@ -607,8 +607,12 @@ export class Component extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
 
     const fileName = getRoot(this.declaration).fileName;
     const implicitTemplateName = `${parse(fileName).name}.html`;
+    const implicitStyleName = `${parse(fileName).name}.css`;
     if (!this.template && existsSync(resolve(dirname(fileName), implicitTemplateName))) {
       this.template = Template.fromLink(new Link(implicitTemplateName, declaration as Node));
+    }
+    if (!this.styles.length && existsSync(resolve(dirname(fileName), implicitStyleName))) {
+      this.styles.push(new Style(new Link(implicitStyleName, declaration as Node)));
     }
     if (variables) {
       variables.set(this.name, this);
