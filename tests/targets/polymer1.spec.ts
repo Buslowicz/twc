@@ -11,7 +11,7 @@ use(chaiString);
 describe("Polymer v1 output", () => {
   function transpile(tpl: string) {
     const component = (target: "ES5" | "ES2015") => {
-      const compilerOptions: CompilerOptions = { target: ScriptTarget[ target ], module: ModuleKind.ES2015 };
+      const compilerOptions: CompilerOptions = { target: ScriptTarget[ target ], module: ModuleKind.ES2015, noEmitHelpers: true };
       const source: SourceFile = createSourceFile("sample.ts", tpl, compilerOptions.target, true);
       return new Module(source, compilerOptions, "Polymer1").toString();
     };
@@ -422,6 +422,77 @@ describe("Polymer v1 output", () => {
           </script>
         </dom-module>`
       );
+    });
+  });
+  describe("should compile components with async methods and await inside methods", () => {
+    const component = transpile(`
+    import 'polymer:polymer.html';
+    import { CustomElement } from 'twc/polymer';
+
+    @CustomElement()
+    export class MyElement extends Polymer.Element {
+      async ready() {
+        await this._initialize();
+      }
+
+      async _initialize() {
+        return new Promise((res) => setTimeout(res, 1000, true));
+      }
+    }`);
+
+    it("es5", () => {
+      expect(component.es5).to.equalIgnoreSpaces(`
+        <link rel="import" href="../polymer/polymer.html">
+        <dom-module id="my-element">
+          <script>
+            var MyElement = Polymer({
+              is: 'my-element',
+              ready: function() {
+                return __awaiter(this, void 0, void 0, function() {
+                  return __generator(this, function(_a) {
+                    switch (_a.label) {
+                      case 0:
+                        return [4 /*yield*/ , this._initialize()];
+                      case 1:
+                        _a.sent();
+                        return [2 /*return*/ ];
+                    }
+                  });
+                });
+              },
+              _initialize: function() {
+                return __awaiter(this, void 0, void 0, function() {
+                  return __generator(this, function(_a) {
+                    return [2 /*return*/ , new Promise(function(res) {
+                      return setTimeout(res, 1000, true);
+                    })];
+                  });
+                });
+              }
+            });
+          </script>
+        </dom-module>`);
+    });
+    it("es6", () => {
+      expect(component.es6).to.equalIgnoreSpaces(`
+        <link rel="import" href="../polymer/polymer.html">
+        <dom-module id="my-element">
+          <script>
+            const MyElement = Polymer({
+              is: 'my-element',
+              ready() {
+                return __awaiter(this, void 0, void 0, function*() {
+                  yield this._initialize();
+                });
+              },
+              _initialize() {
+                return __awaiter(this, void 0, void 0, function*() {
+                  return new Promise((res) => setTimeout(res, 1000, true));
+                });
+              }
+            });
+          </script>
+        </dom-module>`);
     });
   });
   describe("should create a valid properties configuration", () => {

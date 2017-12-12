@@ -359,6 +359,10 @@ export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     return isGetAccessorDeclaration(this.declaration) && "get " || isSetAccessorDeclaration(this.declaration) && "set " || "";
   }
 
+  public get async() {
+    return this.declaration.modifiers && this.declaration.modifiers.some(({kind}) => kind === SyntaxKind.AsyncKeyword) ? "async " : "";
+  }
+
   /** Method arguments list */
   public get arguments(): Array<string> {
     if (isFunctionLike(this.declaration) && this.declaration.parameters) {
@@ -470,7 +474,7 @@ export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   }
 
   public toString() {
-    return `${this.accessor}${this.name}(${this.arguments.join(", ")}) { ${this.statements.join("\n")} }`;
+    return `${this.accessor}${this.async}${this.name}(${this.arguments.join(", ")}) { ${this.statements.join("\n")} }`;
   }
 }
 
