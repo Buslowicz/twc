@@ -1626,6 +1626,93 @@ describe("Polymer v2 output", () => {
       );
     });
   });
+  describe("should compile components with async methods and await inside methods", () => {
+    const component = transpile(`
+    import 'polymer:polymer.html';
+    import { CustomElement } from 'twc/polymer';
+
+    @CustomElement()
+    export class MyElement extends Polymer.Element {
+      async ready() {
+        await this._initialize();
+      }
+
+      async _initialize() {
+        return new Promise((res) => setTimeout(res, 1000, true));
+      }
+    }`);
+
+    it("es5", () => {
+      expect(component.es5).to.equalIgnoreSpaces(`
+        <link rel="import" href="../polymer/polymer.html">
+        <dom-module id="my-element">
+          <script>
+            var MyElement = (function(_super) {
+              __extends(MyElement, _super);
+
+              function MyElement() {
+                return _super !== null && _super.apply(this, arguments) || this;
+              }
+              Object.defineProperty(MyElement, "is", {
+                get: function() {
+                  return 'my-element';
+                },
+                enumerable: true,
+                configurable: true
+              });
+              MyElement.prototype.ready = function() {
+                return __awaiter(this, void 0, void 0, function() {
+                  return __generator(this, function(_a) {
+                    switch (_a.label) {
+                      case 0:
+                        return [4 /*yield*/ , this._initialize()];
+                      case 1:
+                        _a.sent();
+                        return [2 /*return*/ ];
+                    }
+                  });
+                });
+              };
+              MyElement.prototype._initialize = function() {
+                return __awaiter(this, void 0, void 0, function() {
+                  return __generator(this, function(_a) {
+                    return [2 /*return*/ , new Promise(function(res) {
+                      return setTimeout(res, 1000, true);
+                    })];
+                  });
+                });
+              };
+              return MyElement;
+            }(Polymer.Element));
+            customElements.define(MyElement.is, MyElement);
+          </script>
+        </dom-module>`);
+    });
+    it("es6", () => {
+      expect(component.es6).to.equalIgnoreSpaces(`
+        <link rel="import" href="../polymer/polymer.html">
+        <dom-module id="my-element">
+          <script>
+            class MyElement extends Polymer.Element {
+              static get is() {
+                return 'my-element';
+              }
+              ready() {
+                return __awaiter(this, void 0, void 0, function*() {
+                  yield this._initialize();
+                });
+              }
+              _initialize() {
+                return __awaiter(this, void 0, void 0, function*() {
+                  return new Promise((res) => setTimeout(res, 1000, true));
+                });
+              }
+            }
+            customElements.define(MyElement.is, MyElement);
+          </script>
+        </dom-module>`);
+    });
+  });
   describe("should create a valid properties configuration", () => {
     const component = transpile(`
       import { CustomElement, attr, notify } from "twc/polymer";
