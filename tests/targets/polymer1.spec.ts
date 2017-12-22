@@ -51,6 +51,12 @@ describe("Polymer v1 output", () => {
     expect(transpile(`import './path/script.js';`).es5)
       .to.equal(`<script src="./path/script.js"></script>\n`);
 
+    expect(transpile(`import './path/style.css';`).es5)
+      .to.equal(`<link rel="stylesheet" href="./path/style.css">\n`);
+
+    expect(transpile(`import './path/component.html';`).es5)
+      .to.equal(`<link rel="import" href="./path/component.html">\n`);
+
     expect(transpile(`import "./module";`).es5)
       .to.equal(`<link rel="import" href="./module.html">\n`);
 

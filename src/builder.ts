@@ -97,6 +97,8 @@ export class Import {
         return `<script src="${this.resolveModule()}"></script>`;
       case ".css":
         return `<link rel="stylesheet" href="${this.resolveModule()}">`;
+      case ".html":
+        return `<link rel="import" href="${this.resolveModule()}">`;
       default:
         return `<link rel="import" href="${this.resolveModule(".html")}">`;
     }
