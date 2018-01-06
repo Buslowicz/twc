@@ -873,6 +873,44 @@ describe("Polymer v1 output", () => {
       );
     });
   });
+  describe("should not emit types and declarations", () => {
+    const component = transpile(`
+      import { CustomElement } from "twc/polymer";
+
+      declare var A: any
+      declare let B: any
+      declare const C: any
+      declare const D: Array<number>;
+      declare function E() {}
+
+      interface F {
+        a: string;
+      }
+
+      type G = number | string;
+
+      @CustomElement()
+      export class MyElement extends Polymer.Element {}`);
+
+    it("es5", () => {
+      expect(component.es5).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <script>
+            var MyElement = Polymer({ is: "my-element" });
+          </script>
+        </dom-module>`
+      );
+    });
+    it("es6", () => {
+      expect(component.es6).to.equalIgnoreSpaces(`
+        <dom-module id="my-element">
+          <script>
+            const MyElement = Polymer({ is: "my-element" });
+          </script>
+        </dom-module>`
+      );
+    });
+  });
   describe("should wrap code in a namespace if desired", () => {
     const component = transpile(`
       import { CustomElement } from "twc/polymer";
