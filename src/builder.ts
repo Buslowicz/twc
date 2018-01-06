@@ -967,6 +967,9 @@ export class Module {
         };
         const updated = access.collection.filter((node) => {
           access.use = node;
+          if (!access.expression) {
+            return false;
+          }
           if (isArrowFunction(access.expression) || isFunctionExpression(access.expression)) {
             const mixin = upgradeMixins(access.expression);
             if (mixin !== access.expression) {
