@@ -73,7 +73,9 @@ export class Polymer1 {
     const { body, component, imports } = this;
     const script = body ? `<script>${transpileModule(body, { compilerOptions }).outputText}</script>` : "";
 
-    return `${imports.join("\n")}${component ? `${component.htmlDoc}
+    return `${imports
+      .filter((statement) => statement.imports.length === 0 || statement.imports.some((asset) => asset.emits))
+      .join("\n")}${component ? `${component.htmlDoc}
     <dom-module id="${component.config.name || component.name.replace(/([A-Z])/g, (_, l, i) => (i ? "-" : "") + l.toLowerCase())}">${
       component.template ? `
       <template${component.config.stripWhitespace ? " strip-whitespace" : ""}>
