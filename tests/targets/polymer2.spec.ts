@@ -2074,7 +2074,7 @@ describe("Polymer v2 output", () => {
             [
               "IronResizableBehavior", {
               name: "IronResizableBehavior",
-              type: "InterfaceDeclaration",
+              type: "VariableDeclaration",
               namespace: "Polymer"
             }
             ]

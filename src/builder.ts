@@ -42,14 +42,23 @@ export class ImportedNode {
     return this.bindings.name.getText();
   }
 
-  constructor(public readonly bindings: ImportSpecifier | NamespaceImport, public readonly importClause: Import) {
-  }
-
   /** Imported entity name with namespace */
   public get fullIdentifier() {
     const cachedModule = cache.modules.get(this.importClause.module);
     const cachedBindings = cachedModule ? cachedModule.get(this.bindings.name.getText()) : null;
     return `${cachedBindings && cachedBindings.namespace ? `${cachedBindings.namespace}.` : ""}${this.bindings.name.getText()}`;
+  }
+
+  public get emits() {
+    const cachedModule = cache.modules.get(this.importClause.module);
+    const cachedBindings = cachedModule ? cachedModule.get(this.bindings.name.getText()) : null;
+    if (!cachedBindings) {
+      return true;
+    }
+    return ![ "InterfaceDeclaration", "TypeAliasDeclaration" ].includes(cachedBindings.type);
+  }
+
+  constructor(public readonly bindings: ImportSpecifier | NamespaceImport, public readonly importClause: Import) {
   }
 }
 
@@ -333,7 +342,18 @@ export class Property extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     }
     const props = [ "readOnly", "reflectToAttribute", "notify", "computed", "observer" ];
 
-    const type = this.type || { text: "Object" };
+    let type = { text: "Object" };
+    if (this.type && ([
+      "Boolean",
+      "Number",
+      "String",
+      "Array",
+      "Object",
+      "Date"
+    ].includes(this.type.text) || this.refs && (this.refs.get(this.type.text) || { emits: false }).emits)) {
+      type = this.type;
+    }
+    // type = (this.refs && this.refs.get(this.type.text) || { emits: false }).emits ? { text: "Object" } : this.type;
 
     const isSimpleConfig = type && this.value === undefined && props.every((prop) => !this[ prop ]);
 
@@ -362,7 +382,7 @@ export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
   }
 
   public get async() {
-    return this.declaration.modifiers && this.declaration.modifiers.some(({kind}) => kind === SyntaxKind.AsyncKeyword) ? "async " : "";
+    return this.declaration.modifiers && this.declaration.modifiers.some(({ kind }) => kind === SyntaxKind.AsyncKeyword) ? "async " : "";
   }
 
   /** Method arguments list */
@@ -439,9 +459,11 @@ export class Method extends RefUpdaterMixin(JSDocMixin(DecoratorsMixin())) {
     }
   }
 
-  constructor(public readonly declaration: FunctionLikeDeclaration | Expression,
-              public readonly name = "function",
-              public args?: Array<Identifier>) {
+  constructor(
+    public readonly declaration: FunctionLikeDeclaration | Expression,
+    public readonly name = "function",
+    public args?: Array<Identifier>
+  ) {
     super();
   }
 
@@ -923,10 +945,12 @@ export class Module {
   /** Map of variable identifiers to variables */
   public readonly variables: Map<string, ImportedNode | any> = new Map();
 
-  constructor(public readonly declaration: SourceFile | ModuleDeclaration,
-              public readonly compilerOptions: CompilerOptions,
-              public readonly output: "Polymer1" | "Polymer2",
-              public readonly parent: Module = null) {
+  constructor(
+    public readonly declaration: SourceFile | ModuleDeclaration,
+    public readonly compilerOptions: CompilerOptions,
+    public readonly output: "Polymer1" | "Polymer2",
+    public readonly parent: Module = null
+  ) {
     (isModuleDeclaration(declaration) ? declaration.body as ModuleBlock : declaration).statements.forEach((statement) => {
       let resultStatement: Statement | Component | Import | Module = statement;
       if (isImportDeclaration(statement)) { // Handling import statements

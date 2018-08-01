@@ -709,7 +709,7 @@ describe("builders", () => {
       t3: string;
       private helper: string;
       undef = undefined;
-      custom: CustomObject = new CustomObject();
+      // custom: CustomObject = new CustomObject();
       called: boolean = someFunc();
       /** Some test property */
       test1: Date = Date.now();
@@ -721,7 +721,7 @@ describe("builders", () => {
       testFun() { return 10; }
     }`));
 
-      expect(element[ "properties" ].size).to.equal(11);
+      expect(element[ "properties" ].size).to.equal(10);
       expect(element[ "methods" ].size).to.equal(2);
 
       expect(Array.from(element[ "properties" ].values()).map((prop) => `${prop.jsDoc}${prop.name}: ${prop}`)).to.deep.equal([
@@ -729,7 +729,7 @@ describe("builders", () => {
         "t2: { type: String,value: \"test\" }",
         "t3: String",
         "undef: Object",
-        "custom: { type: CustomObject,value: function () {\nreturn new CustomObject();\n} }",
+        // "custom: { type: CustomObject,value: function () {\nreturn new CustomObject();\n} }",
         "called: { type: Boolean,value: function () {\nreturn someFunc();\n} }",
         "/** Some test property */\ntest1: { type: Date,value: function () {\nreturn Date.now();\n} }",
         "test2: { type: Date,value: function () {\nreturn new Date();\n} }",

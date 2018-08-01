@@ -64,6 +64,129 @@ describe("Polymer v1 output", () => {
       .to.equal(`<link rel="import" href="../module.html">\n`);
 
   });
+  describe("should handle emit-less imports (types and interfaces)", () => {
+    let cachedFiles;
+    before(() => {
+      cachedFiles = cache.files;
+      cache.files = new Map([
+        [
+          "sample.file", new Map([
+          [
+            "bower:my-interface/my-interface.html", new Map([
+            [
+              "MyInterface", {
+              name: "MyInterface",
+              type: "InterfaceDeclaration",
+              namespace: "NS"
+            }
+            ],
+            [
+              "MyType", {
+              name: "MyType",
+              type: "TypeAliasDeclaration",
+              namespace: "NS"
+            }
+            ],
+            [
+              "Emitable", {
+              name: "Emitable",
+              type: "VariableDeclaration",
+              namespace: "NS"
+            }
+            ]
+          ])
+          ],
+          [
+            "my-interface/my-interface", new Map([
+            [
+              "MyInterface2", {
+              name: "MyInterface2",
+              type: "InterfaceDeclaration",
+              namespace: "NS"
+            }
+            ],
+            [
+              "MyType2", {
+              name: "MyType2",
+              type: "TypeAliasDeclaration",
+              namespace: "NS"
+            }
+            ],
+            [
+              "Emitable2", {
+              name: "Emitable2",
+              type: "VariableDeclaration",
+              namespace: "NS"
+            }
+            ]
+          ])
+          ]
+        ])
+        ]
+      ]);
+    });
+    after(() => {
+      cache.files = cachedFiles;
+    });
+    it("should skip type-only imports", () => {
+      const component = transpile(`
+      import { CustomElement } from "twc/polymer";
+      import { MyInterface, MyType } from "bower:my-interface/my-interface.html"
+      import { MyInterface2, MyType2 } from "my-interface/my-interface"
+
+      @CustomElement()
+      export class MyElement extends Polymer.Element {
+        prop1: MyInterface;
+        prop2: MyType;
+        prop3: MyInterface2;
+        prop4: MyType2;
+      }`);
+
+      expect(component.es5).to.equalIgnoreSpaces(`
+      <dom-module id="my-element">
+        <script>
+          var MyElement = Polymer({
+            is: "my-element",
+            properties: {
+              prop1: Object,
+              prop2: Object,
+              prop3: Object,
+              prop4: Object
+            }
+          });
+        </script>
+      </dom-module>`
+      );
+    });
+    it("should not skip imports if at least one asset is emitable", () => {
+      const component = transpile(`
+      import { CustomElement } from "twc/polymer";
+      import { MyInterface, MyType, Emitable } from "bower:my-interface/my-interface.html"
+
+      @CustomElement()
+      export class MyElement extends Polymer.Element {
+        prop1: MyInterface;
+        prop2: MyType;
+        prop3: Emitable;
+      }`);
+
+      expect(component.es5).to.equalIgnoreSpaces(`
+      <link rel="import" href="../../my-interface/my-interface.html">
+      <dom-module id="my-element">
+        <script>
+          var MyElement = Polymer({
+            is: "my-element",
+            properties: {
+              prop1: Object,
+              prop2: Object,
+              prop3: Emitable
+            }
+          });
+        </script>
+      </dom-module>`
+      );
+    });
+  });
   it("should allow components without inheritance", () => {
     const component = transpile(`
       import { CustomElement } from "twc/polymer";
